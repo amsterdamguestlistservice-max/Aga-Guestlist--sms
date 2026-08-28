@@ -1,0 +1,11 @@
+{
+  "name": "ags-guestlist-sms-backend",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "twilio": "^6.0.0"
+  }
+}
