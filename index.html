@@ -2758,6 +2758,12 @@ function handleGuestlistSubmit(e){
   document.getElementById('whatsappConfirmBtn').href = buildWhatsAppLink(payload);
   form.style.display = 'none';
   success.classList.add('is-visible');
+  // The form collapses to a much shorter confirmation box, which can leave
+  // the page scrolled past it — bring it into view so the confirmation
+  // and the WhatsApp button are immediately visible, no manual scrolling.
+  requestAnimationFrame(function(){
+    success.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
 }
 
 // PRIORITY LIST FORM SUBMIT HANDLER
@@ -2769,6 +2775,9 @@ function handlePrioritySubmit(e){
   const success = document.getElementById('prioritySuccess');
   form.style.display = 'none';
   success.classList.add('is-visible');
+  requestAnimationFrame(function(){
+    success.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
 }
 
 /* ================================================================
