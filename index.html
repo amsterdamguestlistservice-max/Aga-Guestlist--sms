@@ -909,7 +909,7 @@ button{ font-family: inherit; cursor:pointer; }
 }
 
 /* ============================================================
-   RECAPS / VENUES — shared card grid
+   VENUES / RECAP-STYLE CARD GRID (currently unused, kept for reuse)
    ============================================================ */
 .grid-3{
   max-width: var(--container);
@@ -1131,6 +1131,59 @@ button{ font-family: inherit; cursor:pointer; }
   max-width: 440px;
   margin: 0 auto 26px;
   line-height: 1.7;
+}
+
+/* ============================================================
+   FAQ
+   ============================================================ */
+.faq-list{
+  max-width: 780px;
+  margin: 0 auto;
+}
+.faq-item{
+  border-top: 1px solid var(--line);
+}
+.faq-item:last-child{
+  border-bottom: 1px solid var(--line);
+}
+.faq-item__question{
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 24px 4px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+}
+.faq-item__question-text{
+  font-family: var(--serif);
+  font-size: clamp(16px, 2vw, 19px);
+  color: var(--white);
+}
+.faq-item__icon{
+  flex-shrink: 0;
+  color: var(--gold);
+  font-size: 20px;
+  font-weight: 300;
+  line-height: 1;
+  transition: transform 0.35s var(--ease);
+}
+.faq-item.is-open .faq-item__icon{ transform: rotate(45deg); }
+.faq-item__answer{
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.5s var(--ease);
+}
+.faq-item.is-open .faq-item__answer{ max-height: 320px; }
+.faq-item__answer-inner{
+  padding: 0 4px 26px;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.75;
+  max-width: 640px;
 }
 
 /* ============================================================
@@ -1458,7 +1511,7 @@ button{ font-family: inherit; cursor:pointer; }
     <nav class="nav__links">
       <a href="#events">Events</a>
       <a href="#guestlist">Guestlist</a>
-      <a href="#recaps">Recaps</a>
+      <a href="#faq">FAQ</a>
       <a href="#venues">Venues</a>
       <a href="#partners">Partners</a>
       <a href="about.html">About</a>
@@ -1475,7 +1528,7 @@ button{ font-family: inherit; cursor:pointer; }
 <div class="mobile-menu" id="mobileMenu">
   <a href="#events">Events</a>
   <a href="#guestlist">Guestlist</a>
-  <a href="#recaps">Recaps</a>
+  <a href="#faq">FAQ</a>
   <a href="#venues">Venues</a>
   <a href="#partners">Partners</a>
   <a href="about.html">About</a>
@@ -1761,15 +1814,15 @@ button{ font-family: inherit; cursor:pointer; }
 </section>
 
 <!-- ============================================================
-     LAST NIGHT / EVENT RECAPS
+     FAQ
      ============================================================ -->
-<section class="section" id="recaps">
+<section class="section" id="faq">
   <div class="section__head reveal">
-    <span class="eyebrow">Last Night</span>
-    <h2 class="h-display">See Where Amsterdam Went Out</h2>
-    <p>A running archive of the nights we've helped fill — updated after every event.</p>
+    <span class="eyebrow">FAQ</span>
+    <h2 class="h-display">Good to Know</h2>
+    <p>Everything you'd want to know before requesting access.</p>
   </div>
-  <div class="grid-3" id="recapsGrid"><!-- rendered from RECAPS data --></div>
+  <div class="faq-list reveal" id="faqList"><!-- rendered from FAQS data --></div>
 </section>
 
 <!-- ============================================================
@@ -1936,7 +1989,7 @@ button{ font-family: inherit; cursor:pointer; }
   <div class="footer__links">
     <a href="#events">Events</a>
     <a href="#guestlist">Guestlist</a>
-    <a href="#recaps">Recaps</a>
+    <a href="#faq">FAQ</a>
     <a href="#venues">Venues</a>
     <a href="#partners">Partners</a>
     <a href="about.html">About</a>
@@ -2002,11 +2055,36 @@ const EVENTS = [
   }
 ];
 
-// Event recap entries — swap in real recap photos/videos as they come in.
-const RECAPS = [
-  { name: "Behind Closed Doors", venue: "Jimmy Woo", date: "18 July 2026", link: "#" },
-  { name: "Marble Nights", venue: "Chin Chin Club", date: "27 June 2026", link: "#" },
-  { name: "The Golden Hour", venue: "Bitterzoet", date: "14 June 2026", link: "#" }
+// FAQ entries — add or edit freely, the accordion renders however many are here.
+const FAQS = [
+  {
+    q: "How does the guestlist actually work?",
+    a: "Pick an event, fill out the request form with your details and how many people you're bringing, and submit. We review it and confirm with you directly — your name goes on the list once it's approved, not the moment you submit."
+  },
+  {
+    q: "Is there a cost to get on the guestlist?",
+    a: "Requesting guestlist access itself is free. Some events may still have a cover charge or minimum spend at the door, set by the venue — we'll let you know if that applies when we confirm your request."
+  },
+  {
+    q: "What's the dress code?",
+    a: "It varies by venue and event, but the general rule is: dress like you want to be there. Smart, put-together, no sportswear. If a specific night has stricter requirements, we'll mention it when we confirm."
+  },
+  {
+    q: "How old do I need to be?",
+    a: "18 or older for every event and every guest on your request, no exceptions. We ask for age on the form for exactly this reason."
+  },
+  {
+    q: "How many people can I bring?",
+    a: "Most requests comfortably cover a small group. If you're planning something larger, mention it in your request and we'll confirm what's possible for that specific venue and night."
+  },
+  {
+    q: "What if the guestlist is already closed or limited?",
+    a: "Some events cap the list early once demand is high — you'll see this clearly marked as \"Limited Guestlist\" or \"Guestlist Closed\" on the event itself. Requesting early is the best way to secure a spot."
+  },
+  {
+    q: "How will I know if my request is confirmed?",
+    a: "We'll reach out using the contact details you submit — usually by phone, Instagram, or WhatsApp — to confirm you're on the list before the night."
+  }
 ];
 
 // Venues where Amsterdam Guestlist Service promotes events — NOT
@@ -2113,23 +2191,27 @@ function renderEvents(){
   });
 }
 
-function renderRecaps(){
-  const grid = document.getElementById('recapsGrid');
-  grid.innerHTML = RECAPS.map(function(r){
+function renderFaqs(){
+  const list = document.getElementById('faqList');
+  list.innerHTML = FAQS.map(function(item, i){
     return (
-      '<article class="recap-card reveal">' +
-        placeholderMedia('Recap Photo / Video') +
-        '<div class="card-scrim"></div>' +
-        '<div class="card-overlay">' +
-          '<span class="card-overlay__eyebrow">' + r.date + '</span>' +
-          '<h3 class="card-overlay__title">' + r.name + '</h3>' +
-          '<p class="card-overlay__sub">' + r.venue + '</p>' +
-          '<a class="card-overlay__link" href="' + r.link + '">View Recap →</a>' +
+      '<div class="faq-item" data-faq-index="' + i + '">' +
+        '<button type="button" class="faq-item__question js-faq-toggle">' +
+          '<span class="faq-item__question-text">' + item.q + '</span>' +
+          '<span class="faq-item__icon">+</span>' +
+        '</button>' +
+        '<div class="faq-item__answer">' +
+          '<div class="faq-item__answer-inner">' + item.a + '</div>' +
         '</div>' +
-      '</article>'
+      '</div>'
     );
   }).join('');
-  observeReveal(grid.querySelectorAll('.reveal'));
+
+  list.querySelectorAll('.js-faq-toggle').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      btn.closest('.faq-item').classList.toggle('is-open');
+    });
+  });
 }
 
 // Looks up a venue's upcoming events from the single EVENTS database —
@@ -2834,7 +2916,7 @@ function observeReveal(nodeList){
   renderEvents();
   renderFeatured();
   populateEventSelect();
-  renderRecaps();
+  renderFaqs();
   renderVenues();
   renderStats();
   renderTrusted();
