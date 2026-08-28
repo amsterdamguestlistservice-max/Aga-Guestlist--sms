@@ -819,6 +819,20 @@ button{ font-family: inherit; cursor:pointer; }
 .field select:focus{ border-color: var(--gold); outline: none; }
 .field input::placeholder{ color: rgba(166,166,166,0.5); }
 
+.phone-field{
+  display:flex;
+  gap: 10px;
+}
+.phone-field select{
+  width: auto;
+  flex: 0 0 110px;
+  padding-right: 26px;
+}
+.phone-field input{
+  flex: 1;
+  min-width: 0;
+}
+
 .checkbox-row{
   display:flex;
   align-items:flex-start;
@@ -1447,6 +1461,7 @@ button{ font-family: inherit; cursor:pointer; }
       <a href="#recaps">Recaps</a>
       <a href="#venues">Venues</a>
       <a href="#partners">Partners</a>
+      <a href="about.html">About</a>
     </nav>
     <div class="nav__cta">
       <a href="#guestlist" class="btn">Get on Guestlist</a>
@@ -1463,6 +1478,7 @@ button{ font-family: inherit; cursor:pointer; }
   <a href="#recaps">Recaps</a>
   <a href="#venues">Venues</a>
   <a href="#partners">Partners</a>
+  <a href="about.html">About</a>
   <a href="#guestlist" class="btn" style="margin-top:14px;">Get on Guestlist</a>
 </div>
 
@@ -1603,7 +1619,29 @@ button{ font-family: inherit; cursor:pointer; }
         </div>
         <div class="field">
           <label for="gfPhone">Phone Number</label>
-          <input type="tel" id="gfPhone" name="phone" required autocomplete="tel">
+          <div class="phone-field">
+            <select id="gfPhoneCode" name="phoneCode">
+              <option value="+31" selected>NL +31</option>
+              <option value="+32">BE +32</option>
+              <option value="+49">DE +49</option>
+              <option value="+33">FR +33</option>
+              <option value="+44">UK +44</option>
+              <option value="+353">IE +353</option>
+              <option value="+39">IT +39</option>
+              <option value="+34">ES +34</option>
+              <option value="+351">PT +351</option>
+              <option value="+41">CH +41</option>
+              <option value="+43">AT +43</option>
+              <option value="+46">SE +46</option>
+              <option value="+47">NO +47</option>
+              <option value="+45">DK +45</option>
+              <option value="+48">PL +48</option>
+              <option value="+1">US/CA +1</option>
+              <option value="+61">AU +61</option>
+              <option value="+55">BR +55</option>
+            </select>
+            <input type="tel" id="gfPhone" name="phone" required autocomplete="tel" placeholder="6 12345678">
+          </div>
           <p class="field-error" hidden></p>
         </div>
         <div class="field">
@@ -1682,17 +1720,22 @@ button{ font-family: inherit; cursor:pointer; }
         (search: "GUESTLIST FORM SUBMIT HANDLER") with a fetch() call to
         Formspree, Supabase, Firebase, a custom API route, or an email service.
 
-        SMS NOTIFICATION — also not live yet.
-        handleGuestlistSubmit() also calls sendGuestlistSms(payload), which
-        builds the "A New Guestlist Request" text exactly as specified,
-        splits it into multiple parts if it's too long for one SMS, and
-        POSTs each part in order to SMS_BACKEND_ENDPOINT (see "SMS NOTIFICATION
-        — BACKEND REQUIRED" near the top of the script). That endpoint does
-        not exist yet — a real server-side function needs to be built there,
-        which calls an SMS provider (Twilio, MessageBird, Vonage, etc.) using
-        credentials stored only as server environment variables, never here.
-        Until that exists, SMS sending will silently fail — by design, this
-        never blocks or undoes the guestlist request itself.
+        WHATSAPP — no backend needed for this part.
+        handleGuestlistSubmit() builds a wa.me link (see buildWhatsAppLink())
+        containing the full "A New Guestlist Request" text, and points the
+        "Send via WhatsApp" button (#whatsappConfirmBtn) at it. Clicking it
+        opens WhatsApp with the message pre-filled from the GUEST'S OWN
+        number — they just tap send. No server, no linked account, nothing
+        to configure.
+
+        SAVE — this part still needs a backend.
+        handleGuestlistSubmit() also calls saveGuestlistRequest(payload),
+        which POSTs the full structured payload to SAVE_BACKEND_ENDPOINT
+        (see "SAVE GUESTLIST REQUEST — BACKEND REQUIRED" near the top of
+        the script) so it can be kept somewhere (e.g. Airtable). That
+        endpoint doesn't exist yet — until it does, this call silently
+        fails — by design, this never blocks or undoes the guestlist
+        request itself, and never affects the WhatsApp button above.
       -->
     </form>
 
@@ -1700,6 +1743,8 @@ button{ font-family: inherit; cursor:pointer; }
       <div class="form-success__mark">✓</div>
       <h4 class="h-display">Guestlist Request Received</h4>
       <p id="guestlistSuccessMsg">Your request has been received. We will review your request and contact you with confirmation.</p>
+      <a href="#" id="whatsappConfirmBtn" class="btn btn--solid" target="_blank" rel="noopener" style="margin-top:24px;">Send via WhatsApp</a>
+      <p style="margin-top:12px; font-size:12px; color:var(--muted);">Opens WhatsApp with your request ready to send — just hit send.</p>
     </div>
   </div>
 </section>
@@ -1894,6 +1939,7 @@ button{ font-family: inherit; cursor:pointer; }
     <a href="#recaps">Recaps</a>
     <a href="#venues">Venues</a>
     <a href="#partners">Partners</a>
+    <a href="about.html">About</a>
     <a href="https://www.instagram.com/amsterdam_guestlist_service/" target="_blank" rel="noopener">Instagram</a>
   </div>
   <div class="footer__bottom">© 2026 Amsterdam Guestlist Service</div>
@@ -2428,6 +2474,18 @@ function isValidEmail(value){
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+// Combines the selected dial code with the entered number into a single
+// international-format string, e.g. "+31" + "0612345678" -> "+31612345678".
+// Strips a leading 0 from the local number, since that's only meaningful
+// within the country itself, not in international format.
+function getFullPhoneNumber(){
+  const code = document.getElementById('gfPhoneCode').value;
+  let local = document.getElementById('gfPhone').value.trim();
+  local = local.replace(/[\s()-]/g, '');
+  if(local.startsWith('0')){ local = local.slice(1); }
+  return local ? code + local : '';
+}
+
 function validateGuestlistForm(form){
   let firstInvalid = null;
   function fail(inputEl, message){
@@ -2530,31 +2588,38 @@ function initGuestlistForm(){
    ================================================================ */
 
 /* ----------------------------------------------------------------
-   SMS NOTIFICATION — BACKEND REQUIRED
+   WHATSAPP — no backend needed
 
-   This is a static site with no server, so it cannot place a real SMS
-   itself. What's built here is the full, exact message logic — the
-   "A New Guestlist Request" text, in the specified format, with every
-   submitted field, automatically split into multiple parts if it's
-   too long for one SMS — plus a call to SMS_BACKEND_ENDPOINT so that
-   the moment a real backend exists there, SMS sending goes live with
-   no changes needed on this page.
+   The WhatsApp "Send via WhatsApp" button uses a plain wa.me link with
+   the request pre-filled as the message text. Clicking it opens
+   WhatsApp (app or web) already addressed to AGS_WHATSAPP_NUMBER with
+   the message ready — the guest just taps send, from their own
+   WhatsApp account. No server, no linked account, no API keys.
+   ---------------------------------------------------------------- */
+const AGS_WHATSAPP_NUMBER = '31644948562'; // no "+", no spaces — wa.me's required format
+
+/* ----------------------------------------------------------------
+   SAVE GUESTLIST REQUEST — BACKEND REQUIRED
+
+   This is a static site with no server, so it cannot save the request
+   anywhere by itself. This calls SAVE_BACKEND_ENDPOINT with the full
+   structured payload so that the moment a real backend exists there,
+   saving goes live with no changes needed on this page.
 
    To make it live:
      1. Build a small server-side endpoint (Node/Express, a Vercel or
         Netlify function, a Cloudflare Worker, etc.) at the path in
-        SMS_BACKEND_ENDPOINT below, accepting POST { to, message }.
-     2. Inside that endpoint (never in this file), call your SMS
-        provider's API — Twilio, MessageBird, Vonage, etc. — using
-        credentials stored only as server environment variables.
-     3. Have it send exactly one SMS per request and return { ok: true }.
+        SAVE_BACKEND_ENDPOINT below, accepting POST { payload, timestamp }.
+     2. Inside that endpoint (never in this file), save "payload" (the
+        structured guestlist request) wherever you want it kept —
+        Airtable, a spreadsheet, a database, etc.
+     3. Return { ok: true } once saved.
 
-   Until that endpoint exists, these calls fail silently (caught below)
-   and — by design — never block or undo the guestlist request itself.
+   Until that endpoint exists, this call fails silently (caught below)
+   and — by design — never blocks or undoes the guestlist request itself,
+   and never affects the WhatsApp button above.
    ---------------------------------------------------------------- */
-const SMS_BACKEND_ENDPOINT = '/api/send-guestlist-sms';
-const SMS_RECIPIENT = '+31644948562';
-const SMS_MAX_PART_LENGTH = 140; // leaves room for the "(Part X/Y)" prefix under the ~160-char single-SMS limit
+const SAVE_BACKEND_ENDPOINT = '/api/save-guestlist-request';
 
 function formatDateReadable(dateStr){
   const d = new Date(dateStr + 'T00:00:00');
@@ -2571,7 +2636,7 @@ function formatTimestamp(date){
 
 // Builds the exact "A New Guestlist Request" text, including every
 // field submitted through the form, in the required order.
-function buildGuestlistSmsBody(payload, timestampStr){
+function buildGuestlistMessageBody(payload, timestampStr){
   const lines = [];
   lines.push('A New Guestlist Request');
   lines.push('EVENT:');
@@ -2608,67 +2673,34 @@ function buildGuestlistSmsBody(payload, timestampStr){
   return lines.join('\n');
 }
 
-// Splits a long message into ordered parts, each under maxLen, breaking
-// on line boundaries where possible so a field is never cut mid-word
-// unless a single line alone exceeds maxLen. When more than one part
-// is produced, each is prefixed "(Part X/Y)" so order stays clear
-// across separate SMS messages.
-function splitSmsMessage(fullText, maxLen){
-  const lines = fullText.split('\n');
-  const rawChunks = [];
-  let current = '';
-
-  lines.forEach(function(line){
-    const candidate = current ? current + '\n' + line : line;
-    if(candidate.length > maxLen){
-      if(current){ rawChunks.push(current); current = ''; }
-      if(line.length > maxLen){
-        let remaining = line;
-        while(remaining.length > maxLen){
-          rawChunks.push(remaining.slice(0, maxLen));
-          remaining = remaining.slice(maxLen);
-        }
-        current = remaining;
-      } else {
-        current = line;
-      }
-    } else {
-      current = candidate;
-    }
-  });
-  if(current){ rawChunks.push(current); }
-
-  if(rawChunks.length <= 1){ return rawChunks; }
-
-  return rawChunks.map(function(chunk, i){
-    return '(Part ' + (i + 1) + '/' + rawChunks.length + ')\n' + chunk;
-  });
+// Builds a wa.me "click to chat" link with the full guestlist request
+// pre-filled as the message text. Opening this link (or clicking the
+// "Send via WhatsApp" button, which is pointed at it) opens WhatsApp
+// with the message ready — the guest only needs to tap send, from
+// their own WhatsApp account. No backend involved.
+function buildWhatsAppLink(payload){
+  const timestamp = formatTimestamp(new Date());
+  const message = buildGuestlistMessageBody(payload, timestamp);
+  return 'https://wa.me/' + AGS_WHATSAPP_NUMBER + '?text=' + encodeURIComponent(message);
 }
 
-// Sends exactly one SMS notification (as one or more ordered parts) for
-// a successful guestlist request. Never throws — a failed or missing
-// backend must never affect the already-accepted guestlist request.
-async function sendGuestlistSms(payload){
+// Saves the guestlist request to the backend (e.g. so it lands in
+// Airtable). Never throws — a failed or missing backend must never
+// affect the already-accepted guestlist request, and never affects
+// the WhatsApp button, which works independently of this call.
+async function saveGuestlistRequest(payload){
   try {
     const timestamp = formatTimestamp(new Date());
-    const fullMessage = buildGuestlistSmsBody(payload, timestamp);
-    const parts = splitSmsMessage(fullMessage, SMS_MAX_PART_LENGTH);
-
-    for(let i = 0; i < parts.length; i++){
-      try {
-        await fetch(SMS_BACKEND_ENDPOINT, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ to: SMS_RECIPIENT, message: parts[i] })
-        });
-      } catch(err){
-        console.warn('SMS notification failed to send (part ' + (i + 1) + '/' + parts.length + ').', err);
-      }
-    }
+    await fetch(SAVE_BACKEND_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ payload: payload, timestamp: timestamp })
+    });
   } catch(err){
-    console.warn('Could not prepare SMS notification.', err);
+    console.warn('Could not save guestlist request.', err);
   }
 }
+
 
 // GUESTLIST FORM SUBMIT HANDLER
 // Client-side only — no data is sent anywhere yet. On success this builds
@@ -2702,7 +2734,7 @@ function handleGuestlistSubmit(e){
       lastName: document.getElementById('gfLastName').value.trim(),
       age: document.getElementById('gfAge').value.trim(),
       instagram: document.getElementById('gfInstagram').value.trim(),
-      phone: document.getElementById('gfPhone').value.trim(),
+      phone: getFullPhoneNumber(),
       email: document.getElementById('gfEmail').value.trim()
     },
     additionalGuests: getAdditionalGuestValues(),
@@ -2713,16 +2745,17 @@ function handleGuestlistSubmit(e){
   // fetch('/api/guestlist-request', { method: 'POST', body: JSON.stringify(payload) });
   console.log('Guestlist request payload', payload);
 
-  // Send the SMS notification. Not awaited on purpose: the guestlist
-  // request above is already accepted, and a slow or failing SMS call
-  // (there's no backend behind SMS_BACKEND_ENDPOINT yet — see the
-  // comment above sendGuestlistSms()) must never delay or block the
+  // Save the request to the backend. Not awaited on purpose: the
+  // guestlist request above is already accepted, and a slow or failing
+  // call (there's no backend behind SAVE_BACKEND_ENDPOINT yet — see the
+  // comment above saveGuestlistRequest()) must never delay or block the
   // confirmation the guest sees next.
-  sendGuestlistSms(payload);
+  saveGuestlistRequest(payload);
 
   const success = document.getElementById('guestlistSuccess');
   document.getElementById('guestlistSuccessMsg').innerHTML =
     'Your request for <strong>' + ev.name + '</strong> has been received. We will review your request and contact you with confirmation.';
+  document.getElementById('whatsappConfirmBtn').href = buildWhatsAppLink(payload);
   form.style.display = 'none';
   success.classList.add('is-visible');
 }
