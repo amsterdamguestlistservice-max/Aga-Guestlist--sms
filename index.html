@@ -2406,13 +2406,23 @@ function guestlistBadge(status){
   return '';
 }
 
+// Returns EVENTS sorted chronologically (soonest first), by date then
+// time. This is the single source of ordering used everywhere events
+// are listed, so adding a new event to EVENTS in any position always
+// displays in the right order automatically — no manual reordering needed.
+function getSortedEvents(){
+  return EVENTS.slice().sort(function(a, b){
+    return new Date(a.date + 'T' + a.time) - new Date(b.date + 'T' + b.time);
+  });
+}
+
 function renderEvents(){
   const grid = document.getElementById('eventsGrid');
-  grid.innerHTML = EVENTS.map(function(ev, i){
+  grid.innerHTML = getSortedEvents().map(function(ev){
     const closed = ev.guestlistStatus === 'closed';
     const guestlistBtn = closed
       ? '<button class="btn btn--ghost" disabled>Guestlist Closed</button>'
-      : '<button class="btn btn--solid js-guestlist-cta" data-event="' + i + '">👥 Get on the Guestlist</button>';
+      : '<button class="btn btn--solid js-guestlist-cta" data-event="' + ev.name + '">👥 Get on the Guestlist</button>';
     const ticketBtn = ev.ticketUrl && ev.ticketUrl !== '#'
       ? '<a class="btn btn--ghost" href="' + ev.ticketUrl + '" target="_blank" rel="noopener">🎟️ Buy Tickets</a>'
       : '<a class="btn btn--ghost" href="' + ev.ticketUrl + '">🎟️ Buy Tickets</a>';
@@ -2442,8 +2452,7 @@ function renderEvents(){
 
   grid.querySelectorAll('.js-guestlist-cta').forEach(function(btn){
     btn.addEventListener('click', function(){
-      const ev = EVENTS[parseInt(btn.dataset.event, 10)];
-      scrollToGuestlist(ev.name);
+      scrollToGuestlist(btn.dataset.event);
     });
   });
 }
@@ -2474,7 +2483,7 @@ function renderFaqs(){
 // Looks up a venue's upcoming events from the single EVENTS database —
 // this is the only source of truth for "what's on" at a venue.
 function getVenueEvents(venueName){
-  return EVENTS.filter(function(ev){
+  return getSortedEvents().filter(function(ev){
     return ev.venue.indexOf(venueName) === 0;
   });
 }
@@ -2627,8 +2636,9 @@ function populateEventSelect(){
   const select = document.getElementById('gfEvent');
   select.innerHTML =
     '<option value="" disabled selected>Choose an event…</option>' +
-    EVENTS.map(function(ev, i){
-      return '<option value="' + i + '">' + ev.name + ' — ' + eventVenueName(ev) + ' — ' + formatDate(ev.date) + '</option>';
+    getSortedEvents().map(function(ev){
+      const originalIndex = EVENTS.indexOf(ev);
+      return '<option value="' + originalIndex + '">' + ev.name + ' — ' + eventVenueName(ev) + ' — ' + formatDate(ev.date) + '</option>';
     }).join('');
 }
 
