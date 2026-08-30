@@ -1414,10 +1414,58 @@ button{ font-family: inherit; cursor:pointer; }
    PRIORITY ACCESS
    ============================================================ */
 .priority{
-  max-width: 560px;
+  max-width: 680px;
   margin: 0 auto;
+  text-align: center;
 }
-.priority .field-grid{ grid-template-columns: 1fr; }
+.priority__benefits{
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px 24px;
+  margin: 0 0 48px;
+  padding: 0;
+  text-align: left;
+}
+.priority__benefits li{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 15px;
+  color: var(--white);
+}
+.priority__icon{
+  font-size: 20px;
+  flex-shrink: 0;
+  width: 28px;
+  text-align: center;
+}
+.priority__cta{
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 40px;
+  background: var(--gold);
+  color: var(--black);
+  border: 1px solid var(--gold);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  box-shadow: 0 0 0 rgba(201,162,74,0.5);
+  transition: background 0.35s var(--ease), transform 0.35s var(--ease), box-shadow 0.35s var(--ease), border-color 0.35s var(--ease);
+}
+.priority__cta:hover{
+  background: var(--gold-light);
+  border-color: var(--gold-light);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(201,162,74,0.35);
+}
+.priority__cta:active{ transform: translateY(-1px); }
+@media (max-width: 560px){
+  .priority__benefits{ grid-template-columns: 1fr; }
+  .priority__cta{ width: 100%; justify-content: center; padding: 18px 24px; }
+}
 
 /* ============================================================
    INSTAGRAM
@@ -2060,50 +2108,27 @@ button{ font-family: inherit; cursor:pointer; }
 </section>
 
 <!-- ============================================================
-     PRIORITY ACCESS
+     PRIORITY LIST
      ============================================================ -->
-<section class="section section--charcoal grain">
+<section class="section section--charcoal grain" id="priority">
   <div class="section__head reveal">
-    <span class="eyebrow">Priority Access</span>
-    <h2 class="h-display">Be First to Know</h2>
-    <p>Be the first to know about new events, guestlist drops and limited access opportunities.</p>
+    <span class="eyebrow">Priority List</span>
+    <h2 class="h-display">Get Access Before Everyone Else.</h2>
   </div>
 
   <div class="priority reveal">
-    <form id="priorityForm" novalidate>
-      <div class="field-grid">
-        <div class="field full">
-          <label for="pfFirstName">First Name</label>
-          <input type="text" id="pfFirstName" name="firstName" required autocomplete="given-name">
-        </div>
-        <div class="field full">
-          <label for="pfEmail">Email</label>
-          <input type="email" id="pfEmail" name="email" required autocomplete="email">
-        </div>
-        <div class="field full">
-          <label for="pfInstagram">Instagram Username</label>
-          <input type="text" id="pfInstagram" name="instagram" placeholder="@username">
-        </div>
-      </div>
-      <div class="checkbox-row">
-        <input type="checkbox" id="pfConsent" name="consent" required>
-        <label for="pfConsent">I consent to receive relevant event and news updates from Amsterdam Guestlist Service.</label>
-      </div>
-      <button type="submit" class="btn btn--solid btn--full">Join Priority List</button>
+    <ul class="priority__benefits">
+      <li><span class="priority__icon">🔥</span> Early Access</li>
+      <li><span class="priority__icon">🎟️</span> Priority Guestlist Access</li>
+      <li><span class="priority__icon">🍾</span> VIP &amp; Table Access</li>
+      <li><span class="priority__icon">⚡</span> Priority Assistance</li>
+      <li><span class="priority__icon">🚨</span> Last-Minute Access</li>
+      <li><span class="priority__icon">🎉</span> Exclusive Events</li>
+    </ul>
 
-      <!--
-        BACKEND INTEGRATION POINT
-        This form currently only shows a confirmation message client-side.
-        It is NOT connected to a real email marketing service.
-        To connect it, wire handlePrioritySubmit() to Mailchimp, Klaviyo,
-        a custom API route, or any other email service.
-      -->
-    </form>
-    <div class="form-success" id="prioritySuccess">
-      <div class="form-success__mark">✓</div>
-      <h4 class="h-display">You're on the List</h4>
-      <p>We'll let you know about new events and guestlist drops.</p>
-    </div>
+    <a href="https://wa.me/31644948562?text=Hi%2C%20ik%20wil%20een%20Priority%20Member%20worden%20van%20Amsterdam%20Guestlist%20Service." target="_blank" rel="noopener" class="priority__cta">
+      🔐 Become a Priority Member
+    </a>
   </div>
 </section>
 
@@ -3110,20 +3135,6 @@ function handleGuestlistSubmit(e){
   });
 }
 
-// PRIORITY LIST FORM SUBMIT HANDLER
-// Client-side only — no data is sent anywhere yet. Replace the body
-// of this function with a fetch() call to your email service of choice.
-function handlePrioritySubmit(e){
-  e.preventDefault();
-  const form = document.getElementById('priorityForm');
-  const success = document.getElementById('prioritySuccess');
-  form.style.display = 'none';
-  success.classList.add('is-visible');
-  requestAnimationFrame(function(){
-    success.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  });
-}
-
 /* ================================================================
    NAV / SCROLL / REVEAL
    ================================================================ */
@@ -3197,7 +3208,6 @@ function observeReveal(nodeList){
   renderTrusted();
   renderPartnerLogos();
 
-  document.getElementById('priorityForm').addEventListener('submit', handlePrioritySubmit);
   initGuestlistForm();
 })();
 </script>
