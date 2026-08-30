@@ -277,7 +277,8 @@ button{ font-family: inherit; cursor:pointer; }
   border-color: rgba(245,245,245,0.2);
 }
 
-.nav__cta{ display:flex; }
+.nav__cta{ display:flex; gap: 12px; align-items:center; }
+.nav__cta .btn{ white-space: nowrap; }
 .nav__burger{
   display:none;
   background:none;
@@ -1722,6 +1723,7 @@ button{ font-family: inherit; cursor:pointer; }
     </nav>
     <div class="nav__cta">
       <a href="#guestlist" class="btn">Get on Guestlist</a>
+      <a href="#partners" class="btn btn--solid">Partner With Us</a>
     </div>
     <button class="nav__burger" id="burger" aria-label="Open menu" aria-expanded="false">
       <span></span><span></span><span></span>
@@ -1737,6 +1739,7 @@ button{ font-family: inherit; cursor:pointer; }
   <a href="#partners">Partners</a>
   <a href="about.html">About</a>
   <a href="#guestlist" class="btn" style="margin-top:14px;">Get on Guestlist</a>
+  <a href="#partners" class="btn btn--solid">Partner With Us</a>
 </div>
 
 <!-- ============================================================
