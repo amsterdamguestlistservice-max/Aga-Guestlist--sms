@@ -2445,6 +2445,9 @@ function guestlistBadge(status){
   if(status === 'closed'){
     return '<span class="event-card__badge is-closed">Guestlist Closed</span>';
   }
+  if(status === 'none'){
+    return '<span class="event-card__badge">Tickets Only</span>';
+  }
   return '';
 }
 
