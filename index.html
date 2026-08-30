@@ -1398,6 +1398,17 @@ button{ font-family: inherit; cursor:pointer; }
   transition: opacity 0.35s var(--ease);
 }
 .partner__logos img:hover{ opacity: 1; }
+.partner__stats{
+  max-width: var(--container);
+  margin: 72px auto 0;
+  padding-top: 56px;
+  border-top: 1px solid var(--line);
+}
+.partner__stats-label{
+  display: block;
+  text-align: center;
+  margin-bottom: 28px;
+}
 .partner__service-index{
   font-family: var(--serif);
   font-style:italic;
@@ -1723,7 +1734,7 @@ button{ font-family: inherit; cursor:pointer; }
     </nav>
     <div class="nav__cta">
       <a href="#guestlist" class="btn">Get on Guestlist</a>
-      <a href="#partners" class="btn btn--solid">Partner With Us</a>
+      <a href="https://wa.me/31644948562?text=Hi%2C%20ik%20ben%20ge%C3%AFnteresseerd%20in%20een%20samenwerking%20met%20Amsterdam%20Guestlist%20Service.%20Ik%20zou%20graag%20meer%20informatie%20ontvangen." class="btn btn--solid" target="_blank" rel="noopener">Partner With Us</a>
     </div>
     <button class="nav__burger" id="burger" aria-label="Open menu" aria-expanded="false">
       <span></span><span></span><span></span>
@@ -1739,7 +1750,7 @@ button{ font-family: inherit; cursor:pointer; }
   <a href="#partners">Partners</a>
   <a href="about.html">About</a>
   <a href="#guestlist" class="btn" style="margin-top:14px;">Get on Guestlist</a>
-  <a href="#partners" class="btn btn--solid">Partner With Us</a>
+  <a href="https://wa.me/31644948562?text=Hi%2C%20ik%20ben%20ge%C3%AFnteresseerd%20in%20een%20samenwerking%20met%20Amsterdam%20Guestlist%20Service.%20Ik%20zou%20graag%20meer%20informatie%20ontvangen." class="btn btn--solid" target="_blank" rel="noopener">Partner With Us</a>
 </div>
 
 <!-- ============================================================
@@ -2048,7 +2059,7 @@ button{ font-family: inherit; cursor:pointer; }
   <div class="venue-cta reveal">
     <h3 class="h-display venue-cta__title">Your Club Could Be Next.</h3>
     <p class="venue-cta__copy">Want to reach Amsterdam's nightlife audience? Partner with Amsterdam Guestlist Service for guestlist management, event promotion and ticket campaigns.</p>
-    <a href="#partners" class="btn btn--solid">Partner With Us</a>
+    <a href="https://wa.me/31644948562?text=Hi%2C%20ik%20ben%20ge%C3%AFnteresseerd%20in%20een%20samenwerking%20met%20Amsterdam%20Guestlist%20Service.%20Ik%20zou%20graag%20meer%20informatie%20ontvangen." class="btn btn--solid" target="_blank" rel="noopener">Partner With Us</a>
   </div>
 </section>
 
@@ -2086,7 +2097,7 @@ button{ font-family: inherit; cursor:pointer; }
       <span class="eyebrow partner__eyebrow">For Clubs &amp; Event Organisers</span>
       <h2 class="h-display partner__title">Bring the Right Crowd.</h2>
       <p class="partner__copy">We connect Amsterdam's clubs, events and nightlife brands with an active audience through guestlists, social media promotion and ticket campaigns.</p>
-      <a href="#" class="btn btn--solid">Partner With Us</a>
+      <a href="https://wa.me/31644948562?text=Hi%2C%20ik%20ben%20ge%C3%AFnteresseerd%20in%20een%20samenwerking%20met%20Amsterdam%20Guestlist%20Service.%20Ik%20zou%20graag%20meer%20informatie%20ontvangen." class="btn btn--solid" target="_blank" rel="noopener">Partner With Us</a>
       <div class="partner__logos" id="partnerLogos"><!-- rendered from TRUSTED_PARTNERS data --></div>
     </div>
     <div class="partner__services reveal">
@@ -2107,6 +2118,11 @@ button{ font-family: inherit; cursor:pointer; }
         <span class="partner__service-name">Social Media Reach</span>
       </div>
     </div>
+  </div>
+
+  <div class="partner__stats reveal">
+    <span class="eyebrow partner__stats-label">Our Numbers</span>
+    <div class="stats" id="partnerStatsGrid"><!-- rendered from STATS data --></div>
   </div>
 </section>
 
@@ -2594,7 +2610,15 @@ function renderVenues(){
 }
 
 function renderStats(){
-  const grid = document.getElementById('statsGrid');
+  renderStatsInto('statsGrid');
+}
+
+// Renders the stats grid into any container by id, using the same
+// STATS data — reused for both the main "Our Numbers" section and the
+// smaller trust-building block inside the Partner section.
+function renderStatsInto(gridId){
+  const grid = document.getElementById(gridId);
+  if(!grid) return;
   grid.innerHTML = STATS.map(function(s, i){
     return (
       '<div class="stat reveal" style="transition-delay:' + (i * 80) + 'ms">' +
@@ -2604,22 +2628,23 @@ function renderStats(){
     );
   }).join('');
   observeReveal(grid.querySelectorAll('.reveal'));
-  initStatsCounter();
+  initStatsCounterFor(grid);
 }
 
-// Animates each .stat__value from 0 up to its data-target once the
-// numbers section scrolls into view, then leaves the final number
-// (with its "+"/"K+" suffix) in place permanently. Only ever runs once.
-function initStatsCounter(){
-  const section = document.getElementById('numbers');
-  if(!section || !('IntersectionObserver' in window)) return;
+// Animates each .stat__value from 0 up to its data-target once its
+// container scrolls into view, then leaves the final number (with its
+// "+"/"K+" suffix) in place permanently. Only ever runs once per
+// container — safe to call for multiple independent stat grids on the
+// same page.
+function initStatsCounterFor(container){
+  if(!container || !('IntersectionObserver' in window)) return;
 
   const duration = 1800; // ms
   const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
 
   function runCounters(){
-    const values = section.querySelectorAll('.stat__value');
+    const values = container.querySelectorAll('.stat__value');
     values.forEach(function(el){
       const target = parseFloat(el.getAttribute('data-target')) || 0;
       const suffix = el.getAttribute('data-suffix') || '';
@@ -2656,7 +2681,7 @@ function initStatsCounter(){
     });
   }, { threshold: 0.35 });
 
-  io.observe(section);
+  io.observe(container);
 }
 
 function renderTrusted(){
@@ -3277,6 +3302,7 @@ function observeReveal(nodeList){
   renderFaqs();
   renderVenues();
   renderStats();
+  renderStatsInto('partnerStatsGrid');
   renderTrusted();
   renderPartnerLogos();
 
