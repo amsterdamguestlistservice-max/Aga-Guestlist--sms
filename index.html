@@ -1734,7 +1734,7 @@ button{ font-family: inherit; cursor:pointer; }
       <a href="about.html">About</a>
     </nav>
     <div class="nav__cta">
-      <a href="#guestlist" class="btn">Get on Guestlist</a>
+      <a href="#guestlistForm" class="btn">Get on Guestlist</a>
       <a href="https://wa.me/31644948562?text=Hi%2C%20ik%20ben%20ge%C3%AFnteresseerd%20in%20een%20samenwerking%20met%20Amsterdam%20Guestlist%20Service.%20Ik%20zou%20graag%20meer%20informatie%20ontvangen." class="btn btn--solid" target="_blank" rel="noopener">Partner With Us</a>
     </div>
     <button class="nav__burger" id="burger" aria-label="Open menu" aria-expanded="false">
@@ -1750,7 +1750,7 @@ button{ font-family: inherit; cursor:pointer; }
   <a href="#venues">Venues</a>
   <a href="#partners">Partners</a>
   <a href="about.html">About</a>
-  <a href="#guestlist" class="btn" style="margin-top:14px;">Get on Guestlist</a>
+  <a href="#guestlistForm" class="btn" style="margin-top:14px;">Get on Guestlist</a>
   <a href="https://wa.me/31644948562?text=Hi%2C%20ik%20ben%20ge%C3%AFnteresseerd%20in%20een%20samenwerking%20met%20Amsterdam%20Guestlist%20Service.%20Ik%20zou%20graag%20meer%20informatie%20ontvangen." class="btn btn--solid" target="_blank" rel="noopener">Partner With Us</a>
 </div>
 
@@ -1768,7 +1768,7 @@ button{ font-family: inherit; cursor:pointer; }
   <h1 class="h-display hero__title">YOUR NIGHT.<br><em>Your People.</em></h1>
   <p class="hero__copy">Discover Amsterdam's nightlife through exclusive guestlists, events and ticket opportunities.</p>
   <div class="hero__actions">
-    <a href="#guestlist" class="btn btn--solid">Get on the Guestlist</a>
+    <a href="#guestlistForm" class="btn btn--solid">Get on the Guestlist</a>
     <a href="#events" class="btn btn--ghost">Explore Events</a>
   </div>
   <div class="hero__divider"></div>
@@ -2014,8 +2014,8 @@ button{ font-family: inherit; cursor:pointer; }
 
     <div class="form-success" id="guestlistSuccess">
       <div class="form-success__mark">✓</div>
-      <h4 class="h-display">Guestlist Request Received</h4>
-      <p id="guestlistSuccessMsg">Your request has been received. We will review your request and contact you with confirmation.</p>
+      <h4 class="h-display">One Last Step</h4>
+      <p id="guestlistSuccessMsg">Your details are ready. Send the message below via WhatsApp to complete your request — we'll confirm once we receive it.</p>
       <a href="#" id="whatsappConfirmBtn" class="btn btn--solid" target="_blank" rel="noopener" style="margin-top:24px;">Send via WhatsApp</a>
       <p style="margin-top:12px; font-size:12px; color:var(--muted);">Opens WhatsApp with your request ready to send — just hit send.</p>
     </div>
@@ -2029,7 +2029,7 @@ button{ font-family: inherit; cursor:pointer; }
   <div class="exclusive reveal">
     <h2 class="h-display exclusive__title">Not Everyone<br>Gets Access.</h2>
     <p class="exclusive__copy">Selected events.<br>Exclusive guestlists.<br>Your way into Amsterdam nightlife.</p>
-    <a href="#guestlist" class="btn btn--solid">Get Access</a>
+    <a href="#guestlistForm" class="btn btn--solid">Get Access</a>
   </div>
 </section>
 
@@ -2187,7 +2187,7 @@ button{ font-family: inherit; cursor:pointer; }
 <section class="final-cta">
   <h2 class="h-display reveal">Your Night Is Waiting.</h2>
   <p class="reveal">Exclusive guestlists across Amsterdam's best nightlife — request your access in under a minute.</p>
-  <a href="#guestlist" class="btn btn--solid reveal">Get on the Guestlist</a>
+  <a href="#guestlistForm" class="btn btn--solid reveal">Get on the Guestlist</a>
 </section>
 
 <!-- ============================================================
@@ -2213,7 +2213,7 @@ button{ font-family: inherit; cursor:pointer; }
      STICKY MOBILE CTA
      ============================================================ -->
 <div class="sticky-cta" id="stickyCta">
-  <a href="#guestlist" class="btn btn--solid btn--full" id="stickyCtaLink">🎟 Get on the Guestlist</a>
+  <a href="#guestlistForm" class="btn btn--solid btn--full" id="stickyCtaLink">🎟 Get on the Guestlist</a>
 </div>
 
 <!-- ============================================================
@@ -2837,7 +2837,7 @@ function scrollToGuestlist(eventName){
       select.dispatchEvent(new Event('change'));
     }
   }
-  document.getElementById('guestlist').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById('guestlistForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 /* ================================================================
@@ -3260,7 +3260,7 @@ function handleGuestlistSubmit(e){
 
   const success = document.getElementById('guestlistSuccess');
   document.getElementById('guestlistSuccessMsg').innerHTML =
-    'Your request for <strong>' + ev.name + '</strong> has been received. We will review your request and contact you with confirmation.';
+    'Your details for <strong>' + ev.name + '</strong> are ready. Send the message below via WhatsApp to complete your request — we\'ll confirm once we receive it.';
   document.getElementById('whatsappConfirmBtn').href = buildWhatsAppLink(payload);
   form.style.display = 'none';
   success.classList.add('is-visible');
@@ -3318,7 +3318,7 @@ function observeReveal(nodeList){
 
   document.getElementById('stickyCtaLink').addEventListener('click', function(e){
     e.preventDefault();
-    document.getElementById('guestlist').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('guestlistForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
   if('IntersectionObserver' in window){
