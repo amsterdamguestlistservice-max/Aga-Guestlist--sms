@@ -56,7 +56,7 @@ input,select{ font-family:inherit; }
 
 .app-main{
   min-height:calc(100vh - 130px);
-  padding-bottom:24px;
+  padding-bottom: calc(88px + env(safe-area-inset-bottom));
 }
 .tab-panel{ display:none; }
 .tab-panel.is-active{ display:block; }
