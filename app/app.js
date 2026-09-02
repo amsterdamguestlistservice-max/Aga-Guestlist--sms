@@ -211,6 +211,11 @@ function switchTab(name){
     btn.classList.toggle('is-active', btn.dataset.tab === name);
   });
   window.scrollTo(0, 0);
+  // Keep "My Requests" fresh whenever the Account tab is opened while
+  // signed in — e.g. right after submitting a new request elsewhere.
+  if(name === 'account' && typeof currentUser !== 'undefined' && currentUser){
+    loadMyRequests();
+  }
 }
 document.querySelectorAll('.app-tabbar button').forEach(function(btn){
   btn.addEventListener('click', function(){ switchTab(btn.dataset.tab); });
@@ -333,8 +338,15 @@ function showErr(id){ const el = document.getElementById(id); if(el) el.classLis
 document.getElementById('glEvent').addEventListener('change', function(){ this.style.borderColor = ''; });
 document.getElementById('glConsent').addEventListener('change', function(){ clearErr('errConsent'); });
 
-document.getElementById('glForm').addEventListener('submit', function(e){
+document.getElementById('glForm').addEventListener('submit', async function(e){
   e.preventDefault();
+
+  if(!currentUser){
+    switchTab('account');
+    showAuthError('loginError', 'Please log in or create an account to submit a guestlist request.');
+    return;
+  }
+
   let valid = true;
 
   const eventSelect = document.getElementById('glEvent');
@@ -382,6 +394,10 @@ document.getElementById('glForm').addEventListener('submit', function(e){
     totalGuests: 1 + additionalGuests.length,
     consent: consent
   };
+
+  // Save to the user's account so it shows up under "My Requests".
+  // Never blocks the WhatsApp flow below if it fails.
+  await saveRequestToAccount(payload);
 
   const timestamp = formatTimestamp(new Date());
   const message = buildGuestlistMessageBody(payload, timestamp);
@@ -472,3 +488,176 @@ if(isIos && !isStandalone){
    ================================================================ */
 renderEventList();
 populateGuestlistSelect();
+
+/* ================================================================
+   ACCOUNT — sign up, log in, sign out, my requests
+   ================================================================ */
+let currentUser = null;
+
+function showAuthPanel(){
+  document.getElementById('authPanel').style.display = 'block';
+  document.getElementById('accountPanel').style.display = 'none';
+  document.getElementById('accountHeading').textContent = 'Your Account';
+  document.getElementById('accountSubhead').textContent = 'Sign in to see your guestlist requests.';
+}
+function showAccountPanel(user){
+  document.getElementById('authPanel').style.display = 'none';
+  document.getElementById('accountPanel').style.display = 'block';
+  document.getElementById('accountHeading').textContent = 'Welcome Back';
+  document.getElementById('accountSubhead').textContent = 'Here are your guestlist requests.';
+  const meta = user.user_metadata || {};
+  const fullName = ((meta.first_name || '') + ' ' + (meta.last_name || '')).trim();
+  document.getElementById('accountUserName').textContent = fullName || 'Your Account';
+  document.getElementById('accountUserEmail').textContent = user.email;
+  loadMyRequests();
+}
+
+document.getElementById('authTabLogin').addEventListener('click', function(){
+  this.classList.add('is-active');
+  document.getElementById('authTabSignup').classList.remove('is-active');
+  document.getElementById('loginForm').style.display = 'block';
+  document.getElementById('signupForm').style.display = 'none';
+});
+document.getElementById('authTabSignup').addEventListener('click', function(){
+  this.classList.add('is-active');
+  document.getElementById('authTabLogin').classList.remove('is-active');
+  document.getElementById('signupForm').style.display = 'block';
+  document.getElementById('loginForm').style.display = 'none';
+});
+
+function showAuthError(id, message){
+  const el = document.getElementById(id);
+  el.textContent = message;
+  el.style.display = 'block';
+}
+function clearAuthError(id){
+  document.getElementById(id).style.display = 'none';
+}
+
+document.getElementById('loginForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  clearAuthError('loginError');
+  if(!supabaseClient){
+    showAuthError('loginError', 'Accounts are not set up yet. Please try again later.');
+    return;
+  }
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email: email, password: password });
+  if(error){
+    showAuthError('loginError', error.message);
+    return;
+  }
+  currentUser = data.user;
+  showAccountPanel(currentUser);
+});
+
+document.getElementById('signupForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  clearAuthError('signupError');
+  if(!supabaseClient){
+    showAuthError('signupError', 'Accounts are not set up yet. Please try again later.');
+    return;
+  }
+  const firstName = document.getElementById('signupFirstName').value.trim();
+  const lastName = document.getElementById('signupLastName').value.trim();
+  const email = document.getElementById('signupEmail').value.trim();
+  const password = document.getElementById('signupPassword').value;
+
+  if(!firstName || !lastName){ showAuthError('signupError', 'Please enter your first and last name.'); return; }
+  if(password.length < 6){ showAuthError('signupError', 'Password must be at least 6 characters.'); return; }
+
+  const { data, error } = await supabaseClient.auth.signUp({
+    email: email,
+    password: password,
+    options: { data: { first_name: firstName, last_name: lastName } }
+  });
+  if(error){
+    showAuthError('signupError', error.message);
+    return;
+  }
+  if(data.user && !data.session){
+    // Email confirmation required before a session exists.
+    showAuthError('signupError', 'Account created — check your email to confirm before logging in.');
+    return;
+  }
+  currentUser = data.user;
+  showAccountPanel(currentUser);
+});
+
+document.getElementById('signOutBtn').addEventListener('click', async function(){
+  if(supabaseClient){ await supabaseClient.auth.signOut(); }
+  currentUser = null;
+  showAuthPanel();
+  switchTab('account');
+});
+
+async function loadMyRequests(){
+  const list = document.getElementById('myRequestsList');
+  if(!supabaseClient || !currentUser){ list.innerHTML = ''; return; }
+
+  list.innerHTML = '<p class="my-requests__empty">Loading…</p>';
+  try {
+    const { data, error } = await supabaseClient
+      .from('guestlist_requests')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if(error){
+      list.innerHTML = '<p class="my-requests__empty">Could not load your requests.</p>';
+      return;
+    }
+    if(!data || data.length === 0){
+      list.innerHTML = '<p class="my-requests__empty">No requests yet — get on a guestlist to see it here.</p>';
+      return;
+    }
+    list.innerHTML = data.map(function(r){
+      return (
+        '<div class="request-card">' +
+          '<div class="request-card__event">' + r.event_name + '</div>' +
+          '<div class="request-card__meta">' + r.event_venue + ' · ' + formatDate(r.event_date) + '</div>' +
+          '<span class="request-card__status">' + (r.status || 'Pending') + '</span>' +
+        '</div>'
+      );
+    }).join('');
+  } catch(err){
+    console.warn('Could not load requests.', err);
+    list.innerHTML = '<p class="my-requests__empty">Could not load your requests.</p>';
+  }
+}
+
+// Saves a submitted guestlist request to the signed-in user's account.
+// Never blocks or breaks the WhatsApp flow if it fails.
+async function saveRequestToAccount(payload){
+  if(!supabaseClient || !currentUser) return;
+  try {
+    await supabaseClient.from('guestlist_requests').insert({
+      user_id: currentUser.id,
+      event_name: payload.event.name,
+      event_venue: payload.event.venue,
+      event_date: payload.event.date,
+      first_name: payload.mainGuest.firstName,
+      last_name: payload.mainGuest.lastName,
+      age: payload.mainGuest.age,
+      instagram: payload.mainGuest.instagram,
+      phone: payload.mainGuest.phone,
+      email: payload.mainGuest.email,
+      additional_guests: payload.additionalGuests,
+      total_guests: payload.totalGuests
+    });
+  } catch(err){
+    console.warn('Could not save request to account.', err);
+  }
+}
+
+// Restore session on load (e.g. returning visitor who's still logged in).
+(async function initAuth(){
+  if(!supabaseClient){ showAuthPanel(); return; }
+  const { data } = await supabaseClient.auth.getSession();
+  if(data.session && data.session.user){
+    currentUser = data.session.user;
+    showAccountPanel(currentUser);
+  } else {
+    showAuthPanel();
+  }
+})();
