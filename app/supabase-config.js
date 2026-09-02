@@ -1,17 +1,12 @@
 // supabase-config.js
 //
-// Fill in your own Supabase project's URL and public "anon" key below.
-// Both values are safe to expose in client-side code — Supabase is
-// designed to work this way. Access control is enforced server-side by
-// Row Level Security policies (see README.md), not by hiding this key.
-//
-// Where to find these values:
-//   1. Go to supabase.com and create a free project.
-//   2. In your project, go to Project Settings → API.
-//   3. Copy "Project URL" and the "anon public" key below.
+// Connected to the Amsterdam Guestlist Service Supabase project.
+// Both values below are safe to expose in client-side code — Supabase
+// is designed to work this way. Access control is enforced server-side
+// by Row Level Security policies, not by hiding this key.
 
-const SUPABASE_URL = 'YOUR_SUPABASE_PROJECT_URL';
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_URL = 'https://ogyvzgkykyesjozwmkds.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9neXZ6Z2t5a3llc2pvendta2RzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzNjQzMTEsImV4cCI6MjEwMzk0MDMxMX0.gdCIAz4ZZNXxzdDA4gYt4R3NoEbkc5pYb_vrvFC7A-c';
 
 const supabaseClient = (SUPABASE_URL !== 'YOUR_SUPABASE_PROJECT_URL' && window.supabase)
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
