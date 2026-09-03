@@ -458,6 +458,91 @@ if('serviceWorker' in navigator){
   });
 }
 
+/* ================================================================
+   PUSH NOTIFICATIONS
+   Guests can opt in via the bell icon in the header. Their browser's
+   push subscription is stored in Supabase (push_subscriptions table).
+   Sending a notification happens from admin/notify.html, which calls
+   the api/send-notification serverless function — nothing here ever
+   sends a notification itself, this only manages the subscription.
+   ================================================================ */
+const VAPID_PUBLIC_KEY = 'BIVKXvJdm0cGWvBPQNhiKObGZbwZMVzMtixM7GkSdVQgvjxF-TbwtWE42N5TYagOYe-mhZaBaMbTIvVKFmE0Kyo';
+
+function urlBase64ToUint8Array(base64String){
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for(let i = 0; i < rawData.length; ++i){ outputArray[i] = rawData.charCodeAt(i); }
+  return outputArray;
+}
+
+const notifyBtn = document.getElementById('notifyBtn');
+const pushSupported = ('serviceWorker' in navigator) && ('PushManager' in window) && (typeof Notification !== 'undefined');
+
+async function updateNotifyBtnState(){
+  if(!notifyBtn || !pushSupported) return;
+  const reg = await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.getSubscription();
+  notifyBtn.classList.toggle('is-active', !!sub && Notification.permission === 'granted');
+}
+
+async function subscribeToPush(){
+  try{
+    const reg = await navigator.serviceWorker.ready;
+    const permission = await Notification.requestPermission();
+    if(permission !== 'granted'){ await updateNotifyBtnState(); return; }
+    let sub = await reg.pushManager.getSubscription();
+    if(!sub){
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
+    const subJson = sub.toJSON();
+    if(supabaseClient){
+      await supabaseClient.from('push_subscriptions').upsert({
+        endpoint: subJson.endpoint,
+        p256dh: subJson.keys.p256dh,
+        auth: subJson.keys.auth
+      }, { onConflict: 'endpoint' });
+    }
+  } catch(err){
+    console.warn('Push subscribe failed:', err);
+  }
+  await updateNotifyBtnState();
+}
+
+async function unsubscribeFromPush(){
+  try{
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if(sub){
+      if(supabaseClient){
+        await supabaseClient.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+      }
+      await sub.unsubscribe();
+    }
+  } catch(err){
+    console.warn('Push unsubscribe failed:', err);
+  }
+  await updateNotifyBtnState();
+}
+
+if(notifyBtn && pushSupported){
+  notifyBtn.hidden = false;
+  navigator.serviceWorker.ready.then(updateNotifyBtnState);
+  notifyBtn.addEventListener('click', async function(){
+    const reg = await navigator.serviceWorker.ready;
+    const existing = await reg.pushManager.getSubscription();
+    if(existing && Notification.permission === 'granted'){
+      await unsubscribeFromPush();
+    } else {
+      await subscribeToPush();
+    }
+  });
+}
+
 let deferredInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', function(e){
   e.preventDefault();

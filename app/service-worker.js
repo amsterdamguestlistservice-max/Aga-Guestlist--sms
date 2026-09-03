@@ -1,7 +1,7 @@
 // Minimal service worker — enables "Add to Home Screen" installability
 // and basic offline support (cache-first for the app shell, since the
 // event data is embedded directly in index.html rather than fetched).
-const CACHE_NAME = 'ags-app-v7';
+const CACHE_NAME = 'ags-app-v8';
 const APP_SHELL = [
   './index.html',
   './manifest.json',
@@ -48,6 +48,35 @@ self.addEventListener('fetch', function(event){
         // Offline and not cached — fall back to the app shell for navigations.
         if(event.request.mode === 'navigate'){ return caches.match('./index.html'); }
       });
+    })
+  );
+});
+
+// ===== Push notifications =====
+self.addEventListener('push', function(event){
+  let data = {};
+  try{ data = event.data ? event.data.json() : {}; }
+  catch(e){ data = { title: 'Amsterdam Guestlist Service', body: event.data ? event.data.text() : '' }; }
+
+  const title = data.title || 'Amsterdam Guestlist Service';
+  const options = {
+    body: data.body || '',
+    icon: 'icon-192.png',
+    badge: 'icon-192.png',
+    data: { url: data.url || './index.html' }
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', function(event){
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || './index.html';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList){
+      for(const client of clientList){
+        if('focus' in client){ return client.focus(); }
+      }
+      if(self.clients.openWindow){ return self.clients.openWindow(targetUrl); }
     })
   );
 });

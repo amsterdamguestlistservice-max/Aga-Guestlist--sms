@@ -53,6 +53,16 @@ input,select{ font-family:inherit; }
 .app-header__brand{ line-height:1.15; }
 .app-header__brand strong{ display:block; font-size:14px; letter-spacing:0.06em; }
 .app-header__brand span{ display:block; font-size:9px; letter-spacing:0.14em; color:var(--gold); text-transform:uppercase; }
+.notify-btn{
+  margin-left:auto; flex-shrink:0;
+  width:36px; height:36px; border-radius:50%;
+  background:transparent; border:1px solid var(--line); color:var(--muted);
+  display:flex; align-items:center; justify-content:center;
+  transition:color 0.25s var(--ease), border-color 0.25s var(--ease);
+}
+.notify-btn svg{ width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.7; }
+.notify-btn.is-active{ color:var(--gold-light); border-color:var(--gold); }
+.notify-btn[hidden]{ display:none; }
 
 .app-main{
   min-height:calc(100vh - 130px);
@@ -277,6 +287,9 @@ input,select{ font-family:inherit; }
     <strong>Amsterdam</strong>
     <span>Guestlist Service</span>
   </div>
+  <button type="button" class="notify-btn" id="notifyBtn" aria-label="Pushmeldingen aan- of uitzetten" title="Pushmeldingen" hidden>
+    <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+  </button>
 </header>
 
 <!-- ============================================================
