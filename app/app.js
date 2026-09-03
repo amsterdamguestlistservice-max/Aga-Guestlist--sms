@@ -622,6 +622,14 @@ function showAccountPanel(user){
   const fullName = ((meta.first_name || '') + ' ' + (meta.last_name || '')).trim();
   document.getElementById('accountUserName').textContent = fullName || 'Your Account';
   document.getElementById('accountUserEmail').textContent = user.email;
+  if(user.created_at){
+    const since = new Date(user.created_at);
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    document.getElementById('accountUserSince').textContent = 'Member since ' + monthNames[since.getMonth()] + ' ' + since.getFullYear();
+  }
+  if(user.id){
+    document.getElementById('accountUserId').textContent = '•••• ' + user.id.replace(/-/g, '').slice(-6).toUpperCase();
+  }
   loadMyRequests();
   loadMyPoints();
   linkPushSubscriptionToAccount();
@@ -646,34 +654,28 @@ function getTierInfo(points){
 }
 
 async function loadMyPoints(){
-  const wrap = document.getElementById('accountUserPoints');
   const valueEl = document.getElementById('accountUserPointsValue');
-  const tierWrap = document.getElementById('accountUserTier');
   const tierBadge = document.getElementById('accountUserTierBadge');
   const tierProgress = document.getElementById('accountUserTierProgress');
-  if(!supabaseClient || !currentUser){ wrap.style.display = 'none'; tierWrap.style.display = 'none'; return; }
+  if(!supabaseClient || !currentUser) return;
   try{
     const { data, error } = await supabaseClient
       .from('profiles')
       .select('points')
       .eq('user_id', currentUser.id)
       .maybeSingle();
-    if(error){ wrap.style.display = 'none'; tierWrap.style.display = 'none'; return; }
+    if(error) return;
     const points = (data && typeof data.points === 'number') ? data.points : 0;
     valueEl.textContent = points;
-    wrap.style.display = 'inline-flex';
 
     const tierInfo = getTierInfo(points);
-    tierWrap.className = 'account-user__tier ' + tierInfo.current.className;
+    tierBadge.className = 'member-card__tier ' + tierInfo.current.className;
     tierBadge.textContent = tierInfo.current.name;
     tierProgress.textContent = tierInfo.next
       ? (tierInfo.next.min - points) + ' pts to ' + tierInfo.next.name
       : 'Top tier';
-    tierWrap.style.display = 'flex';
   } catch(err){
     console.warn('Could not load points.', err);
-    wrap.style.display = 'none';
-    tierWrap.style.display = 'none';
   }
 }
 

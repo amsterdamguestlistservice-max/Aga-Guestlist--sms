@@ -244,30 +244,39 @@ input,select{ font-family:inherit; }
   font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase;
 }
 .auth-switch__btn.is-active{ background:var(--gold); color:var(--black); }
-.account-user{
-  border:1px solid var(--line); background:var(--charcoal); padding:18px; margin-bottom:20px;
+/* ===== Membership pass ===== */
+.member-card{
+  position:relative; overflow:hidden;
+  padding:28px 22px 20px;
+  background:linear-gradient(160deg, #161616 0%, #0a0a0a 55%, #050505 100%);
+  border:1px solid var(--line);
+  margin-bottom:20px;
 }
-.account-user__name{ font-family:var(--serif); font-size:18px; }
-.account-user__email{ font-size:12px; color:var(--muted); margin-top:3px; }
-.account-user__points{
-  display:inline-flex; align-items:baseline; gap:6px;
-  margin-top:12px; padding:8px 14px; background:rgba(201,162,74,0.1); border:1px solid var(--gold);
+.member-card::before{
+  content:''; position:absolute; top:-45%; left:-25%; width:170%; height:65%;
+  background:linear-gradient(115deg, transparent 42%, rgba(230,200,117,0.09) 50%, transparent 58%);
+  pointer-events:none;
 }
-.account-user__points-value{ font-family:var(--serif); font-size:20px; color:var(--gold-light); }
-.account-user__points-label{ font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); }
-.account-user__tier{
-  display:flex; align-items:center; justify-content:space-between; gap:10px;
-  margin-top:12px; padding:10px 14px; border:1px solid var(--line);
+.member-card__top{ display:flex; align-items:center; gap:10px; margin-bottom:28px; }
+.member-card__mark{ width:28px; height:28px; border-radius:50%; flex-shrink:0; }
+.member-card__eyebrow{ font-size:9px; letter-spacing:0.16em; text-transform:uppercase; color:var(--gold); }
+.member-card__name{ font-family:var(--serif); font-size:23px; margin-top:3px; line-height:1.2; }
+.member-card__since{ font-size:11px; color:var(--muted); margin-top:5px; }
+.member-card__divider{ height:1px; background:var(--line); margin:22px 0 16px; }
+.member-card__row{ display:flex; align-items:flex-end; justify-content:space-between; }
+.member-card__tier{ font-size:11.5px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; }
+.member-card__tier.is-bronze{ color:#C68A4E; }
+.member-card__tier.is-silver{ color:#C7CBD1; }
+.member-card__tier.is-gold{ color:var(--gold-light); }
+.member-card__tier.is-vip{ color:#D9A6F5; }
+.member-card__progress{ font-size:10.5px; color:var(--muted); margin-top:6px; }
+.member-card__points{ font-family:var(--serif); font-size:22px; color:var(--white); text-align:right; }
+.member-card__points-label{ display:block; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); text-align:right; margin-top:3px; }
+.member-card__id{ position:absolute; bottom:14px; right:20px; font-size:9.5px; letter-spacing:0.06em; color:var(--muted); }
+.account-signout{
+  width:100%; margin-top:2px; padding:12px; background:none; border:1px solid var(--line); color:var(--muted);
+  font-size:11px; letter-spacing:0.08em; text-transform:uppercase;
 }
-.account-user__tier-badge{
-  font-size:10.5px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;
-  padding:5px 11px; border:1px solid currentColor;
-}
-.account-user__tier.is-bronze .account-user__tier-badge{ color:#C68A4E; }
-.account-user__tier.is-silver .account-user__tier-badge{ color:#C7CBD1; }
-.account-user__tier.is-gold .account-user__tier-badge{ color:var(--gold-light); }
-.account-user__tier.is-vip .account-user__tier-badge{ color:#D9A6F5; }
-.account-user__tier-progress{ font-size:10.5px; color:var(--muted); text-align:right; }
 .my-requests{ display:flex; flex-direction:column; gap:12px; }
 .request-card{ border:1px solid var(--line); background:var(--charcoal); padding:14px 16px; }
 .request-card__event{ font-family:var(--serif); font-size:16px; margin-bottom:4px; }
@@ -487,24 +496,36 @@ input,select{ font-family:inherit; }
 
     <!-- Signed in: my requests -->
     <div id="accountPanel" class="form-wrap" style="display:none;">
-      <div class="account-user">
-        <div class="account-user__name" id="accountUserName">—</div>
-        <div class="account-user__email" id="accountUserEmail">—</div>
-        <div class="account-user__points" id="accountUserPoints" style="display:none;">
-          <span class="account-user__points-value" id="accountUserPointsValue">0</span>
-          <span class="account-user__points-label">Points</span>
+      <div class="member-card">
+        <div class="member-card__top">
+          <img class="member-card__mark" src="icon-192.png" alt="">
+          <div>
+            <div class="member-card__eyebrow">Amsterdam Guestlist Service</div>
+            <div class="member-card__name" id="accountUserName">—</div>
+            <div class="member-card__since" id="accountUserSince"></div>
+          </div>
         </div>
-        <div class="account-user__tier" id="accountUserTier" style="display:none;">
-          <span class="account-user__tier-badge" id="accountUserTierBadge">Bronze</span>
-          <span class="account-user__tier-progress" id="accountUserTierProgress"></span>
+        <div class="member-card__divider"></div>
+        <div class="member-card__row">
+          <div>
+            <div class="member-card__tier" id="accountUserTierBadge">Bronze</div>
+            <div class="member-card__progress" id="accountUserTierProgress"></div>
+          </div>
+          <div>
+            <span class="member-card__points" id="accountUserPointsValue">0</span>
+            <span class="member-card__points-label">Points</span>
+          </div>
         </div>
-        <button type="button" class="btn" id="signOutBtn" style="margin-top:14px; width:100%;">Sign Out</button>
+        <div class="member-card__id" id="accountUserId"></div>
       </div>
 
-      <div class="my-requests" id="myRequestsList">
+      <button type="button" class="account-signout" id="signOutBtn">Sign Out</button>
+
+      <div class="my-requests" id="myRequestsList" style="margin-top:20px;">
         <!-- rendered by JS -->
       </div>
     </div>
+    <span id="accountUserEmail" style="display:none;"></span>
   </section>
 
   <!-- CONTACT TAB -->
