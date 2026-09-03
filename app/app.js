@@ -723,11 +723,25 @@ async function loadMyRequests(){
       return;
     }
     list.innerHTML = data.map(function(r){
+      const statusRaw = (r.status || 'Pending').trim();
+      const statusLower = statusRaw.toLowerCase();
+      let statusClass = '';
+      let note = '';
+      if(statusLower === 'approved'){
+        statusClass = ' is-approved';
+        note = "You're on the list — see you there!";
+      } else if(statusLower === 'declined'){
+        statusClass = ' is-declined';
+        note = 'This request could not be approved this time.';
+      } else {
+        note = "We'll confirm your spot soon.";
+      }
       return (
         '<div class="request-card">' +
           '<div class="request-card__event">' + r.event_name + '</div>' +
           '<div class="request-card__meta">' + r.event_venue + ' · ' + formatDate(r.event_date) + '</div>' +
-          '<span class="request-card__status">' + (r.status || 'Pending') + '</span>' +
+          '<span class="request-card__status' + statusClass + '">' + statusRaw + '</span>' +
+          '<div class="request-card__note">' + note + '</div>' +
         '</div>'
       );
     }).join('');
