@@ -29,8 +29,9 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  const secret = req.headers['x-notify-secret'];
-  if (!secret || secret !== process.env.NOTIFY_ADMIN_SECRET) {
+  const secret = (req.headers['x-notify-secret'] || '').trim();
+  const expected = (process.env.NOTIFY_ADMIN_SECRET || '').trim();
+  if (!secret || !expected || secret !== expected) {
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }
