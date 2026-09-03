@@ -201,6 +201,16 @@ input,select{ font-family:inherit; }
 .tour-slide.is-active{ display:block; }
 .tour-slide__icon{ display:flex; justify-content:center; padding-top:36px; margin-bottom:6px; }
 .tour-slide__icon svg{ width:46px; height:46px; stroke:var(--gold-light); fill:none; stroke-width:1.3; }
+.tour-screenshot{ display:flex; justify-content:center; padding-top:26px; margin-bottom:8px; }
+.tour-screenshot img{
+  width:150px; height:auto;
+  border:1px solid var(--gold);
+  box-shadow:0 20px 40px -20px rgba(0,0,0,0.8);
+}
+.tour-screenshot.is-bell img{
+  width:70px; height:70px; border-radius:50%;
+  object-fit:cover; object-position:center 62%;
+}
 .tour-dots{ display:flex; justify-content:center; gap:7px; margin-top:28px; }
 .tour-dot{ width:6px; height:6px; border-radius:50%; background:var(--line); transition:background 0.3s var(--ease), transform 0.3s var(--ease); }
 .tour-dot.is-active{ background:var(--gold-light); transform:scale(1.3); }
@@ -379,8 +389,8 @@ input,select{ font-family:inherit; }
     </div>
 
     <div class="tour-slide">
-      <div class="tour-slide__icon">
-        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="1"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+      <div class="tour-screenshot">
+        <img src="tour-events.jpg" alt="Events tab">
       </div>
       <div class="sheet__body" style="text-align:center;">
         <h2 class="welcome-sheet__title">Discover the Nights</h2>
@@ -389,8 +399,8 @@ input,select{ font-family:inherit; }
     </div>
 
     <div class="tour-slide">
-      <div class="tour-slide__icon">
-        <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <div class="tour-screenshot">
+        <img src="tour-guestlist.jpg" alt="Guestlist tab">
       </div>
       <div class="sheet__body" style="text-align:center;">
         <h2 class="welcome-sheet__title">Get On the List</h2>
@@ -399,18 +409,18 @@ input,select{ font-family:inherit; }
     </div>
 
     <div class="tour-slide">
-      <div class="tour-slide__icon">
-        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <div class="tour-screenshot">
+        <img src="tour-account.jpg" alt="Account tab">
       </div>
       <div class="sheet__body" style="text-align:center;">
         <h2 class="welcome-sheet__title">Earn as You Go</h2>
-        <p class="welcome-sheet__sub">Every approved request earns you points. Climb from Bronze to VIP, and track it all on your membership pass.</p>
+        <p class="welcome-sheet__sub">Sign up for an account to track requests, earn points, and climb from Bronze to VIP.</p>
       </div>
     </div>
 
     <div class="tour-slide">
-      <div class="tour-slide__icon">
-        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <div class="tour-screenshot is-bell">
+        <img src="tour-bell.jpg" alt="Notification bell">
       </div>
       <div class="sheet__body" style="text-align:center;">
         <h2 class="welcome-sheet__title">Never Miss a Night</h2>
