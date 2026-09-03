@@ -627,22 +627,53 @@ function showAccountPanel(user){
   linkPushSubscriptionToAccount();
 }
 
+// Tiers are purely derived from the points total — no extra database
+// column needed. Adjust the thresholds here if you want different cutoffs.
+const TIERS = [
+  { name: 'Bronze', className: 'is-bronze', min: 0 },
+  { name: 'Silver', className: 'is-silver', min: 50 },
+  { name: 'Gold', className: 'is-gold', min: 150 },
+  { name: 'VIP', className: 'is-vip', min: 300 }
+];
+
+function getTierInfo(points){
+  let current = TIERS[0];
+  let next = null;
+  for(let i = 0; i < TIERS.length; i++){
+    if(points >= TIERS[i].min){ current = TIERS[i]; next = TIERS[i + 1] || null; }
+  }
+  return { current: current, next: next };
+}
+
 async function loadMyPoints(){
   const wrap = document.getElementById('accountUserPoints');
   const valueEl = document.getElementById('accountUserPointsValue');
-  if(!supabaseClient || !currentUser){ wrap.style.display = 'none'; return; }
+  const tierWrap = document.getElementById('accountUserTier');
+  const tierBadge = document.getElementById('accountUserTierBadge');
+  const tierProgress = document.getElementById('accountUserTierProgress');
+  if(!supabaseClient || !currentUser){ wrap.style.display = 'none'; tierWrap.style.display = 'none'; return; }
   try{
     const { data, error } = await supabaseClient
       .from('profiles')
       .select('points')
       .eq('user_id', currentUser.id)
       .maybeSingle();
-    if(error){ wrap.style.display = 'none'; return; }
-    valueEl.textContent = (data && typeof data.points === 'number') ? data.points : 0;
+    if(error){ wrap.style.display = 'none'; tierWrap.style.display = 'none'; return; }
+    const points = (data && typeof data.points === 'number') ? data.points : 0;
+    valueEl.textContent = points;
     wrap.style.display = 'inline-flex';
+
+    const tierInfo = getTierInfo(points);
+    tierWrap.className = 'account-user__tier ' + tierInfo.current.className;
+    tierBadge.textContent = tierInfo.current.name;
+    tierProgress.textContent = tierInfo.next
+      ? (tierInfo.next.min - points) + ' pts to ' + tierInfo.next.name
+      : 'Top tier';
+    tierWrap.style.display = 'flex';
   } catch(err){
     console.warn('Could not load points.', err);
     wrap.style.display = 'none';
+    tierWrap.style.display = 'none';
   }
 }
 

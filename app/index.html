@@ -255,6 +255,19 @@ input,select{ font-family:inherit; }
 }
 .account-user__points-value{ font-family:var(--serif); font-size:20px; color:var(--gold-light); }
 .account-user__points-label{ font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); }
+.account-user__tier{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  margin-top:12px; padding:10px 14px; border:1px solid var(--line);
+}
+.account-user__tier-badge{
+  font-size:10.5px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;
+  padding:5px 11px; border:1px solid currentColor;
+}
+.account-user__tier.is-bronze .account-user__tier-badge{ color:#C68A4E; }
+.account-user__tier.is-silver .account-user__tier-badge{ color:#C7CBD1; }
+.account-user__tier.is-gold .account-user__tier-badge{ color:var(--gold-light); }
+.account-user__tier.is-vip .account-user__tier-badge{ color:#D9A6F5; }
+.account-user__tier-progress{ font-size:10.5px; color:var(--muted); text-align:right; }
 .my-requests{ display:flex; flex-direction:column; gap:12px; }
 .request-card{ border:1px solid var(--line); background:var(--charcoal); padding:14px 16px; }
 .request-card__event{ font-family:var(--serif); font-size:16px; margin-bottom:4px; }
@@ -480,6 +493,10 @@ input,select{ font-family:inherit; }
         <div class="account-user__points" id="accountUserPoints" style="display:none;">
           <span class="account-user__points-value" id="accountUserPointsValue">0</span>
           <span class="account-user__points-label">Points</span>
+        </div>
+        <div class="account-user__tier" id="accountUserTier" style="display:none;">
+          <span class="account-user__tier-badge" id="accountUserTierBadge">Bronze</span>
+          <span class="account-user__tier-progress" id="accountUserTierProgress"></span>
         </div>
         <button type="button" class="btn" id="signOutBtn" style="margin-top:14px; width:100%;">Sign Out</button>
       </div>
