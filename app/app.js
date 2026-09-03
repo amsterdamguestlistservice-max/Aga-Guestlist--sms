@@ -669,7 +669,7 @@ async function loadMyPoints(){
     valueEl.textContent = points;
 
     const tierInfo = getTierInfo(points);
-    tierBadge.className = 'member-card__tier ' + tierInfo.current.className;
+    document.querySelector('.member-card').className = 'member-card ' + tierInfo.current.className;
     tierBadge.textContent = tierInfo.current.name;
     tierProgress.textContent = tierInfo.next
       ? (tierInfo.next.min - points) + ' pts to ' + tierInfo.next.name
