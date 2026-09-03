@@ -83,7 +83,13 @@ document.getElementById('notifyForm').addEventListener('submit', async function(
       })
     });
     const data = await res.json();
-    if(!res.ok){ throw new Error(data.error || 'Versturen mislukt'); }
+    if(!res.ok){
+      let msg = data.error || 'Versturen mislukt';
+      if(data.debug){
+        msg += ' (getypt: ' + data.debug.receivedLength + ' tekens, verwacht: ' + data.debug.expectedLength + ' tekens' + (data.debug.expectedIsSet ? '' : ' — LET OP: NOTIFY_ADMIN_SECRET staat niet ingesteld in Vercel') + ')';
+      }
+      throw new Error(msg);
+    }
     statusEl.className = 'status ok';
     statusEl.textContent = 'Verstuurd naar ' + data.sent + ' van ' + data.total + ' abonnees' +
       (data.removed ? ' (' + data.removed + ' verlopen abonnementen opgeruimd).' : '.');
