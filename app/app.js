@@ -501,11 +501,13 @@ async function subscribeToPush(){
     }
     const subJson = sub.toJSON();
     if(supabaseClient){
-      const { error } = await supabaseClient.from('push_subscriptions').upsert({
+      const payload = {
         endpoint: subJson.endpoint,
         p256dh: subJson.keys.p256dh,
         auth: subJson.keys.auth
-      }, { onConflict: 'endpoint' });
+      };
+      if(typeof currentUser !== 'undefined' && currentUser){ payload.user_id = currentUser.id; }
+      const { error } = await supabaseClient.from('push_subscriptions').upsert(payload, { onConflict: 'endpoint' });
       if(error){ alert('Opslaan mislukt: ' + error.message); }
       else { alert('Gelukt! Abonnement opgeslagen.'); }
     } else {
@@ -621,6 +623,45 @@ function showAccountPanel(user){
   document.getElementById('accountUserName').textContent = fullName || 'Your Account';
   document.getElementById('accountUserEmail').textContent = user.email;
   loadMyRequests();
+  loadMyPoints();
+  linkPushSubscriptionToAccount();
+}
+
+async function loadMyPoints(){
+  const wrap = document.getElementById('accountUserPoints');
+  const valueEl = document.getElementById('accountUserPointsValue');
+  if(!supabaseClient || !currentUser){ wrap.style.display = 'none'; return; }
+  try{
+    const { data, error } = await supabaseClient
+      .from('profiles')
+      .select('points')
+      .eq('user_id', currentUser.id)
+      .maybeSingle();
+    if(error){ wrap.style.display = 'none'; return; }
+    valueEl.textContent = (data && typeof data.points === 'number') ? data.points : 0;
+    wrap.style.display = 'inline-flex';
+  } catch(err){
+    console.warn('Could not load points.', err);
+    wrap.style.display = 'none';
+  }
+}
+
+// If the guest already enabled push notifications anonymously (before
+// signing in, or on a shared device), attach their current subscription
+// to their account so points/status push notifications can reach them.
+async function linkPushSubscriptionToAccount(){
+  if(!supabaseClient || !currentUser || !pushSupported) return;
+  try{
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if(!sub) return;
+    const subJson = sub.toJSON();
+    await supabaseClient.from('push_subscriptions').update({
+      user_id: currentUser.id
+    }).eq('endpoint', subJson.endpoint);
+  } catch(err){
+    console.warn('Could not link push subscription to account.', err);
+  }
 }
 
 document.getElementById('authTabLogin').addEventListener('click', function(){
