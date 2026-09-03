@@ -501,14 +501,19 @@ async function subscribeToPush(){
     }
     const subJson = sub.toJSON();
     if(supabaseClient){
-      await supabaseClient.from('push_subscriptions').upsert({
+      const { error } = await supabaseClient.from('push_subscriptions').upsert({
         endpoint: subJson.endpoint,
         p256dh: subJson.keys.p256dh,
         auth: subJson.keys.auth
       }, { onConflict: 'endpoint' });
+      if(error){ alert('Opslaan mislukt: ' + error.message); }
+      else { alert('Gelukt! Abonnement opgeslagen.'); }
+    } else {
+      alert('supabaseClient bestaat niet — supabase-config.js is niet goed geladen.');
     }
   } catch(err){
     console.warn('Push subscribe failed:', err);
+    alert('Fout bij aanmelden voor meldingen: ' + (err && err.message ? err.message : err));
   }
   await updateNotifyBtnState();
 }
