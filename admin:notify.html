@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Melding versturen — AGS</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+:root{
+  --black:#050505; --charcoal:#0D0D0D; --gold:#C9A24A; --gold-light:#E6C875;
+  --white:#F5F5F5; --muted:#A6A6A6; --line: rgba(201,162,74,0.22);
+}
+*{ box-sizing:border-box; }
+body{
+  margin:0; min-height:100vh; background:var(--black); color:var(--white);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+  display:flex; align-items:center; justify-content:center; padding:24px;
+}
+.card{ width:100%; max-width:420px; background:var(--charcoal); border:1px solid var(--line); padding:28px; }
+h1{ font-size:18px; margin:0 0 6px; font-weight:600; }
+p.sub{ font-size:12.5px; color:var(--muted); margin:0 0 22px; }
+label{ display:block; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); margin:16px 0 6px; }
+input, textarea{
+  width:100%; padding:11px 12px; background:#000; border:1px solid var(--line); color:var(--white);
+  font-family:inherit; font-size:14px;
+}
+textarea{ min-height:90px; resize:vertical; }
+button{
+  width:100%; margin-top:22px; padding:13px; background:var(--gold); color:var(--black);
+  border:none; font-weight:700; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer;
+}
+button:disabled{ opacity:0.5; cursor:default; }
+.status{ margin-top:16px; font-size:13px; padding:12px; border:1px solid var(--line); display:none; }
+.status.ok{ display:block; color:var(--gold-light); border-color:var(--gold); }
+.status.err{ display:block; color:#e08a8a; border-color:#e08a8a; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Pushmelding versturen</h1>
+  <p class="sub">Gaat naar iedereen die pushmeldingen heeft aangezet in de app.</p>
+
+  <form id="notifyForm">
+    <label for="secret">Wachtwoord</label>
+    <input type="password" id="secret" required autocomplete="off">
+
+    <label for="title">Titel (optioneel)</label>
+    <input type="text" id="title" placeholder="Amsterdam Guestlist Service">
+
+    <label for="body">Bericht</label>
+    <textarea id="body" required placeholder="Nieuw event: Behind Closed Doors — 5 september bij Jimmy Woo!"></textarea>
+
+    <label for="url">Link bij tikken op melding (optioneel)</label>
+    <input type="text" id="url" placeholder="./index.html">
+
+    <button type="submit" id="sendBtn">Versturen</button>
+  </form>
+
+  <div class="status" id="status"></div>
+</div>
+
+<script>
+document.getElementById('notifyForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  const btn = document.getElementById('sendBtn');
+  const statusEl = document.getElementById('status');
+  statusEl.className = 'status';
+  statusEl.textContent = '';
+  btn.disabled = true;
+  btn.textContent = 'Versturen...';
+
+  try {
+    const res = await fetch('/api/send-notification', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-notify-secret': document.getElementById('secret').value
+      },
+      body: JSON.stringify({
+        title: document.getElementById('title').value,
+        body: document.getElementById('body').value,
+        url: document.getElementById('url').value
+      })
+    });
+    const data = await res.json();
+    if(!res.ok){ throw new Error(data.error || 'Versturen mislukt'); }
+    statusEl.className = 'status ok';
+    statusEl.textContent = 'Verstuurd naar ' + data.sent + ' van ' + data.total + ' abonnees' +
+      (data.removed ? ' (' + data.removed + ' verlopen abonnementen opgeruimd).' : '.');
+    document.getElementById('body').value = '';
+  } catch(err){
+    statusEl.className = 'status err';
+    statusEl.textContent = err.message || 'Er ging iets mis.';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Versturen';
+  }
+});
+</script>
+</body>
+</html>
