@@ -184,6 +184,18 @@ input,select{ font-family:inherit; }
   max-width: 320px;
   margin: 0 auto;
 }
+.tour-skip{
+  position:absolute; top:calc(18px + env(safe-area-inset-top)); right:20px; z-index:2;
+  font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted);
+  background:none; border:none; padding:6px;
+}
+.tour-slide{ display:none; text-align:center; }
+.tour-slide.is-active{ display:block; }
+.tour-slide__icon{ display:flex; justify-content:center; padding-top:36px; margin-bottom:6px; }
+.tour-slide__icon svg{ width:46px; height:46px; stroke:var(--gold-light); fill:none; stroke-width:1.3; }
+.tour-dots{ display:flex; justify-content:center; gap:7px; margin-top:28px; }
+.tour-dot{ width:6px; height:6px; border-radius:50%; background:var(--line); transition:background 0.3s var(--ease), transform 0.3s var(--ease); }
+.tour-dot.is-active{ background:var(--gold-light); transform:scale(1.3); }
 .sheet__date{ font-size:11px; letter-spacing:0.1em; color:var(--gold); text-transform:uppercase; }
 .sheet__name{ font-family:var(--serif); font-size:24px; margin:8px 0 6px; }
 .sheet__venue{ font-size:13px; color:var(--muted); margin-bottom:14px; }
@@ -346,13 +358,68 @@ input,select{ font-family:inherit; }
      ============================================================ -->
 <div class="sheet-overlay welcome-overlay" id="welcomeOverlay">
   <div class="sheet welcome-sheet">
-    <div class="welcome-sheet__mark">
-      <img src="icon-192.png" alt="Amsterdam Guestlist Service">
+    <button type="button" class="tour-skip" id="tourSkipBtn">Skip</button>
+
+    <div class="tour-slide is-active">
+      <div class="welcome-sheet__mark">
+        <img src="icon-192.png" alt="Amsterdam Guestlist Service">
+      </div>
+      <div class="sheet__body" style="text-align:center;">
+        <h2 class="welcome-sheet__title">Welcome to<br>Amsterdam Guestlist Service</h2>
+        <p class="welcome-sheet__sub">Your night starts here. Browse curated events, request guestlist access, and book tables — all in one place.</p>
+      </div>
     </div>
-    <div class="sheet__body" style="text-align:center;">
-      <h2 class="welcome-sheet__title">Welcome to<br>Amsterdam Guestlist Service</h2>
-      <p class="welcome-sheet__sub">Your night starts here. Browse curated events, request guestlist access, and book tables — all in one place.</p>
-      <button type="button" class="btn btn--solid" id="welcomeDismissBtn" style="width:100%; margin-top:22px;">Let's Go</button>
+
+    <div class="tour-slide">
+      <div class="tour-slide__icon">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="1"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+      </div>
+      <div class="sheet__body" style="text-align:center;">
+        <h2 class="welcome-sheet__title">Discover the Nights</h2>
+        <p class="welcome-sheet__sub">Curated Amsterdam events, updated regularly. Tap any event to see the full details.</p>
+      </div>
+    </div>
+
+    <div class="tour-slide">
+      <div class="tour-slide__icon">
+        <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </div>
+      <div class="sheet__body" style="text-align:center;">
+        <h2 class="welcome-sheet__title">Get On the List</h2>
+        <p class="welcome-sheet__sub">Request guestlist access in seconds, right from your phone — no forms, no waiting in line.</p>
+      </div>
+    </div>
+
+    <div class="tour-slide">
+      <div class="tour-slide__icon">
+        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <div class="sheet__body" style="text-align:center;">
+        <h2 class="welcome-sheet__title">Earn as You Go</h2>
+        <p class="welcome-sheet__sub">Every approved request earns you points. Climb from Bronze to VIP, and track it all on your membership pass.</p>
+      </div>
+    </div>
+
+    <div class="tour-slide">
+      <div class="tour-slide__icon">
+        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </div>
+      <div class="sheet__body" style="text-align:center;">
+        <h2 class="welcome-sheet__title">Never Miss a Night</h2>
+        <p class="welcome-sheet__sub">Tap the bell up top to get notified the moment a new event drops.</p>
+      </div>
+    </div>
+
+    <div class="tour-dots" id="tourDots">
+      <span class="tour-dot is-active"></span>
+      <span class="tour-dot"></span>
+      <span class="tour-dot"></span>
+      <span class="tour-dot"></span>
+      <span class="tour-dot"></span>
+    </div>
+
+    <div class="sheet__body" style="text-align:center; padding-top:0;">
+      <button type="button" class="btn btn--solid" id="tourNextBtn" style="width:100%; margin-top:6px;">Next</button>
     </div>
   </div>
 </div>

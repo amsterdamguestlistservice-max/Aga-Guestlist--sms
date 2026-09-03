@@ -576,22 +576,43 @@ if(isIos && !isStandalone){
 }
 
 /* ================================================================
-   WELCOME POPUP — shown every time the app is opened.
+   WELCOME TOUR — a short multi-step walkthrough shown the first time
+   the app is opened. Skips itself on every visit after that.
    ================================================================ */
-(function initWelcomePopup(){
+(function initWelcomeTour(){
   const overlay = document.getElementById('welcomeOverlay');
-  const dismissBtn = document.getElementById('welcomeDismissBtn');
+  const slides = Array.prototype.slice.call(overlay.querySelectorAll('.tour-slide'));
+  const dots = Array.prototype.slice.call(document.querySelectorAll('.tour-dot'));
+  const nextBtn = document.getElementById('tourNextBtn');
+  const skipBtn = document.getElementById('tourSkipBtn');
+  let index = 0;
 
-  function closeWelcome(){
-    overlay.classList.remove('is-open');
-    document.body.style.overflow = '';
+  let alreadySeen = false;
+  try{ alreadySeen = !!localStorage.getItem('ags_tour_seen'); } catch(e){}
+  if(alreadySeen){ overlay.remove(); return; }
+
+  function showSlide(i){
+    slides.forEach(function(s, si){ s.classList.toggle('is-active', si === i); });
+    dots.forEach(function(d, di){ d.classList.toggle('is-active', di === i); });
+    nextBtn.textContent = (i === slides.length - 1) ? "Let's Go" : 'Next';
   }
 
-  dismissBtn.addEventListener('click', closeWelcome);
+  function closeTour(){
+    overlay.classList.remove('is-open');
+    document.body.style.overflow = '';
+    try{ localStorage.setItem('ags_tour_seen', '1'); } catch(e){}
+  }
+
+  nextBtn.addEventListener('click', function(){
+    if(index < slides.length - 1){ index++; showSlide(index); }
+    else { closeTour(); }
+  });
+  skipBtn.addEventListener('click', closeTour);
   overlay.addEventListener('click', function(e){
-    if(e.target === overlay){ closeWelcome(); }
+    if(e.target === overlay){ closeTour(); }
   });
 
+  showSlide(0);
   overlay.classList.add('is-open');
   document.body.style.overflow = 'hidden';
 })();
