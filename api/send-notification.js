@@ -32,7 +32,14 @@ module.exports = async function handler(req, res) {
   const secret = (req.headers['x-notify-secret'] || '').trim();
   const expected = (process.env.NOTIFY_ADMIN_SECRET || '').trim();
   if (!secret || !expected || secret !== expected) {
-    res.status(401).json({ error: 'Unauthorized' });
+    res.status(401).json({
+      error: 'Unauthorized',
+      debug: {
+        receivedLength: secret.length,
+        expectedLength: expected.length,
+        expectedIsSet: !!process.env.NOTIFY_ADMIN_SECRET
+      }
+    });
     return;
   }
 
