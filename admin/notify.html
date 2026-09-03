@@ -74,7 +74,7 @@ document.getElementById('notifyForm').addEventListener('submit', async function(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-notify-secret': document.getElementById('secret').value
+        'x-notify-secret': document.getElementById('secret').value.trim()
       },
       body: JSON.stringify({
         title: document.getElementById('title').value,
