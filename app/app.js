@@ -759,6 +759,30 @@ function unlockAppFromGate(){
   document.body.classList.remove('is-gated');
 }
 
+// Shown right after signing in/up, and again on every fresh visit,
+// until the guest actually grants notification permission — otherwise
+// they'd never find out their request was approved or that they
+// earned points. Skipped entirely if the browser can't do push at all.
+function checkNotificationGate(){
+  const overlay = document.getElementById('notifyGateOverlay');
+  if(!pushSupported || Notification.permission === 'granted'){
+    switchTab('events');
+    return;
+  }
+  overlay.classList.add('is-open');
+  document.body.style.overflow = 'hidden';
+}
+function closeNotifyGate(){
+  document.getElementById('notifyGateOverlay').classList.remove('is-open');
+  document.body.style.overflow = '';
+  switchTab('events');
+}
+document.getElementById('notifyGateEnableBtn').addEventListener('click', async function(){
+  await subscribeToPush();
+  closeNotifyGate();
+});
+document.getElementById('notifyGateLaterBtn').addEventListener('click', closeNotifyGate);
+
 document.getElementById('loginForm').addEventListener('submit', async function(e){
   e.preventDefault();
   clearAuthError('loginError');
@@ -776,7 +800,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
   currentUser = data.user;
   showAccountPanel(currentUser);
   unlockAppFromGate();
-  switchTab('events');
+  checkNotificationGate();
 });
 
 document.getElementById('signupForm').addEventListener('submit', async function(e){
@@ -814,7 +838,7 @@ document.getElementById('signupForm').addEventListener('submit', async function(
   currentUser = data.user;
   showAccountPanel(currentUser);
   unlockAppFromGate();
-  switchTab('events');
+  checkNotificationGate();
 });
 
 document.getElementById('signOutBtn').addEventListener('click', async function(){
@@ -905,6 +929,7 @@ async function saveRequestToAccount(payload){
     currentUser = data.session.user;
     showAccountPanel(currentUser);
     unlockAppFromGate();
+    checkNotificationGate();
   } else {
     lockAppBehindGate();
   }
