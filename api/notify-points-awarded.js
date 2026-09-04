@@ -6,6 +6,9 @@
 //   1. adds POINTS_PER_APPROVAL points to that guest's profile
 //   2. sends that guest a personal push notification, if they have one
 //      linked to their account
+//   3. if this is that guest's FIRST-EVER approved request and they
+//      signed up via a referral link, awards REFERRAL_BONUS_POINTS to
+//      whoever referred them, plus a push notification to the referrer
 //
 // Required environment variables (same Vercel project as the other
 // functions):
@@ -23,6 +26,59 @@ const webpush = require('web-push');
 const { createClient } = require('@supabase/supabase-js');
 
 const POINTS_PER_APPROVAL = 10;
+const REFERRAL_BONUS_POINTS = 20;
+
+async function addPoints(supabase, userId, amount) {
+  const { data: existing } = await supabase
+    .from('profiles')
+    .select('points')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  const newTotal = (existing ? existing.points : 0) + amount;
+
+  await supabase
+    .from('profiles')
+    .upsert({ user_id: userId, points: newTotal, updated_at: new Date().toISOString() });
+
+  return newTotal;
+}
+
+async function sendPush(supabase, userId, title, body) {
+  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return 0;
+
+  const { data: subs } = await supabase
+    .from('push_subscriptions')
+    .select('endpoint, p256dh, auth')
+    .eq('user_id', userId);
+
+  if (!subs || !subs.length) return 0;
+
+  webpush.setVapidDetails(
+    'mailto:amsterdamguestlistservice@outlook.com',
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+
+  const payload = JSON.stringify({ title: title, body: body, url: './index.html' });
+  let pushed = 0;
+
+  await Promise.all(subs.map(async function (sub) {
+    try {
+      await webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        payload
+      );
+      pushed++;
+    } catch (err) {
+      if (err && (err.statusCode === 404 || err.statusCode === 410)) {
+        await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+      }
+    }
+  }));
+
+  return pushed;
+}
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -62,62 +118,49 @@ module.exports = async function handler(req, res) {
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
-    // Read current points, then write the new total (upsert covers a
-    // guest's very first approval, when they have no profile row yet).
-    const { data: existingProfile } = await supabase
-      .from('profiles')
-      .select('points')
+    const newPoints = await addPoints(supabase, record.user_id, POINTS_PER_APPROVAL);
+
+    const pushed = await sendPush(
+      supabase,
+      record.user_id,
+      'Amsterdam Guestlist Service',
+      "You're on the list for " + (record.event_name || 'your event') +
+        '! +' + POINTS_PER_APPROVAL + ' points (total: ' + newPoints + ').'
+    );
+
+    // ---- Referral bonus: only on this guest's first-ever approval ----
+    let referralBonusGiven = false;
+    const { count: approvedCount } = await supabase
+      .from('guestlist_requests')
+      .select('id', { count: 'exact', head: true })
       .eq('user_id', record.user_id)
-      .maybeSingle();
+      .eq('status', 'Approved');
 
-    const newPoints = (existingProfile ? existingProfile.points : 0) + POINTS_PER_APPROVAL;
+    if (approvedCount === 1) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('referred_by')
+        .eq('user_id', record.user_id)
+        .maybeSingle();
 
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .upsert({ user_id: record.user_id, points: newPoints, updated_at: new Date().toISOString() });
-
-    if (profileError) {
-      res.status(500).json({ error: profileError.message });
-      return;
+      if (profile && profile.referred_by) {
+        await addPoints(supabase, profile.referred_by, REFERRAL_BONUS_POINTS);
+        referralBonusGiven = true;
+        await sendPush(
+          supabase,
+          profile.referred_by,
+          'Amsterdam Guestlist Service',
+          'A friend you invited just got on the list! +' + REFERRAL_BONUS_POINTS + ' bonus points.'
+        );
+      }
     }
 
-    // Send a personal push notification, if this guest has a linked subscription.
-    const { data: subs } = await supabase
-      .from('push_subscriptions')
-      .select('endpoint, p256dh, auth')
-      .eq('user_id', record.user_id);
-
-    let pushed = 0;
-    if (subs && subs.length && process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-      webpush.setVapidDetails(
-        'mailto:amsterdamguestlistservice@outlook.com',
-        process.env.VAPID_PUBLIC_KEY,
-        process.env.VAPID_PRIVATE_KEY
-      );
-
-      const notifPayload = JSON.stringify({
-        title: 'Amsterdam Guestlist Service',
-        body: "You're on the list for " + (record.event_name || 'your event') +
-          '! +' + POINTS_PER_APPROVAL + ' points (total: ' + newPoints + ').',
-        url: './index.html'
-      });
-
-      await Promise.all(subs.map(async function (sub) {
-        try {
-          await webpush.sendNotification(
-            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-            notifPayload
-          );
-          pushed++;
-        } catch (err) {
-          if (err && (err.statusCode === 404 || err.statusCode === 410)) {
-            await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
-          }
-        }
-      }));
-    }
-
-    res.status(200).json({ awarded: POINTS_PER_APPROVAL, newPoints: newPoints, pushed: pushed });
+    res.status(200).json({
+      awarded: POINTS_PER_APPROVAL,
+      newPoints: newPoints,
+      pushed: pushed,
+      referralBonusGiven: referralBonusGiven
+    });
   } catch (err) {
     res.status(500).json({ error: err.message || 'Unknown error' });
   }
