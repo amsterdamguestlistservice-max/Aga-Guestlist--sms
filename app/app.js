@@ -152,6 +152,19 @@ const EVENTS = [
   }
 ];
 /* ================================================================
+   REFERRALS — capture ?ref=CODE from the URL as soon as the app
+   loads, so it survives however long the guest browses before they
+   actually sign up. Consumed at signup time (see the signup handler).
+   ================================================================ */
+(function captureReferralCode(){
+  try{
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if(ref){ localStorage.setItem('ags_referral_code', ref.trim().toUpperCase()); }
+  } catch(e){ /* localStorage unavailable — referral just won't be tracked */ }
+})();
+
+/* ================================================================
    HELPERS
    ================================================================ */
 function formatDate(dateStr){
@@ -682,7 +695,7 @@ async function loadMyPoints(){
   try{
     const { data, error } = await supabaseClient
       .from('profiles')
-      .select('points')
+      .select('points, referral_code')
       .eq('user_id', currentUser.id)
       .maybeSingle();
     if(error) return;
@@ -695,10 +708,38 @@ async function loadMyPoints(){
     tierProgress.textContent = tierInfo.next
       ? (tierInfo.next.min - points) + ' pts to ' + tierInfo.next.name
       : 'Top tier';
+
+    if(data && data.referral_code){
+      const referralCard = document.getElementById('referralCard');
+      const linkText = document.getElementById('referralLinkText');
+      const link = window.location.origin + window.location.pathname + '?ref=' + data.referral_code;
+      linkText.textContent = link;
+      referralCard.dataset.link = link;
+      referralCard.style.display = 'block';
+    }
   } catch(err){
     console.warn('Could not load points.', err);
   }
 }
+
+document.getElementById('referralCopyBtn').addEventListener('click', async function(){
+  const link = document.getElementById('referralCard').dataset.link;
+  if(!link) return;
+  const btn = this;
+  try{
+    if(navigator.share){
+      await navigator.share({ title: 'Amsterdam Guestlist Service', text: 'Join me on the guestlist:', url: link });
+      return;
+    }
+    await navigator.clipboard.writeText(link);
+    const original = btn.textContent;
+    btn.textContent = 'Copied!';
+    btn.classList.add('is-copied');
+    setTimeout(function(){ btn.textContent = original; btn.classList.remove('is-copied'); }, 1800);
+  } catch(err){
+    console.warn('Could not share/copy referral link.', err);
+  }
+});
 
 // If the guest already enabled push notifications anonymously (before
 // signing in, or on a shared device), attach their current subscription
@@ -784,10 +825,13 @@ document.getElementById('signupForm').addEventListener('submit', async function(
   if(!firstName || !lastName){ showAuthError('signupError', 'Please enter your first and last name.'); return; }
   if(password.length < 6){ showAuthError('signupError', 'Password must be at least 6 characters.'); return; }
 
+  let referralCodeUsed = null;
+  try{ referralCodeUsed = localStorage.getItem('ags_referral_code'); } catch(e){}
+
   const { data, error } = await supabaseClient.auth.signUp({
     email: email,
     password: password,
-    options: { data: { first_name: firstName, last_name: lastName } }
+    options: { data: { first_name: firstName, last_name: lastName, referral_code_used: referralCodeUsed || null } }
   });
   if(error){
     showAuthError('signupError', error.message);
