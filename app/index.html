@@ -70,6 +70,9 @@ input,select{ font-family:inherit; }
 }
 .tab-panel{ display:none; }
 .tab-panel.is-active{ display:block; }
+body.is-gated .app-tabbar{ display:none; }
+body.is-gated .tab-panel{ display:none !important; }
+body.is-gated #tab-account{ display:block !important; }
 
 .app-tabbar{
   position:fixed; left:0; right:0; bottom:0; z-index:30;
@@ -358,7 +361,7 @@ input,select{ font-family:inherit; }
 }
 </style>
 </head>
-<body>
+<body class="is-gated">
 
 <header class="app-header">
   <img src="icon-192.png" alt="Amsterdam Guestlist Service">

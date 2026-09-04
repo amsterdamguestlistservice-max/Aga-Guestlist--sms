@@ -631,8 +631,8 @@ let currentUser = null;
 function showAuthPanel(){
   document.getElementById('authPanel').style.display = 'block';
   document.getElementById('accountPanel').style.display = 'none';
-  document.getElementById('accountHeading').textContent = 'Your Account';
-  document.getElementById('accountSubhead').textContent = 'Sign in to see your guestlist requests.';
+  document.getElementById('accountHeading').textContent = 'Create Your Account';
+  document.getElementById('accountSubhead').textContent = 'Sign up (or log in) to start browsing events and requesting guestlist access.';
 }
 function showAccountPanel(user){
   document.getElementById('authPanel').style.display = 'none';
@@ -740,6 +740,15 @@ function clearAuthError(id){
   document.getElementById(id).style.display = 'none';
 }
 
+function lockAppBehindGate(){
+  document.body.classList.add('is-gated');
+  showAuthPanel();
+  switchTab('account');
+}
+function unlockAppFromGate(){
+  document.body.classList.remove('is-gated');
+}
+
 document.getElementById('loginForm').addEventListener('submit', async function(e){
   e.preventDefault();
   clearAuthError('loginError');
@@ -756,6 +765,8 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
   }
   currentUser = data.user;
   showAccountPanel(currentUser);
+  unlockAppFromGate();
+  switchTab('events');
 });
 
 document.getElementById('signupForm').addEventListener('submit', async function(e){
@@ -789,13 +800,14 @@ document.getElementById('signupForm').addEventListener('submit', async function(
   }
   currentUser = data.user;
   showAccountPanel(currentUser);
+  unlockAppFromGate();
+  switchTab('events');
 });
 
 document.getElementById('signOutBtn').addEventListener('click', async function(){
   if(supabaseClient){ await supabaseClient.auth.signOut(); }
   currentUser = null;
-  showAuthPanel();
-  switchTab('account');
+  lockAppBehindGate();
 });
 
 async function loadMyRequests(){
@@ -871,13 +883,16 @@ async function saveRequestToAccount(payload){
 }
 
 // Restore session on load (e.g. returning visitor who's still logged in).
+// If there's no session, the app is gated behind sign up / log in —
+// nobody browses events or requests guestlist access anonymously.
 (async function initAuth(){
-  if(!supabaseClient){ showAuthPanel(); return; }
+  if(!supabaseClient){ lockAppBehindGate(); return; }
   const { data } = await supabaseClient.auth.getSession();
   if(data.session && data.session.user){
     currentUser = data.session.user;
     showAccountPanel(currentUser);
+    unlockAppFromGate();
   } else {
-    showAuthPanel();
+    lockAppBehindGate();
   }
 })();
