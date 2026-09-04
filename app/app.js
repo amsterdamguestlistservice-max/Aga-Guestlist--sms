@@ -528,14 +528,33 @@ document.getElementById('installBtn').addEventListener('click', function(){
     });
   }
 });
+
+// Instagram, Facebook, TikTok, etc. open links in their own in-app
+// browser, which can't install a PWA at all (no Share button that adds
+// to the home screen, and "beforeinstallprompt" never fires). Detect
+// that first and tell the guest to open in their real browser before
+// showing the normal steps below.
+const ua = window.navigator.userAgent.toLowerCase();
+const isInAppBrowser = /instagram|fban|fbav|fb_iab|tiktok|musical_ly|bytedance|snapchat|linkedinapp|pinterest/.test(ua);
+
 // iOS Safari has no beforeinstallprompt — show manual instructions instead,
 // but only if not already running as an installed app.
-const isIos = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+const isIos = /iphone|ipad|ipod/.test(ua);
+const isAndroid = /android/.test(ua);
 const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
-if(isIos && !isStandalone){
+
+if(!isStandalone){
   const banner = document.getElementById('installBanner');
-  banner.innerHTML = '<strong>Add to Home Screen</strong> — tap the Share icon, then "Add to Home Screen".';
-  banner.classList.add('is-visible');
+  if(isInAppBrowser){
+    banner.innerHTML = '<strong>One extra step first</strong> — tap the ••• menu (usually top or bottom right) and choose "Open in Safari" or "Open in Browser". Then come back here to add the app to your home screen.';
+    banner.classList.add('is-visible');
+  } else if(isIos){
+    banner.innerHTML = '<strong>Add to Home Screen</strong> — tap the Share icon, then "Add to Home Screen".';
+    banner.classList.add('is-visible');
+  } else if(isAndroid){
+    // Android Chrome shows its own install banner via beforeinstallprompt
+    // above — nothing extra needed here.
+  }
 }
 
 /* ================================================================
