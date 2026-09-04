@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guestlist Limits — AGS</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+:root{
+  --black:#050505; --charcoal:#0D0D0D; --gold:#C9A24A; --gold-light:#E6C875;
+  --white:#F5F5F5; --muted:#A6A6A6; --line: rgba(201,162,74,0.22);
+  --green:#5FBF7A; --red:#C9605A;
+}
+*{ box-sizing:border-box; }
+body{
+  margin:0; min-height:100vh; background:var(--black); color:var(--white);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+  padding:24px 16px 60px;
+}
+.wrap{ max-width:640px; margin:0 auto; }
+h1{ font-size:20px; margin:0 0 4px; font-weight:600; }
+p.sub{ font-size:12.5px; color:var(--muted); margin:0 0 22px; }
+
+.gate{ max-width:360px; margin:80px auto; background:var(--charcoal); border:1px solid var(--line); padding:26px; }
+.gate label{ display:block; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+.gate input{ width:100%; padding:11px 12px; background:#000; border:1px solid var(--line); color:var(--white); font-size:14px; }
+.gate button{ width:100%; margin-top:16px; padding:12px; background:var(--gold); color:var(--black); border:none; font-weight:700; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer; }
+.gate .err{ color:var(--red); font-size:12.5px; margin-top:10px; display:none; }
+
+.card{ border:1px solid var(--line); background:var(--charcoal); padding:16px; margin-bottom:12px; }
+.card__event{ font-size:15px; font-weight:600; margin-bottom:2px; }
+.card__id{ font-size:10.5px; color:var(--muted); margin-bottom:14px; }
+.card__row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; }
+.card__row label{ font-size:12px; color:var(--muted); }
+.card__row input[type="number"], .card__row input[type="datetime-local"]{
+  padding:8px 10px; background:#000; border:1px solid var(--line); color:var(--white); font-size:13px; width:180px;
+}
+.toggle{ position:relative; width:42px; height:24px; flex-shrink:0; }
+.toggle input{ opacity:0; width:0; height:0; }
+.toggle span{
+  position:absolute; inset:0; background:var(--line); cursor:pointer; transition:background 0.2s;
+}
+.toggle span:before{
+  content:''; position:absolute; width:18px; height:18px; left:3px; top:3px; background:var(--muted); transition:transform 0.2s;
+}
+.toggle input:checked + span{ background:rgba(95,191,122,0.3); }
+.toggle input:checked + span:before{ background:var(--green); transform:translateX(18px); }
+.card__stats{ font-size:11.5px; color:var(--muted); margin-bottom:12px; }
+.card__stats strong{ color:var(--white); }
+.card__save{
+  width:100%; padding:10px; background:none; border:1px solid var(--gold); color:var(--gold-light);
+  font-size:11px; letter-spacing:0.05em; text-transform:uppercase; cursor:pointer;
+}
+.card__save.is-saved{ border-color:var(--green); color:var(--green); }
+.loading, .empty{ text-align:center; color:var(--muted); font-size:13px; padding:50px 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="gate" id="gate">
+    <label for="secret">Password</label>
+    <input type="password" id="secret" autocomplete="off">
+    <button type="button" id="unlockBtn">Unlock</button>
+    <div class="err" id="gateErr">Incorrect password, or something went wrong.</div>
+  </div>
+
+  <div id="dashboard" style="display:none;">
+    <h1>Guestlist Limits</h1>
+    <p class="sub">Toggle a limited guestlist on/off per event, and set its capacity and deadline.</p>
+    <div id="list"></div>
+  </div>
+
+</div>
+
+<script>
+let SECRET = '';
+
+const gate = document.getElementById('gate');
+const dashboard = document.getElementById('dashboard');
+const listEl = document.getElementById('list');
+
+document.getElementById('unlockBtn').addEventListener('click', unlock);
+document.getElementById('secret').addEventListener('keydown', function(e){
+  if(e.key === 'Enter') unlock();
+});
+
+async function unlock(){
+  const val = document.getElementById('secret').value.trim();
+  if(!val) return;
+  SECRET = val;
+  const errEl = document.getElementById('gateErr');
+  errEl.style.display = 'none';
+  try{
+    await loadGuestlists();
+    gate.style.display = 'none';
+    dashboard.style.display = 'block';
+  } catch(err){
+    errEl.textContent = err.message || 'Incorrect password, or something went wrong.';
+    errEl.style.display = 'block';
+  }
+}
+
+function toLocalInputValue(isoString){
+  const d = new Date(isoString);
+  const pad = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+async function loadGuestlists(){
+  listEl.innerHTML = '<div class="loading">Loading…</div>';
+  const res = await fetch('/api/admin-guestlist-limits', {
+    headers: { 'x-notify-secret': SECRET }
+  });
+  const data = await res.json();
+  if(!res.ok){ throw new Error(data.error || 'Failed to load'); }
+  render(data.guestlists || []);
+}
+
+function render(guestlists){
+  if(!guestlists.length){
+    listEl.innerHTML = '<div class="empty">No guestlist limits configured yet. Run the setup SQL first.</div>';
+    return;
+  }
+  listEl.innerHTML = guestlists.map(function(g){
+    return (
+      '<div class="card" data-id="' + g.event_id + '">' +
+        '<div class="card__event">' + g.event_id + '</div>' +
+        '<div class="card__stats"><strong>' + g.claimed_count + '</strong> / <strong>' + g.capacity + '</strong> spots claimed</div>' +
+        '<div class="card__row">' +
+          '<label>Guestlist enabled</label>' +
+          '<label class="toggle">' +
+            '<input type="checkbox" class="f-enabled"' + (g.enabled ? ' checked' : '') + '>' +
+            '<span></span>' +
+          '</label>' +
+        '</div>' +
+        '<div class="card__row">' +
+          '<label>Capacity</label>' +
+          '<input type="number" class="f-capacity" min="0" value="' + g.capacity + '">' +
+        '</div>' +
+        '<div class="card__row">' +
+          '<label>Deadline</label>' +
+          '<input type="datetime-local" class="f-deadline" value="' + toLocalInputValue(g.deadline) + '">' +
+        '</div>' +
+        '<button type="button" class="card__save">Save</button>' +
+      '</div>'
+    );
+  }).join('');
+}
+
+listEl.addEventListener('click', async function(e){
+  const btn = e.target.closest('.card__save');
+  if(!btn) return;
+  const card = btn.closest('.card');
+  const eventId = card.dataset.id;
+  const enabled = card.querySelector('.f-enabled').checked;
+  const capacity = parseInt(card.querySelector('.f-capacity').value, 10);
+  const deadlineLocal = card.querySelector('.f-deadline').value;
+  const deadlineIso = new Date(deadlineLocal).toISOString();
+
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  try{
+    const res = await fetch('/api/admin-guestlist-limits', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-notify-secret': SECRET },
+      body: JSON.stringify({ event_id: eventId, enabled: enabled, capacity: capacity, deadline: deadlineIso })
+    });
+    const data = await res.json();
+    if(!res.ok){ throw new Error(data.error || 'Save failed'); }
+    btn.textContent = 'Saved!';
+    btn.classList.add('is-saved');
+    setTimeout(function(){ btn.textContent = 'Save'; btn.classList.remove('is-saved'); btn.disabled = false; }, 1500);
+  } catch(err){
+    alert(err.message || 'Something went wrong.');
+    btn.textContent = 'Save';
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
