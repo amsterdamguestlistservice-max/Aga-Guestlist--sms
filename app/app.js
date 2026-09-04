@@ -203,15 +203,6 @@ function getSortedEvents(){
     return new Date(a.date + 'T' + a.time) - new Date(b.date + 'T' + b.time);
   });
 }
-function formatTimestamp(date){
-  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  let hours = date.getHours();
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  const ampm = hours >= 12 ? 'PM' : 'AM';
-  hours = hours % 12; if(hours === 0) hours = 12;
-  return date.getDate() + ' ' + months[date.getMonth()] + ' ' + date.getFullYear() +
-    ' at ' + hours + ':' + minutes + ' ' + ampm;
-}
 
 /* ================================================================
    TAB NAVIGATION
@@ -408,57 +399,16 @@ document.getElementById('glForm').addEventListener('submit', async function(e){
     consent: consent
   };
 
-  // Save to the user's account so it shows up under "My Requests".
-  // Never blocks the WhatsApp flow below if it fails.
+  // Save to the user's account so it shows up under "My Requests", and
+  // is visible to you in the admin dashboard (admin/requests.html).
   await saveRequestToAccount(payload);
 
-  const timestamp = formatTimestamp(new Date());
-  const message = buildGuestlistMessageBody(payload, timestamp);
-  const waLink = 'https://wa.me/31644948562?text=' + encodeURIComponent(message);
-
   document.getElementById('glSuccessMsg').innerHTML =
-    'Your details for <strong>' + ev.name + '</strong> are ready. Send the message below via WhatsApp to complete your request.';
-  document.getElementById('glWhatsappBtn').href = waLink;
+    'Your request for <strong>' + ev.name + '</strong> has been submitted. We\'ll review it and update the status in your account.';
   document.getElementById('glForm').style.display = 'none';
   document.getElementById('glSuccess').classList.add('is-visible');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 });
-
-function buildGuestlistMessageBody(payload, timestampStr){
-  const lines = [];
-  lines.push('A New Guestlist Request');
-  lines.push('EVENT:');
-  lines.push(payload.event.name);
-  lines.push('VENUE:');
-  lines.push(payload.event.venue);
-  lines.push('DATE:');
-  lines.push(formatDateReadable(payload.event.date));
-  lines.push('MAIN GUEST:');
-  lines.push('First name: ' + payload.mainGuest.firstName);
-  lines.push('Last name: ' + payload.mainGuest.lastName);
-  lines.push('Age: ' + payload.mainGuest.age);
-  lines.push('Instagram: ' + payload.mainGuest.instagram);
-  lines.push('Phone: ' + payload.mainGuest.phone);
-  lines.push('Email: ' + payload.mainGuest.email);
-
-  if(payload.additionalGuests.length === 0){
-    lines.push('ADDITIONAL GUESTS: None');
-  } else {
-    lines.push('ADDITIONAL GUESTS:');
-    payload.additionalGuests.forEach(function(g, i){
-      lines.push('Guest ' + (i + 1) + ':');
-      lines.push('First name: ' + g.firstName);
-      lines.push('Last name: ' + g.lastName);
-      lines.push('Age: ' + g.age);
-    });
-  }
-
-  lines.push('TOTAL PEOPLE:');
-  lines.push(String(payload.totalGuests));
-  lines.push('SUBMITTED:');
-  lines.push(timestampStr);
-  return lines.join('\n');
-}
 
 /* ================================================================
    SERVICE WORKER + INSTALL PROMPT
