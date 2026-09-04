@@ -546,7 +546,7 @@ const isStandalone = window.navigator.standalone || window.matchMedia('(display-
 if(!isStandalone){
   const banner = document.getElementById('installBanner');
   if(isInAppBrowser){
-    banner.innerHTML = '<strong>One extra step first</strong> — tap the ••• menu (usually top or bottom right) and choose "Open in Safari" or "Open in Browser". Then come back here to add the app to your home screen.';
+    banner.innerHTML = '<strong>Add to Home Screen</strong> — tap the ••• menu above, choose "Open in Safari" (or "Open in Browser"), then tap the Share icon and choose "Add to Home Screen".';
     banner.classList.add('is-visible');
   } else if(isIos){
     banner.innerHTML = '<strong>Add to Home Screen</strong> — tap the Share icon, then "Add to Home Screen".';
