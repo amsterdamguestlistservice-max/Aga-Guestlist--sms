@@ -47,6 +47,7 @@ p.sub{ font-size:12.5px; color:var(--muted); margin:0 0 22px; }
 }
 .card__status.is-approved{ border-color:var(--green); color:var(--green); }
 .card__status.is-declined{ border-color:var(--red); color:var(--red); }
+.card__status.is-no-show{ border-color:#8B6DB5; color:#B79CE0; }
 .card__details{ font-size:12.5px; color:var(--white); line-height:1.7; margin-bottom:12px; }
 .card__details span{ color:var(--muted); }
 .card__actions{ display:flex; gap:8px; }
@@ -58,6 +59,8 @@ p.sub{ font-size:12.5px; color:var(--muted); margin:0 0 22px; }
 .card__actions button.approve.is-current{ background:var(--green); color:#08150c; }
 .card__actions button.decline{ border-color:var(--red); color:var(--red); }
 .card__actions button.decline.is-current{ background:var(--red); color:#1a0808; }
+.card__actions button.noshow{ border-color:#8B6DB5; color:#B79CE0; }
+.card__actions button.noshow.is-current{ background:#8B6DB5; color:#160f1f; }
 .card__actions button:disabled{ opacity:0.4; cursor:default; }
 
 .empty{ text-align:center; color:var(--muted); font-size:13px; padding:50px 10px; }
@@ -82,6 +85,7 @@ p.sub{ font-size:12.5px; color:var(--muted); margin:0 0 22px; }
       <button type="button" class="is-active" data-filter="Pending">Pending</button>
       <button type="button" data-filter="Approved">Approved</button>
       <button type="button" data-filter="Declined">Declined</button>
+      <button type="button" data-filter="No-Show">No-Show</button>
       <button type="button" data-filter="All">All</button>
     </div>
 
@@ -158,7 +162,7 @@ function render(){
 
   listEl.innerHTML = filtered.map(function(r){
     const status = r.status || 'Pending';
-    const statusClass = status === 'Approved' ? 'is-approved' : status === 'Declined' ? 'is-declined' : '';
+    const statusClass = status === 'Approved' ? 'is-approved' : status === 'Declined' ? 'is-declined' : status === 'No-Show' ? 'is-no-show' : '';
     const extraGuests = r.total_guests && r.total_guests > 1 ? (r.total_guests + ' total guests') : '1 guest';
 
     return (
@@ -181,6 +185,9 @@ function render(){
         '<div class="card__actions">' +
           '<button type="button" class="approve' + (status === 'Approved' ? ' is-current' : '') + '" data-action="Approved">Approve</button>' +
           '<button type="button" class="decline' + (status === 'Declined' ? ' is-current' : '') + '" data-action="Declined">Decline</button>' +
+          (status === 'Approved' || status === 'No-Show'
+            ? '<button type="button" class="noshow' + (status === 'No-Show' ? ' is-current' : '') + '" data-action="No-Show">No-Show</button>'
+            : '') +
         '</div>' +
       '</div>'
     );
