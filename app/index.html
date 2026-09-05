@@ -123,6 +123,12 @@ body.is-gated #tab-account{ display:block !important; }
   border:none; font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;
 }
 
+.gl-spot-notice{
+  margin:0 16px 18px; padding:14px 16px;
+  background:rgba(95,191,122,0.1); border:1px solid var(--green);
+  color:var(--green); font-size:13px; font-weight:600;
+}
+
 /* ===== Limited guestlist — capacity + live countdown ===== */
 .glive{
   margin:0 16px 18px; padding:16px;
@@ -532,6 +538,9 @@ body.is-gated #tab-account{ display:block !important; }
     <div class="section-head">
       <h1>Request Guestlist</h1>
       <p>Pick your event and send your details.</p>
+    </div>
+    <div class="gl-spot-notice" id="glSpotNotice" style="display:none;">
+      ✅ Your spot is reserved — just fill in your details below to confirm.
     </div>
     <div class="form-wrap">
       <form id="glForm" novalidate>

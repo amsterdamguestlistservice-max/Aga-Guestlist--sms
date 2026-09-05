@@ -233,7 +233,10 @@ function switchTab(name){
   }
 }
 document.querySelectorAll('.app-tabbar button').forEach(function(btn){
-  btn.addEventListener('click', function(){ switchTab(btn.dataset.tab); });
+  btn.addEventListener('click', function(){
+    if(btn.dataset.tab === 'guestlist'){ document.getElementById('glSpotNotice').style.display = 'none'; }
+    switchTab(btn.dataset.tab);
+  });
 });
 
 /* ================================================================
@@ -381,8 +384,11 @@ document.getElementById('eventList').addEventListener('click', async function(e)
 
     if(data && data.success){
       GUESTLIST_STATE[eventId].claimed_count = data.claimed_count;
-      alert('✅ Je plek is bevestigd!\nJe staat op de gastenlijst voor ' + (ev ? ev.name : 'dit event') + '.');
       renderAllGuestlistPanels();
+      closeEventSheet();
+      switchTab('guestlist');
+      if(ev) preselectEvent(ev.name);
+      document.getElementById('glSpotNotice').style.display = 'block';
     } else {
       const reasons = {
         full: 'Helaas, de guestlist is zojuist volgelopen.',
@@ -429,6 +435,7 @@ function openEventSheet(ev){
       closeEventSheet();
       switchTab('guestlist');
       preselectEvent(ev.name);
+      document.getElementById('glSpotNotice').style.display = 'none';
     });
   }
 
@@ -554,6 +561,7 @@ document.getElementById('glForm').addEventListener('submit', async function(e){
   document.getElementById('glSuccessMsg').innerHTML =
     'Your request for <strong>' + ev.name + '</strong> has been submitted. We\'ll review it and update the status in your account.';
   document.getElementById('glForm').style.display = 'none';
+  document.getElementById('glSpotNotice').style.display = 'none';
   document.getElementById('glSuccess').classList.add('is-visible');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 });
