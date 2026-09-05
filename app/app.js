@@ -1,5 +1,6 @@
 const EVENTS = [
   {
+    id: "behind-closed-doors-2026-09-05",
     name: "Behind Closed Doors",
     date: "2026-09-05",
     time: "23:00",
@@ -21,6 +22,7 @@ const EVENTS = [
     }
   },
   {
+    id: "behind-closed-doors-2026-09-12",
     name: "Behind Closed Doors",
     date: "2026-09-12",
     time: "23:00",
@@ -34,6 +36,7 @@ const EVENTS = [
     countdownEnabled: false
   },
   {
+    id: "behind-closed-doors-2026-09-19",
     name: "Behind Closed Doors",
     date: "2026-09-19",
     time: "23:00",
@@ -47,6 +50,7 @@ const EVENTS = [
     countdownEnabled: false
   },
   {
+    id: "behind-closed-doors-2026-09-26",
     name: "Behind Closed Doors",
     date: "2026-09-26",
     time: "23:00",
@@ -60,6 +64,7 @@ const EVENTS = [
     countdownEnabled: false
   },
   {
+    id: "nema-x-keinemusik-afterparty-2026-09-05",
     name: "Nema x Keinemusik Afterparty",
     date: "2026-09-05",
     time: "23:00",
@@ -73,6 +78,7 @@ const EVENTS = [
     countdownEnabled: true
   },
   {
+    id: "shift-x-aurea-2026-09-05",
     name: "Shift x Aurea",
     date: "2026-09-05",
     time: "23:00",
@@ -86,6 +92,7 @@ const EVENTS = [
     countdownEnabled: false
   },
   {
+    id: "huisfissa-2026-09-11",
     name: "Huisfissa",
     date: "2026-09-11",
     time: "23:00",
@@ -99,6 +106,7 @@ const EVENTS = [
     countdownEnabled: false
   },
   {
+    id: "siempre-2026-09-04",
     name: "SIEMPRE",
     date: "2026-09-04",
     time: "23:00",
@@ -112,6 +120,7 @@ const EVENTS = [
     countdownEnabled: false
   },
   {
+    id: "wifey-amsterdam-2026-09-11",
     name: "WIFEY AMSTERDAM",
     date: "2026-09-11",
     time: "23:00",
@@ -125,6 +134,7 @@ const EVENTS = [
     countdownEnabled: false
   },
   {
+    id: "memoire-amsterdam-x-selva-2026-09-03",
     name: "MEMOIRE AMSTERDAM x SELVA",
     date: "2026-09-03",
     time: "23:00",
@@ -138,6 +148,7 @@ const EVENTS = [
     countdownEnabled: false
   },
   {
+    id: "layali-amsterdam-2026-09-20",
     name: "Layali Amsterdam",
     date: "2026-09-20",
     time: "20:00",
@@ -235,7 +246,7 @@ function renderEventList(){
       ? '<img src="' + ev.image + '" alt="' + ev.name + '">'
       : '';
     return (
-      '<article class="event-card" data-index="' + i + '">' +
+      '<article class="event-card" data-index="' + i + '" data-event-id="' + (ev.id || '') + '">' +
         '<div class="event-card__media">' + guestlistBadge(ev.guestlistStatus) + mediaContent + '</div>' +
         '<div class="event-card__body">' +
           '<div class="event-card__date">' + formatDate(ev.date) + '</div>' +
@@ -243,16 +254,153 @@ function renderEventList(){
           '<div class="event-card__venue">' + ev.venue + '</div>' +
           '<button type="button" class="event-card__cta">View Details</button>' +
         '</div>' +
+        '<div class="glive" style="display:none;"></div>' +
       '</article>'
     );
   }).join('');
 
   list.querySelectorAll('.event-card').forEach(function(card){
-    card.addEventListener('click', function(){
+    card.querySelector('.event-card__cta').addEventListener('click', function(){
+      openEventSheet(getSortedEvents()[parseInt(card.dataset.index, 10)]);
+    });
+    card.querySelector('.event-card__media').addEventListener('click', function(){
       openEventSheet(getSortedEvents()[parseInt(card.dataset.index, 10)]);
     });
   });
+
+  loadLiveGuestlists();
 }
+
+/* ================================================================
+   LIMITED GUESTLIST — capacity + live countdown + atomic claiming
+   ================================================================ */
+const GUESTLIST_STATE = {}; // event_id -> { enabled, capacity, claimed_count, deadline }
+let guestlistTickHandle = null;
+
+async function loadLiveGuestlists(){
+  if(!supabaseClient) return;
+  try{
+    const { data, error } = await supabaseClient.from('event_guestlists').select('*');
+    if(error || !data) return;
+    data.forEach(function(row){ GUESTLIST_STATE[row.event_id] = row; });
+    renderAllGuestlistPanels();
+    startGuestlistTicker();
+  } catch(err){
+    console.warn('Could not load live guestlists.', err);
+  }
+}
+
+function guestlistUrgencyInfo(state){
+  const spotsLeft = Math.max(state.capacity - state.claimed_count, 0);
+  const deadlinePassed = new Date(state.deadline).getTime() <= Date.now();
+  if(!state.enabled || deadlinePassed || spotsLeft <= 0){
+    return { locked: true, label: '🔒 GUESTLIST VOL', spotsLeft: spotsLeft };
+  }
+  if(spotsLeft < 4) return { locked: false, label: '🚨 LAATSTE PLEKKEN', spotsLeft: spotsLeft };
+  if(spotsLeft < 10) return { locked: false, label: '🔥 BIJNA VOL', spotsLeft: spotsLeft };
+  return { locked: false, label: '', spotsLeft: spotsLeft };
+}
+
+function formatCountdown(ms){
+  if(ms <= 0) return '00:00:00';
+  const totalSeconds = Math.floor(ms / 1000);
+  const h = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+  const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+  const s = String(totalSeconds % 60).padStart(2, '0');
+  return h + ':' + m + ':' + s;
+}
+
+function renderGuestlistPanel(panelEl, eventId){
+  const state = GUESTLIST_STATE[eventId];
+  if(!state){ panelEl.style.display = 'none'; return; }
+
+  const urgency = guestlistUrgencyInfo(state);
+  const pct = Math.min(100, Math.round((state.claimed_count / state.capacity) * 100));
+  const msLeft = new Date(state.deadline).getTime() - Date.now();
+
+  panelEl.style.display = 'block';
+  panelEl.className = 'glive' + (urgency.locked ? ' is-locked' : '') + (urgency.label ? ' is-urgent' : '');
+  panelEl.innerHTML =
+    '<div class="glive__label">🔥 GUESTLIST LIVE' + (urgency.label ? ' · ' + urgency.label : '') + '</div>' +
+    '<div class="glive__spots">🎟️ ' + state.claimed_count + ' / ' + state.capacity + ' plekken beschikbaar</div>' +
+    '<div class="glive__bar"><div class="glive__bar-fill" style="width:' + pct + '%;"></div></div>' +
+    '<div class="glive__countdown">⏳ Guestlist sluit over <span class="glive__timer">' + formatCountdown(msLeft) + '</span></div>' +
+    '<button type="button" class="glive__claim-btn" data-event-id="' + eventId + '"' + (urgency.locked ? ' disabled' : '') + '>' +
+      (urgency.locked ? (msLeft <= 0 ? 'GUESTLIST GESLOTEN' : 'GUESTLIST VOL') : 'CLAIM JE PLEK') +
+    '</button>';
+}
+
+function renderAllGuestlistPanels(){
+  document.querySelectorAll('#eventList .event-card').forEach(function(card){
+    const eventId = card.dataset.eventId;
+    const panel = card.querySelector('.glive');
+    if(eventId && panel) renderGuestlistPanel(panel, eventId);
+  });
+}
+
+function startGuestlistTicker(){
+  if(guestlistTickHandle) return;
+  guestlistTickHandle = setInterval(function(){
+    document.querySelectorAll('#eventList .glive .glive__timer').forEach(function(el){
+      const btn = el.closest('.glive').querySelector('.glive__claim-btn');
+      const eventId = btn && btn.dataset.eventId;
+      const state = eventId && GUESTLIST_STATE[eventId];
+      if(!state) return;
+      const msLeft = new Date(state.deadline).getTime() - Date.now();
+      el.textContent = formatCountdown(msLeft);
+      // Deadline just passed — re-render that one panel to lock it.
+      if(msLeft <= 0 && !btn.disabled){
+        renderGuestlistPanel(btn.closest('.glive'), eventId);
+      }
+    });
+  }, 1000);
+
+  // Refresh actual spot counts periodically, so a spot someone else just
+  // claimed shows up here too — the countdown itself ticks locally above.
+  setInterval(loadLiveGuestlists, 20000);
+}
+
+document.getElementById('eventList').addEventListener('click', async function(e){
+  const btn = e.target.closest('.glive__claim-btn');
+  if(!btn || btn.disabled) return;
+  e.stopPropagation();
+
+  if(!currentUser){
+    switchTab('account');
+    return;
+  }
+
+  const eventId = btn.dataset.eventId;
+  const ev = EVENTS.find(function(x){ return x.id === eventId; });
+  btn.disabled = true;
+  btn.textContent = 'CLAIMING…';
+
+  try{
+    const { data, error } = await supabaseClient.rpc('claim_guestlist_spot', { p_event_id: eventId });
+    if(error){ throw error; }
+
+    if(data && data.success){
+      GUESTLIST_STATE[eventId].claimed_count = data.claimed_count;
+      alert('✅ Je plek is bevestigd!\nJe staat op de gastenlijst voor ' + (ev ? ev.name : 'dit event') + '.');
+      renderAllGuestlistPanels();
+    } else {
+      const reasons = {
+        full: 'Helaas, de guestlist is zojuist volgelopen.',
+        deadline_passed: 'Helaas, de guestlist is inmiddels gesloten.',
+        disabled: 'De guestlist voor dit event is niet actief.',
+        not_authenticated: 'Log in om een plek te claimen.',
+        not_found: 'Deze guestlist bestaat niet (meer).'
+      };
+      alert(reasons[data && data.reason] || 'Claimen is niet gelukt. Probeer het opnieuw.');
+      await loadLiveGuestlists();
+    }
+  } catch(err){
+    console.warn('Claim failed.', err);
+    alert('Er ging iets mis bij het claimen. Probeer het opnieuw.');
+    btn.disabled = false;
+    btn.textContent = 'CLAIM JE PLEK';
+  }
+});
 
 function openEventSheet(ev){
   document.getElementById('sheetMedia').innerHTML = ev.image ? '<img src="' + ev.image + '" alt="' + ev.name + '">' : '';
