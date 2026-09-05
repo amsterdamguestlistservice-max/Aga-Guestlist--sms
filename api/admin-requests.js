@@ -57,7 +57,7 @@ module.exports = async function handler(req, res) {
   if (req.method === 'POST') {
     try {
       const { id, status } = req.body || {};
-      const allowed = ['Pending', 'Approved', 'Declined'];
+      const allowed = ['Pending', 'Approved', 'Declined', 'No-Show'];
       if (!id || !allowed.includes(status)) {
         res.status(400).json({ error: 'Missing or invalid id/status' });
         return;
