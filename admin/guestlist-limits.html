@@ -126,7 +126,10 @@ function render(guestlists){
     return (
       '<div class="card" data-id="' + g.event_id + '">' +
         '<div class="card__event">' + g.event_id + '</div>' +
-        '<div class="card__stats"><strong>' + g.claimed_count + '</strong> / <strong>' + g.capacity + '</strong> spots claimed</div>' +
+        '<div class="card__row">' +
+          '<label>Claimed spots</label>' +
+          '<input type="number" class="f-claimed" min="0" value="' + g.claimed_count + '">' +
+        '</div>' +
         '<div class="card__row">' +
           '<label>Guestlist enabled</label>' +
           '<label class="toggle">' +
@@ -155,6 +158,7 @@ listEl.addEventListener('click', async function(e){
   const eventId = card.dataset.id;
   const enabled = card.querySelector('.f-enabled').checked;
   const capacity = parseInt(card.querySelector('.f-capacity').value, 10);
+  const claimedCount = parseInt(card.querySelector('.f-claimed').value, 10);
   const deadlineLocal = card.querySelector('.f-deadline').value;
   const deadlineIso = new Date(deadlineLocal).toISOString();
 
@@ -164,7 +168,7 @@ listEl.addEventListener('click', async function(e){
     const res = await fetch('/api/admin-guestlist-limits', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-notify-secret': SECRET },
-      body: JSON.stringify({ event_id: eventId, enabled: enabled, capacity: capacity, deadline: deadlineIso })
+      body: JSON.stringify({ event_id: eventId, enabled: enabled, capacity: capacity, claimed_count: claimedCount, deadline: deadlineIso })
     });
     const data = await res.json();
     if(!res.ok){ throw new Error(data.error || 'Save failed'); }
