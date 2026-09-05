@@ -48,7 +48,7 @@ module.exports = async function handler(req, res) {
 
   if (req.method === 'POST') {
     try {
-      const { event_id, enabled, capacity, deadline } = req.body || {};
+      const { event_id, enabled, capacity, claimed_count, deadline } = req.body || {};
       if (!event_id) {
         res.status(400).json({ error: 'Missing event_id' });
         return;
@@ -57,10 +57,15 @@ module.exports = async function handler(req, res) {
         res.status(400).json({ error: 'capacity must be a non-negative number' });
         return;
       }
+      if (claimed_count !== undefined && (typeof claimed_count !== 'number' || claimed_count < 0)) {
+        res.status(400).json({ error: 'claimed_count must be a non-negative number' });
+        return;
+      }
 
       const update = { event_id: event_id };
       if (enabled !== undefined) update.enabled = !!enabled;
       if (capacity !== undefined) update.capacity = capacity;
+      if (claimed_count !== undefined) update.claimed_count = claimed_count;
       if (deadline !== undefined) update.deadline = deadline;
       update.updated_at = new Date().toISOString();
 
