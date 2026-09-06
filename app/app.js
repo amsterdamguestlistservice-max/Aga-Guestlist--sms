@@ -209,9 +209,17 @@ function buildTableBookingLink(ev){
     '. Kunnen jullie mij de mogelijkheden en prijzen sturen?';
   return 'https://wa.me/31644948562?text=' + encodeURIComponent(message);
 }
+function isPastEvent(ev){
+  return new Date(ev.date + 'T' + ev.time).getTime() < Date.now();
+}
 function getSortedEvents(){
-  return EVENTS.slice().sort(function(a, b){
+  return EVENTS.filter(function(ev){ return !isPastEvent(ev); }).sort(function(a, b){
     return new Date(a.date + 'T' + a.time) - new Date(b.date + 'T' + b.time);
+  });
+}
+function getPastEvents(){
+  return EVENTS.filter(isPastEvent).sort(function(a, b){
+    return new Date(b.date + 'T' + b.time) - new Date(a.date + 'T' + a.time);
   });
 }
 
@@ -272,6 +280,36 @@ function renderEventList(){
   });
 
   loadLiveGuestlists();
+}
+
+function renderPastEventList(){
+  const wrap = document.getElementById('pastEventsWrap');
+  const list = document.getElementById('pastEventList');
+  const pastEvents = getPastEvents();
+
+  if(!pastEvents.length){ wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+
+  list.innerHTML = pastEvents.map(function(ev){
+    const mediaContent = ev.image ? '<img src="' + ev.image + '" alt="' + ev.name + '">' : '';
+    return (
+      '<article class="past-event-card" data-event-id="' + (ev.id || '') + '">' +
+        '<div class="past-event-card__media">' + mediaContent + '</div>' +
+        '<div class="past-event-card__body">' +
+          '<div class="past-event-card__date">' + formatDate(ev.date) + '</div>' +
+          '<h4 class="past-event-card__name">' + ev.name + '</h4>' +
+          '<div class="past-event-card__venue">' + ev.venue + '</div>' +
+        '</div>' +
+      '</article>'
+    );
+  }).join('');
+
+  list.querySelectorAll('.past-event-card').forEach(function(card){
+    card.addEventListener('click', function(){
+      const ev = EVENTS.find(function(e){ return e.id === card.dataset.eventId; });
+      if(ev) openEventSheet(ev);
+    });
+  });
 }
 
 /* ================================================================
@@ -417,16 +455,21 @@ function openEventSheet(ev){
 
   const noGuestlist = ev.guestlistStatus === 'none';
   const closed = ev.guestlistStatus === 'closed';
+  const past = isPastEvent(ev);
   let actions = '';
-  if(!noGuestlist){
-    actions += closed
-      ? '<button type="button" class="btn" disabled>Guestlist Closed</button>'
-      : '<button type="button" class="btn btn--solid" id="sheetGuestlistBtn">Get on the Guestlist</button>';
+  if(past){
+    actions += '<div class="sheet__past-note">This event has already taken place — thanks to everyone who was on the list! 🖤</div>';
+  } else {
+    if(!noGuestlist){
+      actions += closed
+        ? '<button type="button" class="btn" disabled>Guestlist Closed</button>'
+        : '<button type="button" class="btn btn--solid" id="sheetGuestlistBtn">Get on the Guestlist</button>';
+    }
+    actions += ev.ticketUrl && ev.ticketUrl !== '#'
+      ? '<a class="btn" href="' + ev.ticketUrl + '" target="_blank" rel="noopener">Buy Tickets</a>'
+      : '<button type="button" class="btn" disabled>Tickets Coming Soon</button>';
+    actions += '<a class="btn btn--table" href="' + buildTableBookingLink(ev) + '" target="_blank" rel="noopener">Book a Table</a>';
   }
-  actions += ev.ticketUrl && ev.ticketUrl !== '#'
-    ? '<a class="btn" href="' + ev.ticketUrl + '" target="_blank" rel="noopener">Buy Tickets</a>'
-    : '<button type="button" class="btn" disabled>Tickets Coming Soon</button>';
-  actions += '<a class="btn btn--table" href="' + buildTableBookingLink(ev) + '" target="_blank" rel="noopener">Book a Table</a>';
   document.getElementById('sheetActions').innerHTML = actions;
 
   const glBtn = document.getElementById('sheetGuestlistBtn');
@@ -449,6 +492,30 @@ function closeEventSheet(){
 document.getElementById('sheetClose').addEventListener('click', closeEventSheet);
 document.getElementById('sheetOverlay').addEventListener('click', function(e){
   if(e.target === this) closeEventSheet();
+});
+
+/* ================================================================
+   REWARDS & PERKS SHEET
+   ================================================================ */
+function openRewardsSheet(){
+  document.querySelectorAll('.tier-perk').forEach(function(el){ el.classList.remove('is-current-tier'); });
+  const memberCard = document.querySelector('.member-card');
+  const tierClass = ['is-bronze', 'is-silver', 'is-gold', 'is-vip'].find(function(c){ return memberCard.classList.contains(c); });
+  if(tierClass){
+    const el = document.getElementById('tierPerk-' + tierClass.replace('is-', ''));
+    if(el) el.classList.add('is-current-tier');
+  }
+  document.getElementById('rewardsOverlay').classList.add('is-open');
+  document.body.style.overflow = 'hidden';
+}
+function closeRewardsSheet(){
+  document.getElementById('rewardsOverlay').classList.remove('is-open');
+  document.body.style.overflow = '';
+}
+document.getElementById('rewardsLinkBtn').addEventListener('click', openRewardsSheet);
+document.getElementById('rewardsClose').addEventListener('click', closeRewardsSheet);
+document.getElementById('rewardsOverlay').addEventListener('click', function(e){
+  if(e.target === this) closeRewardsSheet();
 });
 
 /* ================================================================
@@ -759,6 +826,7 @@ if(!isStandalone){
    INIT
    ================================================================ */
 renderEventList();
+renderPastEventList();
 populateGuestlistSelect();
 
 /* ================================================================
@@ -1033,6 +1101,9 @@ async function loadMyRequests(){
       } else if(statusLower === 'declined'){
         statusClass = ' is-declined';
         note = 'This request could not be approved this time.';
+      } else if(statusLower === 'no-show'){
+        statusClass = ' is-no-show';
+        note = 'You were marked as a no-show for this event.';
       } else {
         note = "We'll confirm your spot soon.";
       }

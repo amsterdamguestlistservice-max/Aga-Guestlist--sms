@@ -100,6 +100,23 @@ body.is-gated #tab-account{ display:block !important; }
 
 /* ===== Event list ===== */
 .event-list{ display:flex; flex-direction:column; gap:16px; padding:4px 18px 18px; }
+
+/* ===== Previous Events — social proof, no CTA ===== */
+.past-events-wrap{ margin-top:8px; border-top:1px solid var(--line); padding-top:6px; }
+.section-head--past{ padding:20px 18px 4px; }
+.section-head--past h2{ font-family:var(--serif); font-size:20px; margin:0 0 4px; color:var(--muted); }
+.section-head--past p{ font-size:12.5px; color:var(--muted); margin:0; }
+.past-event-list{ display:flex; flex-direction:column; gap:10px; padding:12px 18px 24px; }
+.past-event-card{
+  display:flex; align-items:center; gap:12px; padding:10px;
+  border:1px solid var(--line); background:rgba(255,255,255,0.02); cursor:pointer;
+}
+.past-event-card__media{ width:52px; height:52px; flex-shrink:0; overflow:hidden; filter:grayscale(0.6); opacity:0.8; }
+.past-event-card__media img{ width:100%; height:100%; object-fit:cover; }
+.past-event-card__date{ font-size:9.5px; letter-spacing:0.06em; color:var(--muted); text-transform:uppercase; }
+.past-event-card__name{ font-family:var(--serif); font-size:14px; margin:2px 0; color:var(--white); }
+.past-event-card__venue{ font-size:11px; color:var(--muted); }
+.sheet__past-note{ font-size:13px; color:var(--muted); line-height:1.6; padding:14px 0 4px; text-align:center; }
 .event-card{
   background:var(--charcoal);
   border:1px solid var(--line);
@@ -371,6 +388,22 @@ body.is-gated #tab-account{ display:block !important; }
   width:100%; margin-top:2px; padding:12px; background:none; border:1px solid var(--line); color:var(--muted);
   font-size:11px; letter-spacing:0.08em; text-transform:uppercase;
 }
+.rewards-link-btn{
+  display:block; width:100%; text-align:center; margin-bottom:14px; padding:0;
+  background:none; border:none; color:var(--gold-light); font-size:12.5px; font-weight:600;
+  text-decoration:underline; text-underline-offset:3px;
+}
+.tier-perk{ border:1px solid var(--line); background:var(--charcoal); padding:14px 16px; margin-top:14px; }
+.tier-perk__head{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; }
+.tier-perk__name{ font-size:13px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; }
+.tier-perk__name.is-bronze{ color:#C68A4E; }
+.tier-perk__name.is-silver{ color:#C7CBD1; }
+.tier-perk__name.is-gold{ color:var(--gold-light); }
+.tier-perk__name.is-vip{ color:#D9A6F5; }
+.tier-perk__range{ font-size:10.5px; color:var(--muted); }
+.tier-perk__list{ margin:0; padding-left:18px; font-size:12.5px; color:var(--white); line-height:1.7; }
+.tier-perk.is-current-tier{ border-color:var(--gold); box-shadow:0 0 0 1px var(--gold); }
+.tier-perk__footnote{ font-size:10.5px; color:var(--muted); margin-top:16px; text-align:center; }
 .referral-card{
   border:1px solid var(--line); background:var(--charcoal); padding:16px; margin-bottom:14px;
 }
@@ -532,6 +565,14 @@ body.is-gated #tab-account{ display:block !important; }
       <p>Amsterdam nightlife, curated.</p>
     </div>
     <div class="event-list" id="eventList"><!-- rendered by JS --></div>
+
+    <div class="past-events-wrap" id="pastEventsWrap" style="display:none;">
+      <div class="section-head section-head--past">
+        <h2>Previous Events</h2>
+        <p>Guestlist &amp; ticket sales we've handled.</p>
+      </div>
+      <div class="past-event-list" id="pastEventList"><!-- rendered by JS --></div>
+    </div>
   </section>
 
   <!-- GUESTLIST TAB -->
@@ -700,6 +741,8 @@ body.is-gated #tab-account{ display:block !important; }
         <div class="member-card__id" id="accountUserId"></div>
       </div>
 
+      <button type="button" class="rewards-link-btn" id="rewardsLinkBtn">View Rewards &amp; Perks →</button>
+
       <div class="referral-card" id="referralCard" style="display:none;">
         <div class="referral-card__label">Invite Friends, Earn Points</div>
         <p class="referral-card__copy">Share your link — when a friend you invite gets approved for their first guestlist request, you both come out ahead.</p>
@@ -775,6 +818,54 @@ body.is-gated #tab-account{ display:block !important; }
       <div class="sheet__venue" id="sheetVenue"></div>
       <p class="sheet__desc" id="sheetDesc"></p>
       <div class="sheet__actions" id="sheetActions"></div>
+    </div>
+  </div>
+</div>
+
+<div class="sheet-overlay" id="rewardsOverlay">
+  <div class="sheet">
+    <button type="button" class="sheet__close" id="rewardsClose">&times;</button>
+    <div class="sheet__handle"></div>
+    <div class="sheet__body">
+      <div class="sheet__date">MEMBERSHIP</div>
+      <h2 class="sheet__name">Rewards &amp; Perks</h2>
+      <p class="sheet__desc">Earn 10 points every time a guestlist request is approved. Climb tiers, unlock more.</p>
+
+      <div class="tier-perk" id="tierPerk-bronze">
+        <div class="tier-perk__head"><span class="tier-perk__name is-bronze">Bronze</span><span class="tier-perk__range">0+ pts</span></div>
+        <ul class="tier-perk__list">
+          <li>Guestlist access &amp; points on every approval</li>
+          <li>Your own referral link</li>
+        </ul>
+      </div>
+
+      <div class="tier-perk" id="tierPerk-silver">
+        <div class="tier-perk__head"><span class="tier-perk__name is-silver">Silver</span><span class="tier-perk__range">50+ pts</span></div>
+        <ul class="tier-perk__list">
+          <li>Everything in Bronze</li>
+          <li>Priority review on your requests</li>
+        </ul>
+      </div>
+
+      <div class="tier-perk" id="tierPerk-gold">
+        <div class="tier-perk__head"><span class="tier-perk__name is-gold">Gold</span><span class="tier-perk__range">150+ pts</span></div>
+        <ul class="tier-perk__list">
+          <li>Everything in Silver</li>
+          <li>Priority guestlist placement</li>
+          <li>Early access to limited-capacity drops</li>
+        </ul>
+      </div>
+
+      <div class="tier-perk" id="tierPerk-vip">
+        <div class="tier-perk__head"><span class="tier-perk__name is-vip">VIP</span><span class="tier-perk__range">300+ pts</span></div>
+        <ul class="tier-perk__list">
+          <li>Everything in Gold</li>
+          <li>Skip-the-line entry</li>
+          <li>Direct line for table requests</li>
+        </ul>
+      </div>
+
+      <p class="tier-perk__footnote">Perks are set by Amsterdam Guestlist Service and may change.</p>
     </div>
   </div>
 </div>
