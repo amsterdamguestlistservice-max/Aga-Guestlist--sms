@@ -587,7 +587,7 @@ document.getElementById('eventList').addEventListener('click', async function(e)
   e.stopPropagation();
 
   if(!currentUser){
-    switchTab('account');
+    openAccountGate('events');
     return;
   }
 
@@ -748,8 +748,7 @@ document.getElementById('glForm').addEventListener('submit', async function(e){
   e.preventDefault();
 
   if(!currentUser){
-    switchTab('account');
-    showAuthError('loginError', 'Please log in or create an account to submit a guestlist request.');
+    openAccountGate('guestlist');
     return;
   }
 
@@ -1015,14 +1014,19 @@ populateGuestlistSelect();
    ACCOUNT — sign up, log in, sign out, my requests
    ================================================================ */
 let currentUser = null;
+// Where to send someone after they sign up / log in from the account
+// prompt (e.g. back to the guestlist form they were filling in).
+let pendingAuthReturn = null;
 
 function showAuthPanel(){
   document.getElementById('authPanel').style.display = 'block';
   document.getElementById('accountPanel').style.display = 'none';
   document.getElementById('accountHeading').textContent = 'Create Your Account';
-  document.getElementById('accountSubhead').textContent = 'Sign up (or log in) to start browsing events and requesting guestlist access.';
+  document.getElementById('accountSubhead').textContent = 'Sign up (or log in) to request guestlist access, earn points and unlock perks.';
+  document.getElementById('glAccountNotice').style.display = 'block';
 }
 function showAccountPanel(user){
+  document.getElementById('glAccountNotice').style.display = 'none';
   document.getElementById('authPanel').style.display = 'none';
   document.getElementById('accountPanel').style.display = 'block';
   document.getElementById('accountHeading').textContent = 'Welcome Back';
@@ -1156,13 +1160,48 @@ function clearAuthError(id){
   document.getElementById(id).style.display = 'none';
 }
 
+// Signed-out visitors can browse everything; an account is only
+// required when they actually send a guestlist request or claim a spot.
 function lockAppBehindGate(){
-  document.body.classList.add('is-gated');
+  document.body.classList.remove('is-gated');
   showAuthPanel();
-  switchTab('account');
 }
 function unlockAppFromGate(){
   document.body.classList.remove('is-gated');
+}
+
+function openAccountGate(returnTab){
+  pendingAuthReturn = returnTab || null;
+  document.getElementById('accountGateOverlay').classList.add('is-open');
+  document.body.style.overflow = 'hidden';
+}
+function closeAccountGate(){
+  document.getElementById('accountGateOverlay').classList.remove('is-open');
+  document.body.style.overflow = '';
+}
+document.getElementById('accountGateSignupBtn').addEventListener('click', function(){
+  closeAccountGate();
+  switchTab('account');
+  document.getElementById('authTabSignup').click();
+});
+document.getElementById('accountGateLoginBtn').addEventListener('click', function(){
+  closeAccountGate();
+  switchTab('account');
+  document.getElementById('authTabLogin').click();
+});
+document.getElementById('accountGateLaterBtn').addEventListener('click', function(){
+  pendingAuthReturn = null;
+  closeAccountGate();
+});
+document.getElementById('accountGateOverlay').addEventListener('click', function(e){
+  if(e.target === this){ pendingAuthReturn = null; closeAccountGate(); }
+});
+
+// After signing in/up: back to where they were, otherwise Events.
+function goAfterAuth(){
+  const target = pendingAuthReturn || 'events';
+  pendingAuthReturn = null;
+  switchTab(target);
 }
 
 // Shown right after signing in/up, and again on every fresh visit,
@@ -1172,7 +1211,7 @@ function unlockAppFromGate(){
 function checkNotificationGate(){
   const overlay = document.getElementById('notifyGateOverlay');
   if(!pushSupported || Notification.permission === 'granted'){
-    switchTab('events');
+    goAfterAuth();
     return;
   }
   overlay.classList.add('is-open');
@@ -1181,7 +1220,7 @@ function checkNotificationGate(){
 function closeNotifyGate(){
   document.getElementById('notifyGateOverlay').classList.remove('is-open');
   document.body.style.overflow = '';
-  switchTab('events');
+  goAfterAuth();
 }
 document.getElementById('notifyGateEnableBtn').addEventListener('click', async function(){
   await subscribeToPush();
@@ -1251,6 +1290,7 @@ document.getElementById('signOutBtn').addEventListener('click', async function()
   if(supabaseClient){ await supabaseClient.auth.signOut(); }
   currentUser = null;
   lockAppBehindGate();
+  switchTab('events');
 });
 
 async function loadMyRequests(){
@@ -1329,8 +1369,8 @@ async function saveRequestToAccount(payload){
 }
 
 // Restore session on load (e.g. returning visitor who's still logged in).
-// If there's no session, the app is gated behind sign up / log in —
-// nobody browses events or requests guestlist access anonymously.
+// Without a session visitors can still browse; they're asked to create
+// an account only when sending a guestlist request or claiming a spot.
 (async function initAuth(){
   if(!supabaseClient){ lockAppBehindGate(); return; }
   const { data } = await supabaseClient.auth.getSession();

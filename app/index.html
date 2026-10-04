@@ -325,6 +325,11 @@ body.is-gated #tab-account{ display:block !important; }
 .consent-row input{ margin-top:3px; flex-shrink:0; }
 .consent-row label{ font-size:12px; color:var(--muted); line-height:1.5; }
 
+.account-gate__perks{ list-style:none; text-align:left; margin:16px auto 0; max-width:300px; padding:0; }
+.account-gate__perks li{ position:relative; padding:6px 0 6px 26px; font-size:13px; color:var(--white); line-height:1.5; }
+.account-gate__perks li::before{ content:'✦'; position:absolute; left:4px; top:6px; color:var(--gold-light); font-size:12px; }
+.gl-account-notice{ margin:0 22px 16px; padding:12px 14px; border:1px solid rgba(201,162,74,0.35); font-size:12.5px; color:var(--muted); line-height:1.55; }
+.gl-account-notice strong{ color:var(--gold-light); font-weight:600; }
 .gl-success{ display:none; text-align:center; padding:40px 22px; }
 .gl-success.is-visible{ display:block; }
 .gl-success__mark{ width:60px; height:60px; border-radius:50%; border:1px solid var(--gold); display:flex; align-items:center; justify-content:center; margin:0 auto 20px; font-size:24px; color:var(--gold-light); }
@@ -497,7 +502,7 @@ body.is-gated #tab-account{ display:block !important; }
 .event-card.is-filtered-out{ display:none; }
 </style>
 </head>
-<body class="is-gated">
+<body>
 
 <header class="app-header">
   <img src="icon-192.png" alt="Amsterdam Guestlist Service">
@@ -595,6 +600,26 @@ body.is-gated #tab-account{ display:block !important; }
   </div>
 </div>
 
+<div class="sheet-overlay welcome-overlay" id="accountGateOverlay">
+  <div class="sheet welcome-sheet">
+    <div class="tour-slide__icon" style="padding-top:20px;">
+      <svg viewBox="0 0 24 24" style="width:56px; height:56px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    </div>
+    <div class="sheet__body" style="text-align:center;">
+      <h2 class="welcome-sheet__title">Create Your Free Account</h2>
+      <p class="welcome-sheet__sub">It takes 30 seconds, and your details stay filled in. With an account you:</p>
+      <ul class="account-gate__perks">
+        <li>See right away if you're on the guestlist</li>
+        <li>Earn points at every party you attend</li>
+        <li>Climb from Bronze to VIP and unlock perks</li>
+      </ul>
+      <button type="button" class="btn btn--solid" id="accountGateSignupBtn" style="width:100%; margin-top:18px;">Create Account</button>
+      <button type="button" class="btn" id="accountGateLoginBtn" style="width:100%; margin-top:10px;">I Already Have an Account</button>
+      <button type="button" id="accountGateLaterBtn" style="width:100%; margin-top:8px; background:none; border:none; color:var(--muted); font-size:12px; letter-spacing:0.04em; text-decoration:underline; padding:8px;">Keep browsing</button>
+    </div>
+  </div>
+</div>
+
 <div class="install-banner" id="installBanner">
   <strong>Add to Home Screen</strong> — install this app for one-tap access to events and the guestlist.
   <button type="button" id="installBtn">Install</button>
@@ -626,6 +651,9 @@ body.is-gated #tab-account{ display:block !important; }
     <div class="section-head">
       <h1>Request Guestlist</h1>
       <p>Pick your event and send your details.</p>
+    </div>
+    <div class="gl-account-notice" id="glAccountNotice" style="display:none;">
+      <strong>Free account needed to send your request.</strong> You'll see your status, earn points and unlock perks. You can fill in the form first.
     </div>
     <div class="gl-spot-notice" id="glSpotNotice" style="display:none;">
       ✅ Your spot is reserved — just fill in your details below to confirm.
