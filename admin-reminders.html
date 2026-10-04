@@ -82,11 +82,11 @@ const STORAGE_KEY = 'ags_admin_key';
 
 function waMessage(guest){
   const guestWord = guest.total_guests && guest.total_guests > 1
-    ? ' (jullie zijn met ' + guest.total_guests + ')'
+    ? ' (party of ' + guest.total_guests + ')'
     : '';
-  return 'Hi ' + guest.first_name + '! Even een herinnering: je staat vanavond op de gastenlijst voor '
-    + guest.event_name + ' bij ' + guest.event_venue + guestWord
-    + '. Tot vanavond! — Amsterdam Guestlist Service';
+  return 'Hi ' + guest.first_name + "! Quick reminder: you're on the guestlist tonight for "
+    + guest.event_name + ' at ' + guest.event_venue + guestWord
+    + '. See you tonight! — Amsterdam Guestlist Service';
 }
 
 function waLink(guest){

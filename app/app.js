@@ -301,8 +301,8 @@ function formatDateReadable(dateStr){
   const d = new Date(dateStr + 'T00:00:00');
   return d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
 }
-function formatDateDutchShort(dateStr){
-  const months = ['januari','februari','maart','april','mei','juni','juli','augustus','september','oktober','november','december'];
+function formatDateShort(dateStr){
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   const d = new Date(dateStr + 'T00:00:00');
   return d.getDate() + ' ' + months[d.getMonth()];
 }
@@ -316,9 +316,9 @@ function guestlistBadge(status){
   return '';
 }
 function buildTableBookingLink(ev){
-  const message = 'Hi, ik wil graag een tafel reserveren voor ' + ev.name +
-    ' op ' + formatDateDutchShort(ev.date) + ' bij ' + eventVenueName(ev) +
-    '. Kunnen jullie mij de mogelijkheden en prijzen sturen?';
+  const message = "Hi, I'd like to book a table for " + ev.name +
+    ' on ' + formatDateShort(ev.date) + ' at ' + eventVenueName(ev) +
+    '. Could you send me the options and prices?';
   return 'https://wa.me/31644948562?text=' + encodeURIComponent(message);
 }
 function isPastEvent(ev){
@@ -515,10 +515,10 @@ function guestlistUrgencyInfo(state){
   const spotsLeft = Math.max(state.capacity - state.claimed_count, 0);
   const deadlinePassed = new Date(state.deadline).getTime() <= Date.now();
   if(!state.enabled || deadlinePassed || spotsLeft <= 0){
-    return { locked: true, label: '🔒 GUESTLIST VOL', spotsLeft: spotsLeft };
+    return { locked: true, label: '🔒 GUESTLIST FULL', spotsLeft: spotsLeft };
   }
-  if(spotsLeft < 4) return { locked: false, label: '🚨 LAATSTE PLEKKEN', spotsLeft: spotsLeft };
-  if(spotsLeft < 10) return { locked: false, label: '🔥 BIJNA VOL', spotsLeft: spotsLeft };
+  if(spotsLeft < 4) return { locked: false, label: '🚨 LAST SPOTS', spotsLeft: spotsLeft };
+  if(spotsLeft < 10) return { locked: false, label: '🔥 ALMOST FULL', spotsLeft: spotsLeft };
   return { locked: false, label: '', spotsLeft: spotsLeft };
 }
 
@@ -543,11 +543,11 @@ function renderGuestlistPanel(panelEl, eventId){
   panelEl.className = 'glive' + (urgency.locked ? ' is-locked' : '') + (urgency.label ? ' is-urgent' : '');
   panelEl.innerHTML =
     '<div class="glive__label">🔥 GUESTLIST LIVE' + (urgency.label ? ' · ' + urgency.label : '') + '</div>' +
-    '<div class="glive__spots">🎟️ ' + state.claimed_count + ' / ' + state.capacity + ' plekken beschikbaar</div>' +
+    '<div class="glive__spots">🎟️ ' + state.claimed_count + ' / ' + state.capacity + ' spots taken</div>' +
     '<div class="glive__bar"><div class="glive__bar-fill" style="width:' + pct + '%;"></div></div>' +
-    '<div class="glive__countdown">⏳ Guestlist sluit over <span class="glive__timer">' + formatCountdown(msLeft) + '</span></div>' +
+    '<div class="glive__countdown">⏳ Guestlist closes in <span class="glive__timer">' + formatCountdown(msLeft) + '</span></div>' +
     '<button type="button" class="glive__claim-btn" data-event-id="' + eventId + '"' + (urgency.locked ? ' disabled' : '') + '>' +
-      (urgency.locked ? (msLeft <= 0 ? 'GUESTLIST GESLOTEN' : 'GUESTLIST VOL') : 'CLAIM JE PLEK') +
+      (urgency.locked ? (msLeft <= 0 ? 'GUESTLIST CLOSED' : 'GUESTLIST FULL') : 'CLAIM YOUR SPOT') +
     '</button>';
 }
 
@@ -609,20 +609,20 @@ document.getElementById('eventList').addEventListener('click', async function(e)
       document.getElementById('glSpotNotice').style.display = 'block';
     } else {
       const reasons = {
-        full: 'Helaas, de guestlist is zojuist volgelopen.',
-        deadline_passed: 'Helaas, de guestlist is inmiddels gesloten.',
-        disabled: 'De guestlist voor dit event is niet actief.',
-        not_authenticated: 'Log in om een plek te claimen.',
-        not_found: 'Deze guestlist bestaat niet (meer).'
+        full: 'Sorry, the guestlist just filled up.',
+        deadline_passed: 'Sorry, the guestlist has closed.',
+        disabled: 'The guestlist for this event is not open.',
+        not_authenticated: 'Log in to claim a spot.',
+        not_found: 'This guestlist no longer exists.'
       };
-      alert(reasons[data && data.reason] || 'Claimen is niet gelukt. Probeer het opnieuw.');
+      alert(reasons[data && data.reason] || "Couldn't claim your spot. Please try again.");
       await loadLiveGuestlists();
     }
   } catch(err){
     console.warn('Claim failed.', err);
-    alert('Er ging iets mis bij het claimen. Probeer het opnieuw.');
+    alert('Something went wrong while claiming. Please try again.');
     btn.disabled = false;
-    btn.textContent = 'CLAIM JE PLEK';
+    btn.textContent = 'CLAIM YOUR SPOT';
   }
 });
 
@@ -873,14 +873,14 @@ async function subscribeToPush(){
       };
       if(typeof currentUser !== 'undefined' && currentUser){ payload.user_id = currentUser.id; }
       const { error } = await supabaseClient.from('push_subscriptions').upsert(payload, { onConflict: 'endpoint' });
-      if(error){ alert('Opslaan mislukt: ' + error.message); }
-      else { alert('Gelukt! Abonnement opgeslagen.'); }
+      if(error){ alert("Couldn't turn on notifications: " + error.message); }
+      else { alert("Notifications are on! We'll let you know when you're on the list."); }
     } else {
-      alert('supabaseClient bestaat niet — supabase-config.js is niet goed geladen.');
+      alert("Couldn't turn on notifications right now. Please try again later.");
     }
   } catch(err){
     console.warn('Push subscribe failed:', err);
-    alert('Fout bij aanmelden voor meldingen: ' + (err && err.message ? err.message : err));
+    alert("Couldn't turn on notifications: " + (err && err.message ? err.message : err));
   }
   await updateNotifyBtnState();
 }
