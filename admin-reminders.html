@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AGS — Herinneringen vanavond</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+:root{
+  --black:#050505;
+  --charcoal:#0D0D0D;
+  --charcoal-2:#121212;
+  --gold:#C9A24A;
+  --gold-light:#E6C875;
+  --white:#F5F5F5;
+  --muted:#A6A6A6;
+  --line: rgba(201,162,74,0.22);
+  --serif:'Georgia','Liberation Serif',serif;
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+}
+*{ margin:0; padding:0; box-sizing:border-box; }
+body{
+  background:var(--black); color:var(--white); font-family:var(--sans);
+  min-height:100vh; padding:24px 18px 60px;
+}
+h1{ font-family:var(--serif); font-size:24px; font-weight:normal; margin-bottom:6px; }
+.sub{ font-size:13px; color:var(--muted); margin-bottom:26px; }
+
+.key-gate{ max-width:360px; margin:60px auto; text-align:center; }
+.key-gate input{
+  width:100%; padding:13px 14px; background:var(--charcoal); border:1px solid var(--line);
+  color:var(--white); font-size:14px; margin:18px 0 14px;
+}
+.key-gate button, .reload-btn{
+  width:100%; padding:13px; background:var(--gold); color:var(--black); border:none;
+  font-size:12px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer;
+}
+
+.state-msg{ text-align:center; color:var(--muted); font-size:13.5px; padding:40px 10px; }
+
+.guest-card{
+  background:var(--charcoal); border:1px solid var(--line);
+  padding:16px; margin-bottom:12px;
+}
+.guest-card__event{ font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--gold); }
+.guest-card__name{ font-family:var(--serif); font-size:19px; margin:4px 0 2px; }
+.guest-card__meta{ font-size:12.5px; color:var(--muted); margin-bottom:12px; }
+.guest-card__btn{
+  display:block; width:100%; text-align:center; padding:12px; text-decoration:none;
+  background:#25D366; color:#050505; font-size:12.5px; font-weight:700;
+  letter-spacing:0.04em; border-radius:2px;
+}
+.guest-card__btn.is-sent{ background:var(--charcoal-2); color:var(--muted); border:1px solid var(--line); }
+
+.top-bar{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:18px; }
+.reload-btn{ width:auto; padding:9px 16px; font-size:10.5px; }
+</style>
+</head>
+<body>
+
+<div id="gate" class="key-gate">
+  <h1>Herinneringen vanavond</h1>
+  <p class="sub">Alleen voor jou — vraagt eenmalig je toegangscode.</p>
+  <input type="password" id="keyInput" placeholder="Toegangscode" autocomplete="off">
+  <button type="button" id="keySubmit">Bekijk lijst</button>
+</div>
+
+<div id="app" style="display:none; max-width:520px; margin:0 auto;">
+  <div class="top-bar">
+    <div>
+      <h1>Vanavond</h1>
+      <p class="sub" id="dateLabel" style="margin-bottom:0;"></p>
+    </div>
+    <button type="button" class="reload-btn" id="reloadBtn">Ververs</button>
+  </div>
+  <div id="list"></div>
+</div>
+
+<script>
+const ENDPOINT = '/api/reminders-today'; // Vercel serves api/reminders-today.js at this path
+const STORAGE_KEY = 'ags_admin_key';
+
+function waMessage(guest){
+  const guestWord = guest.total_guests && guest.total_guests > 1
+    ? ' (jullie zijn met ' + guest.total_guests + ')'
+    : '';
+  return 'Hi ' + guest.first_name + '! Even een herinnering: je staat vanavond op de gastenlijst voor '
+    + guest.event_name + ' bij ' + guest.event_venue + guestWord
+    + '. Tot vanavond! — Amsterdam Guestlist Service';
+}
+
+function waLink(guest){
+  const digits = (guest.phone || '').replace(/[^0-9]/g, '');
+  return 'https://wa.me/' + digits + '?text=' + encodeURIComponent(waMessage(guest));
+}
+
+function renderGuests(guests){
+  const list = document.getElementById('list');
+  if(guests.length === 0){
+    list.innerHTML = '<p class="state-msg">Geen goedgekeurde aanvragen voor een event vanavond.</p>';
+    return;
+  }
+  list.innerHTML = guests.map(function(g, i){
+    const extra = g.total_guests && g.total_guests > 1 ? ' +' + (g.total_guests - 1) : '';
+    return (
+      '<div class="guest-card">' +
+        '<div class="guest-card__event">' + g.event_name + ' · ' + g.event_venue + '</div>' +
+        '<div class="guest-card__name">' + g.first_name + ' ' + g.last_name + extra + '</div>' +
+        '<div class="guest-card__meta">' + (g.phone || 'Geen telefoonnummer') + '</div>' +
+        (g.phone
+          ? '<a class="guest-card__btn" data-index="' + i + '" href="' + waLink(g) + '" target="_blank" rel="noopener">Stuur WhatsApp-herinnering</a>'
+          : '<span class="guest-card__btn is-sent">Geen telefoonnummer bekend</span>') +
+      '</div>'
+    );
+  }).join('');
+
+  list.querySelectorAll('.guest-card__btn[href]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      // Purely visual — marks it as sent in this view so you can see
+      // what's left at a glance. Nothing is saved; a refresh resets it.
+      setTimeout(function(){
+        btn.classList.add('is-sent');
+        btn.textContent = 'Verzonden ✓';
+      }, 400);
+    });
+  });
+}
+
+async function loadGuests(key){
+  const list = document.getElementById('list');
+  list.innerHTML = '<p class="state-msg">Laden…</p>';
+  try{
+    const res = await fetch(ENDPOINT + '?key=' + encodeURIComponent(key));
+    const data = await res.json();
+    if(!res.ok || !data.ok){
+      if(res.status === 401){
+        list.innerHTML = '<p class="state-msg">Toegangscode klopt niet. Ververs de pagina om het opnieuw in te voeren.</p>';
+        localStorage.removeItem(STORAGE_KEY);
+        return;
+      }
+      list.innerHTML = '<p class="state-msg">Kon de lijst niet laden: ' + (data.error || res.status) + '</p>';
+      return;
+    }
+    document.getElementById('dateLabel').textContent = data.date
+      ? new Date(data.date + 'T00:00:00').toLocaleDateString('nl-NL', { weekday:'long', day:'numeric', month:'long' })
+      : '';
+    renderGuests(data.guests || []);
+  } catch(err){
+    list.innerHTML = '<p class="state-msg">Netwerkfout — probeer het opnieuw.</p>';
+  }
+}
+
+function showApp(key){
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  loadGuests(key);
+}
+
+document.getElementById('keySubmit').addEventListener('click', function(){
+  const key = document.getElementById('keyInput').value.trim();
+  if(!key) return;
+  localStorage.setItem(STORAGE_KEY, key);
+  showApp(key);
+});
+document.getElementById('keyInput').addEventListener('keydown', function(e){
+  if(e.key === 'Enter') document.getElementById('keySubmit').click();
+});
+document.getElementById('reloadBtn').addEventListener('click', function(){
+  loadGuests(localStorage.getItem(STORAGE_KEY));
+});
+
+(function init(){
+  const savedKey = localStorage.getItem(STORAGE_KEY);
+  if(savedKey) showApp(savedKey);
+})();
+</script>
+</body>
+</html>
