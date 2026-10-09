@@ -438,6 +438,13 @@ body.is-gated #tab-account{ display:block !important; }
 .contact-card h3{ font-family:var(--serif); font-size:18px; margin-bottom:8px; }
 .contact-card p{ font-size:12.5px; color:var(--muted); line-height:1.6; margin-bottom:16px; }
 
+.ambassador-card{ border:1px solid var(--gold); }
+.ambassador-card__label{ display:block; font-size:10.5px; letter-spacing:0.12em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; }
+.ambassador-steps{ list-style:none; margin:0 0 16px; padding:0; counter-reset:amb; }
+.ambassador-steps li{ counter-increment:amb; position:relative; padding:0 0 10px 30px; font-size:12.5px; color:var(--muted); line-height:1.5; }
+.ambassador-steps li::before{ content:counter(amb); position:absolute; left:0; top:0; width:20px; height:20px; border:1px solid var(--gold); color:var(--gold-light); font-size:11px; display:flex; align-items:center; justify-content:center; border-radius:50%; }
+.ambassador-steps strong{ color:var(--white); font-weight:600; }
+
 /* ===== Install banner ===== */
 .install-banner{
   display:none;
@@ -807,9 +814,20 @@ body.is-gated #tab-account{ display:block !important; }
   <section class="tab-panel" id="tab-contact">
     <div class="section-head">
       <h1>Contact</h1>
-      <p>Tables, partnerships, and everything else.</p>
+      <p>Ambassadors, tables, partnerships, and everything else.</p>
     </div>
     <div class="contact-wrap">
+      <div class="contact-card ambassador-card">
+        <span class="ambassador-card__label">Ambassadors</span>
+        <h3>Become an Ambassador</h3>
+        <p style="margin-bottom:14px;">Love the nights we promote? Spread the word to your circle and get priority on the guestlist.</p>
+        <ol class="ambassador-steps">
+          <li><strong>Join the group.</strong> Message us and we add you to the ambassador group of the party.</li>
+          <li><strong>Post it on your story</strong> and tag @amsterdam_guestlist_service.</li>
+          <li><strong>Send us your names.</strong> Your guestlist goes through us. Ambassadors and their friends get guestlist priority.</li>
+        </ol>
+        <a href="https://wa.me/31644948562?text=Hi%2C%20ik%20wil%20graag%20ambassadeur%20worden%20bij%20Amsterdam%20Guestlist%20Service." class="btn btn--solid" target="_blank" rel="noopener">Join the Ambassadors</a>
+      </div>
       <div class="contact-card">
         <h3>Book a Table</h3>
         <p>Message us directly for table availability and pricing at any event.</p>
