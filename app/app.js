@@ -283,7 +283,7 @@ const EVENTS = [
     description: "MITA x ADE special edition with Cees, Chopper, Gissa, Mitch Julian, Roox and Sven Jansen. 17:00 till 22:00.",
     guestlistStatus: "soon",
     ticketUrl: "#",
-    ticketLabel: "Discount Tickets Soon",
+    ticketLabel: "Discount Tickets Soon Available",
     guestlistUrl: "#guestlist",
     featured: false,
     countdownEnabled: false
