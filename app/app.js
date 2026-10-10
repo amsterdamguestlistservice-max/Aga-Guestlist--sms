@@ -692,6 +692,41 @@ function addEventToCalendar(ev){
   setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
 }
 
+/* ---- Share an event ---- */
+const APP_SHARE_URL = 'https://www.amsterdamguestlistservice.website/app/';
+function dataUrlToFile(dataUrl, filename){
+  const parts = dataUrl.split(',');
+  const mime = (parts[0].match(/:(.*?);/) || [])[1] || 'image/jpeg';
+  const bin = atob(parts[1]);
+  const arr = new Uint8Array(bin.length);
+  for(let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new File([arr], filename, { type: mime });
+}
+async function shareEvent(ev){
+  const text = ev.name + ' — ' + formatDateReadable(ev.date) + ' · ' + ev.venue +
+    '\nGet on the guestlist via Amsterdam Guestlist Service 🖤';
+  const data = { title: ev.name, text: text, url: APP_SHARE_URL };
+  try{
+    if(navigator.share){
+      // Try to include the poster; fall back to text + link if the device
+      // can't share files.
+      if(ev.image && ev.image.indexOf('data:') === 0 && window.File){
+        const file = dataUrlToFile(ev.image, ev.name.replace(/\W+/g, '-').toLowerCase() + '.jpg');
+        if(navigator.canShare && navigator.canShare({ files: [file] })){
+          await navigator.share({ title: data.title, text: text + '\n' + APP_SHARE_URL, files: [file] });
+          return;
+        }
+      }
+      await navigator.share(data);
+      return;
+    }
+  } catch(err){
+    if(err && err.name === 'AbortError') return; // user closed the share sheet
+  }
+  // Desktop / no share support: open WhatsApp with the text + link.
+  window.open('https://wa.me/?text=' + encodeURIComponent(text + '\n' + APP_SHARE_URL), '_blank', 'noopener');
+}
+
 function openEventSheet(ev){
   document.getElementById('sheetMedia').innerHTML = ev.image ? '<img src="' + ev.image + '" alt="' + ev.name + '">' : '';
   document.getElementById('sheetDate').textContent = formatDate(ev.date);
@@ -719,11 +754,14 @@ function openEventSheet(ev){
       : '<button type="button" class="btn" disabled>' + (ev.ticketLabel || 'Tickets Coming Soon') + '</button>';
     actions += '<a class="btn btn--table" href="' + buildTableBookingLink(ev) + '" target="_blank" rel="noopener">Book a Table</a>';
     actions += '<button type="button" class="btn" id="sheetCalendarBtn">📅 Add to Calendar</button>';
+    actions += '<button type="button" class="btn" id="sheetShareBtn">📤 Share with Friends</button>';
   }
   document.getElementById('sheetActions').innerHTML = actions;
 
   const calBtn = document.getElementById('sheetCalendarBtn');
   if(calBtn){ calBtn.addEventListener('click', function(){ addEventToCalendar(ev); }); }
+  const shareBtn = document.getElementById('sheetShareBtn');
+  if(shareBtn){ shareBtn.addEventListener('click', function(){ shareEvent(ev); }); }
 
   const glBtn = document.getElementById('sheetGuestlistBtn');
   if(glBtn){
