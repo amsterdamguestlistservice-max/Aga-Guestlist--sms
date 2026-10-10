@@ -1167,6 +1167,74 @@ document.getElementById('authTabSignup').addEventListener('click', function(){
   document.getElementById('loginForm').style.display = 'none';
 });
 
+// ---- Forgot / reset password ----
+// Captured before supabase-js has a chance to clean the URL: a reset link
+// from the email lands here with #...&type=recovery in the hash.
+let isPasswordRecovery = /type=recovery/.test(window.location.hash || '');
+
+function showAuthView(view){
+  // view: 'login' | 'forgot' | 'newPassword'
+  document.getElementById('loginForm').style.display = view === 'login' ? 'block' : 'none';
+  document.getElementById('forgotForm').style.display = view === 'forgot' ? 'block' : 'none';
+  document.getElementById('newPasswordForm').style.display = view === 'newPassword' ? 'block' : 'none';
+  document.getElementById('signupForm').style.display = 'none';
+  document.querySelector('.auth-switch').style.display = view === 'login' ? 'flex' : 'none';
+  document.getElementById('authTabLogin').classList.add('is-active');
+  document.getElementById('authTabSignup').classList.remove('is-active');
+}
+document.getElementById('forgotPasswordLink').addEventListener('click', function(){
+  document.getElementById('forgotEmail').value = document.getElementById('loginEmail').value.trim();
+  document.getElementById('forgotError').style.display = 'none';
+  document.getElementById('forgotOk').style.display = 'none';
+  showAuthView('forgot');
+});
+document.getElementById('forgotBackLink').addEventListener('click', function(){ showAuthView('login'); });
+
+document.getElementById('forgotForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  const errEl = document.getElementById('forgotError');
+  const okEl = document.getElementById('forgotOk');
+  errEl.style.display = 'none'; okEl.style.display = 'none';
+  if(!supabaseClient){ errEl.textContent = 'Accounts are not set up yet. Please try again later.'; errEl.style.display = 'block'; return; }
+  const email = document.getElementById('forgotEmail').value.trim();
+  if(!email){ errEl.textContent = 'Please enter your email address.'; errEl.style.display = 'block'; return; }
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + '/app/'
+  });
+  if(error){ errEl.textContent = error.message; errEl.style.display = 'block'; return; }
+  okEl.textContent = 'If there is an account with this email, a reset link is on its way. Check your inbox (and spam).';
+  okEl.style.display = 'block';
+});
+
+function enterPasswordRecovery(){
+  isPasswordRecovery = true;
+  document.body.classList.add('is-gated');
+  switchTab('account');
+  document.getElementById('authPanel').style.display = 'block';
+  document.getElementById('accountPanel').style.display = 'none';
+  showAuthView('newPassword');
+}
+document.getElementById('newPasswordForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  const errEl = document.getElementById('newPasswordError');
+  errEl.style.display = 'none';
+  const password = document.getElementById('newPassword').value;
+  if(password.length < 6){ errEl.textContent = 'Password must be at least 6 characters.'; errEl.style.display = 'block'; return; }
+  const { data, error } = await supabaseClient.auth.updateUser({ password: password });
+  if(error){ errEl.textContent = error.message; errEl.style.display = 'block'; return; }
+  isPasswordRecovery = false;
+  try{ history.replaceState(null, '', window.location.pathname); } catch(err){}
+  currentUser = data.user;
+  showAccountPanel(currentUser);
+  unlockAppFromGate();
+  checkNotificationGate();
+});
+if(supabaseClient){
+  supabaseClient.auth.onAuthStateChange(function(event){
+    if(event === 'PASSWORD_RECOVERY') enterPasswordRecovery();
+  });
+}
+
 function showAuthError(id, message){
   const el = document.getElementById(id);
   el.textContent = message;
@@ -1354,6 +1422,10 @@ async function saveRequestToAccount(payload){
 (async function initAuth(){
   if(!supabaseClient){ lockAppBehindGate(); return; }
   const { data } = await supabaseClient.auth.getSession();
+  if(isPasswordRecovery && data.session){
+    enterPasswordRecovery();
+    return;
+  }
   if(data.session && data.session.user){
     currentUser = data.session.user;
     showAccountPanel(currentUser);
