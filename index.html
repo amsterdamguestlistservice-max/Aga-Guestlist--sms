@@ -2698,6 +2698,7 @@ const EVENTS = [
     guestlistStatus: "none",
     ticketUrl: "#",
     ticketLabel: "Discount Tickets Soon Available",
+    badgeLabel: "Discount Tickets Only",
     guestlistUrl: "#guestlist",
     featured: false,
     countdownEnabled: false
@@ -2809,7 +2810,7 @@ function placeholderMedia(label){
   return '<div class="ph"><span class="ph__mark">+</span><span class="ph__label">' + label + '</span></div>';
 }
 
-function guestlistBadge(status){
+function guestlistBadge(status, label){
   if(status === 'limited'){
     return '<span class="event-card__badge">Limited Guestlist</span>';
   }
@@ -2817,7 +2818,7 @@ function guestlistBadge(status){
     return '<span class="event-card__badge is-closed">Guestlist Closed</span>';
   }
   if(status === 'none'){
-    return '<span class="event-card__badge">Tickets Only</span>';
+    return '<span class="event-card__badge">' + (label || 'Tickets Only') + '</span>';
   }
   if(status === 'soon'){
     return '<span class="event-card__badge">Guestlist Coming Soon</span>';
@@ -2948,7 +2949,7 @@ function renderEvents(){
     return (
       '<article class="event-card reveal" data-venue="' + eventVenueName(ev) + '">' +
         '<div class="event-card__media">' +
-          guestlistBadge(ev.guestlistStatus) +
+          guestlistBadge(ev.guestlistStatus, ev.badgeLabel) +
           mediaContent +
         '</div>' +
         '<div class="event-card__body">' +

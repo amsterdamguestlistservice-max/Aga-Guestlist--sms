@@ -369,6 +369,7 @@ const EVENTS = [
     guestlistStatus: "none",
     ticketUrl: "#",
     ticketLabel: "Discount Tickets Soon Available",
+    badgeLabel: "Discount Tickets Only",
     guestlistUrl: "#guestlist",
     featured: false,
     countdownEnabled: false
@@ -409,11 +410,11 @@ function formatDateDutchShort(dateStr){
 function eventVenueName(ev){
   return ev.venue.split('·')[0].trim();
 }
-function guestlistBadge(status){
+function guestlistBadge(status, label){
   if(status === 'limited') return '<span class="event-card__badge">Limited Guestlist</span>';
   if(status === 'closed') return '<span class="event-card__badge is-closed">Guestlist Closed</span>';
   if(status === 'soon') return '<span class="event-card__badge">Guestlist Coming Soon</span>';
-  if(status === 'none') return '<span class="event-card__badge">Tickets Only</span>';
+  if(status === 'none') return '<span class="event-card__badge">' + (label || 'Tickets Only') + '</span>';
   return '';
 }
 function buildTableBookingLink(ev){
@@ -539,7 +540,7 @@ function renderEventList(){
       : '';
     return (
       '<article class="event-card" data-index="' + i + '" data-event-id="' + (ev.id || '') + '" data-venue="' + eventVenueName(ev) + '">' +
-        '<div class="event-card__media">' + guestlistBadge(ev.guestlistStatus) + mediaContent + '</div>' +
+        '<div class="event-card__media">' + guestlistBadge(ev.guestlistStatus, ev.badgeLabel) + mediaContent + '</div>' +
         '<div class="event-card__body">' +
           '<div class="event-card__date">' + formatDate(ev.date) + '</div>' +
           '<h3 class="event-card__name">' + ev.name + '</h3>' +
