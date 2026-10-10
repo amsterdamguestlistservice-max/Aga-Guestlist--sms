@@ -642,6 +642,56 @@ document.getElementById('eventList').addEventListener('click', async function(e)
   }
 });
 
+/* ---- Add to calendar (.ics) ---- */
+function pad2(n){ return (n < 10 ? '0' : '') + n; }
+function icsStamp(d){
+  return d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + pad2(d.getMinutes()) + '00';
+}
+function icsEscape(t){
+  return String(t || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+}
+function eventEndDate(ev, start){
+  // Events don't store an end time, so read "till 04:00" / "tot 04:00" /
+  // "17:00 - 22:00" from the description; otherwise assume 4 hours.
+  const m = String(ev.description || '').match(/(?:till|tot|until|-|–)\s*(\d{1,2}):(\d{2})/i);
+  if(m){
+    const end = new Date(start.getTime());
+    end.setHours(parseInt(m[1], 10), parseInt(m[2], 10), 0, 0);
+    if(end <= start) end.setDate(end.getDate() + 1);
+    return end;
+  }
+  return new Date(start.getTime() + 4 * 60 * 60 * 1000);
+}
+function addEventToCalendar(ev){
+  const start = new Date(ev.date + 'T' + (ev.time || '22:00'));
+  const end = eventEndDate(ev, start);
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Amsterdam Guestlist Service//EN',
+    'CALSCALE:GREGORIAN',
+    'BEGIN:VEVENT',
+    'UID:' + (ev.id || ev.name.replace(/\W+/g, '-').toLowerCase() + '-' + ev.date) + '@amsterdamguestlistservice.website',
+    'DTSTAMP:' + icsStamp(new Date()),
+    'DTSTART:' + icsStamp(start),
+    'DTEND:' + icsStamp(end),
+    'SUMMARY:' + icsEscape(ev.name),
+    'LOCATION:' + icsEscape(ev.venue),
+    'DESCRIPTION:' + icsEscape(ev.description + ' — Amsterdam Guestlist Service'),
+    'END:VEVENT',
+    'END:VCALENDAR'
+  ];
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (ev.name.replace(/\W+/g, '-').toLowerCase() || 'event') + '.ics';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
+}
+
 function openEventSheet(ev){
   document.getElementById('sheetMedia').innerHTML = ev.image ? '<img src="' + ev.image + '" alt="' + ev.name + '">' : '';
   document.getElementById('sheetDate').textContent = formatDate(ev.date);
@@ -668,8 +718,12 @@ function openEventSheet(ev){
       ? '<a class="btn" href="' + ev.ticketUrl + '" target="_blank" rel="noopener">Buy Tickets</a>'
       : '<button type="button" class="btn" disabled>' + (ev.ticketLabel || 'Tickets Coming Soon') + '</button>';
     actions += '<a class="btn btn--table" href="' + buildTableBookingLink(ev) + '" target="_blank" rel="noopener">Book a Table</a>';
+    actions += '<button type="button" class="btn" id="sheetCalendarBtn">📅 Add to Calendar</button>';
   }
   document.getElementById('sheetActions').innerHTML = actions;
+
+  const calBtn = document.getElementById('sheetCalendarBtn');
+  if(calBtn){ calBtn.addEventListener('click', function(){ addEventToCalendar(ev); }); }
 
   const glBtn = document.getElementById('sheetGuestlistBtn');
   if(glBtn){
