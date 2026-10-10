@@ -22,6 +22,43 @@
 const webpush = require('web-push');
 const { createClient } = require('@supabase/supabase-js');
 
+
+// ---- Guest email (needs a verified sending domain in Resend) ----
+// Resend's sandbox sender can only email the account owner, so guest emails
+// stay switched off until RESEND_GUEST_FROM is set in Vercel, e.g.
+//   Amsterdam Guestlist Service <noreply@amsterdamguestlistservice.website>
+// (the domain must be verified in Resend first). Never throws.
+function guestEmailHtml(heading, line, record) {
+  var esc = function (v) {
+    return String(v === null || v === undefined ? '' : v).replace(/[&<>"']/g, function (ch) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+    });
+  };
+  return '<div style="background:#050505;color:#F5F5F5;padding:28px;font-family:Arial,sans-serif;max-width:520px;margin:0 auto;">' +
+    '<p style="color:#C9A24A;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin:0 0 14px;">Amsterdam Guestlist Service</p>' +
+    '<h2 style="font-family:Georgia,serif;font-weight:normal;font-size:22px;margin:0 0 12px;">' + esc(heading) + '</h2>' +
+    '<p style="color:#cfcfcf;line-height:1.6;margin:0 0 18px;">Hi ' + esc(record.first_name || 'there') + ', ' + esc(line) + '</p>' +
+    '<p style="border:1px solid #3a3223;padding:14px;line-height:1.7;margin:0 0 18px;">' +
+    '<strong>' + esc(record.event_name) + '</strong><br>' + esc(record.event_venue) + '<br>' + esc(record.event_date) +
+    (record.total_guests > 1 ? '<br>Party size: ' + esc(record.total_guests) : '') + '</p>' +
+    '<p style="color:#8a8a8a;font-size:12px;margin:0;">Open the app anytime: <a style="color:#E6C875;" href="https://www.amsterdamguestlistservice.website/app/">amsterdamguestlistservice.website/app</a></p>' +
+    '</div>';
+}
+async function emailGuest(record, subject, heading, line) {
+  try {
+    var from = process.env.RESEND_GUEST_FROM;
+    if (!from || !process.env.RESEND_API_KEY || !record.email) return false;
+    var r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: from, to: record.email, subject: subject, html: guestEmailHtml(heading, line, record) })
+    });
+    return r.ok;
+  } catch (e) {
+    return false;
+  }
+}
+
 async function pushToGuest(record) {
   if (!record.user_id) return 0;
   const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY } = process.env;
@@ -93,6 +130,12 @@ module.exports = async function handler(req, res) {
     // Confirmation push to the guest runs alongside the admin email and can
     // never block or break it.
     const guestPush = pushToGuest(record).catch(function () { return 0; });
+    const guestMail = emailGuest(
+      record,
+      'We received your request — ' + (record.event_name || 'your event'),
+      'Request received',
+      "we've received your guestlist request. We'll review it and let you know as soon as it's approved."
+    );
 
     const resendRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -109,14 +152,15 @@ module.exports = async function handler(req, res) {
     });
 
     const pushed = await guestPush;
+    const guestEmailed = await guestMail;
 
     if (!resendRes.ok) {
       const errBody = await resendRes.text();
-      res.status(200).json({ warning: 'Email failed to send', detail: errBody, pushed: pushed });
+      res.status(200).json({ warning: 'Email failed to send', detail: errBody, pushed: pushed, guestEmailed: guestEmailed });
       return;
     }
 
-    res.status(200).json({ ok: true, pushed: pushed });
+    res.status(200).json({ ok: true, pushed: pushed, guestEmailed: guestEmailed });
   } catch (err) {
     res.status(200).json({ warning: 'Email failed to send', detail: err.message || 'Unknown error' });
   }
