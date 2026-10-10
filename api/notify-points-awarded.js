@@ -147,8 +147,8 @@ module.exports = async function handler(req, res) {
       supabase,
       record.user_id,
       'Amsterdam Guestlist Service',
-      "You're on the list for " + (record.event_name || 'your event') +
-        '! +' + POINTS_PER_APPROVAL + ' points (total: ' + newPoints + ').'
+      'Good news! Your request for ' + (record.event_name || 'your event') +
+        " is approved \u2705 You're on the list. +" + POINTS_PER_APPROVAL + ' points (total: ' + newPoints + ').'
     );
 
     // ---- Referral bonus: only on this guest's first-ever approval ----
