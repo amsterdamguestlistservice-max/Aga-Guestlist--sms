@@ -448,6 +448,10 @@ body.is-gated #tab-account{ display:block !important; }
 .ambassador-steps li::before{ content:counter(amb); position:absolute; left:0; top:0; width:20px; height:20px; border:1px solid var(--gold); color:var(--gold-light); font-size:11px; display:flex; align-items:center; justify-content:center; border-radius:50%; }
 .ambassador-steps strong{ color:var(--white); font-weight:600; }
 
+.notify-benefits{ list-style:none; margin:18px auto 0; padding:0; max-width:300px; text-align:left; }
+.notify-benefits li{ position:relative; padding:0 0 9px 24px; font-size:12.5px; color:var(--white); line-height:1.45; }
+.notify-benefits li::before{ content:'✓'; position:absolute; left:0; top:0; color:var(--gold-light); font-weight:700; }
+
 /* ===== Install banner ===== */
 .install-banner{
   display:none;
@@ -593,9 +597,14 @@ body.is-gated #tab-account{ display:block !important; }
       <svg viewBox="0 0 24 24" style="width:56px; height:56px;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
     </div>
     <div class="sheet__body" style="text-align:center;">
-      <h2 class="welcome-sheet__title">Turn On Notifications</h2>
-      <p class="welcome-sheet__sub">You'll only find out your guestlist request was approved, or that you earned points, if notifications are on. It only takes a tap.</p>
-      <button type="button" class="btn btn--solid" id="notifyGateEnableBtn" style="width:100%; margin-top:22px;">Enable Notifications</button>
+      <h2 class="welcome-sheet__title" id="notifyGateTitle">Don't Miss Your Spot</h2>
+      <p class="welcome-sheet__sub" id="notifyGateSub">Turn on notifications and we'll tell you the moment you're approved. Without them you won't know until you check the app.</p>
+      <ul class="notify-benefits" id="notifyGateBenefits">
+        <li>Instant message when your request is approved</li>
+        <li>Last-call alerts before a guestlist closes</li>
+        <li>Points and rewards updates</li>
+      </ul>
+      <button type="button" class="btn btn--solid" id="notifyGateEnableBtn" style="width:100%; margin-top:22px;">Yes, Notify Me</button>
       <button type="button" id="notifyGateLaterBtn" style="width:100%; margin-top:12px; background:none; border:none; color:var(--muted); font-size:12px; letter-spacing:0.04em; text-decoration:underline; padding:8px;">Maybe later</button>
     </div>
   </div>

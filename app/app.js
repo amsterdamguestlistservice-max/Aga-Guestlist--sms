@@ -1349,11 +1349,58 @@ function unlockAppFromGate(){
 // until the guest actually grants notification permission — otherwise
 // they'd never find out their request was approved or that they
 // earned points. Skipped entirely if the browser can't do push at all.
+function isIosDevice(){
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+function isStandaloneApp(){
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+function setNotifyGateMode(mode){
+  // mode: 'ask' (default) | 'install' (iPhone, not added to home screen yet)
+  //     | 'blocked' (permission denied in the browser/phone settings)
+  const title = document.getElementById('notifyGateTitle');
+  const sub = document.getElementById('notifyGateSub');
+  const benefits = document.getElementById('notifyGateBenefits');
+  const enableBtn = document.getElementById('notifyGateEnableBtn');
+  const laterBtn = document.getElementById('notifyGateLaterBtn');
+  if(mode === 'install'){
+    title.textContent = 'Add the App to Get Notifications';
+    sub.innerHTML = 'On iPhone, notifications only work once the app is on your home screen:<br><br>' +
+      '1. Tap the <strong>Share</strong> button in Safari<br>' +
+      '2. Choose <strong>Add to Home Screen</strong><br>' +
+      '3. Open the app from your home screen and turn on notifications';
+    benefits.style.display = 'none';
+    enableBtn.style.display = 'none';
+    laterBtn.textContent = 'Got it';
+  } else if(mode === 'blocked'){
+    title.textContent = 'Notifications Are Blocked';
+    sub.innerHTML = "You'd miss your approval message. Turn them back on in your phone settings: " +
+      '<strong>Settings → Notifications → Amsterdam Guestlist Service</strong> (or the site settings of your browser).';
+    benefits.style.display = 'none';
+    enableBtn.style.display = 'none';
+    laterBtn.textContent = 'Got it';
+  } else {
+    title.textContent = "Don't Miss Your Spot";
+    sub.textContent = "Turn on notifications and we'll tell you the moment you're approved. Without them you won't know until you check the app.";
+    benefits.style.display = '';
+    enableBtn.style.display = '';
+    laterBtn.textContent = 'Maybe later';
+  }
+}
 function checkNotificationGate(){
   const overlay = document.getElementById('notifyGateOverlay');
-  if(!pushSupported || Notification.permission === 'granted'){
+  // iPhone Safari can't do push until the app is installed to the home
+  // screen — explain that instead of silently skipping the prompt.
+  if(!pushSupported && isIosDevice() && !isStandaloneApp()){
+    setNotifyGateMode('install');
+  } else if(!pushSupported || Notification.permission === 'granted'){
     switchTab('events');
     return;
+  } else if(Notification.permission === 'denied'){
+    setNotifyGateMode('blocked');
+  } else {
+    setNotifyGateMode('ask');
   }
   overlay.classList.add('is-open');
   document.body.style.overflow = 'hidden';
