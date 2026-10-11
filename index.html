@@ -2003,6 +2003,11 @@ button{ font-family: inherit; cursor:pointer; }
           <input type="number" id="gfAge" name="age" min="18" max="120" required>
           <p class="field-error" hidden></p>
         </div>
+        <div class="field" id="gfGenderWrap" hidden>
+          <label for="gfGender">Man / Woman</label>
+          <select id="gfGender" name="gender"><option value="">Select…</option><option value="man">Man</option><option value="woman">Woman</option></select>
+          <p class="field-error" hidden></p>
+        </div>
         <div class="field">
           <label for="gfInstagram">Instagram Username</label>
           <input type="text" id="gfInstagram" name="instagram" placeholder="@username" required>
@@ -2620,6 +2625,8 @@ const EVENTS = [
     ticketUrl: "#",
     ticketLabel: "Guestlist Only",
     guestlistUrl: "#guestlist",
+    guestEmailRequired: true,
+    guestGenderRequired: true,
     featured: false,
     countdownEnabled: false
   },
@@ -3346,7 +3353,16 @@ function updateEventBanner(){
   document.getElementById('ebDate').textContent = formatDate(ev.date);
 }
 
+function selectedFormEvent(){
+  const v = document.getElementById('gfEvent').value;
+  return v === '' ? null : (EVENTS[parseInt(v, 10)] || null);
+}
+function formNeedsGender(){ const ev = selectedFormEvent(); return !!(ev && ev.guestGenderRequired); }
+function formNeedsGuestEmail(){ const ev = selectedFormEvent(); return !!(ev && ev.guestEmailRequired); }
+function updateMainGenderField(){ document.getElementById('gfGenderWrap').hidden = !formNeedsGender(); }
+
 function guestCardTemplate(i){
+  const needGender = formNeedsGender(), needEmail = formNeedsGuestEmail();
   return (
     '<div class="guest-card" data-guest-index="' + i + '">' +
       '<button type="button" class="guest-card__toggle">' +
@@ -3370,6 +3386,16 @@ function guestCardTemplate(i){
               '<input type="number" id="gfGuest' + i + 'Age" data-guest-field="age" data-guest-index="' + i + '" min="18" max="120">' +
               '<p class="field-error" hidden></p>' +
             '</div>' +
+            (needGender
+              ? '<div class="field"><label for="gfGuest' + i + 'Gender">Man / Woman</label>' +
+                '<select id="gfGuest' + i + 'Gender" data-guest-field="gender" data-guest-index="' + i + '"><option value="">Select…</option><option value="man">Man</option><option value="woman">Woman</option></select>' +
+                '<p class="field-error" hidden></p></div>'
+              : '') +
+            (needEmail
+              ? '<div class="field"><label for="gfGuest' + i + 'Email">Email</label>' +
+                '<input type="email" id="gfGuest' + i + 'Email" data-guest-field="email" data-guest-index="' + i + '">' +
+                '<p class="field-error" hidden></p></div>'
+              : '') +
           '</div>' +
         '</div>' +
       '</div>' +
@@ -3380,9 +3406,12 @@ function guestCardTemplate(i){
 function rebuildAdditionalGuests(){
   const count = parseInt(document.getElementById('gfGuestCount').value, 10) || 0;
   const container = document.getElementById('additionalGuests');
+  const kept = {};
+  container.querySelectorAll('[id^="gfGuest"]').forEach(function(el){ kept[el.id] = el.value; });
   let html = '';
   for(let i = 1; i <= count; i++){ html += guestCardTemplate(i); }
   container.innerHTML = html;
+  Object.keys(kept).forEach(function(id){ const el = document.getElementById(id); if(el) el.value = kept[id]; });
 
   container.querySelectorAll('.guest-card__toggle').forEach(function(btn){
     btn.addEventListener('click', function(){
@@ -3405,7 +3434,9 @@ function getAdditionalGuestValues(){
     guests.push({
       firstName: (document.getElementById('gfGuest' + i + 'First') || {}).value || '',
       lastName: (document.getElementById('gfGuest' + i + 'Last') || {}).value || '',
-      age: (document.getElementById('gfGuest' + i + 'Age') || {}).value || ''
+      age: (document.getElementById('gfGuest' + i + 'Age') || {}).value || '',
+      gender: (document.getElementById('gfGuest' + i + 'Gender') || {}).value || '',
+      email: (document.getElementById('gfGuest' + i + 'Email') || {}).value || ''
     });
   }
   return guests;
@@ -3500,6 +3531,9 @@ function validateGuestlistForm(form){
   if(!age.value){ fail(age, 'Age is required.'); }
   else if(parseInt(age.value, 10) < 18){ fail(age, 'You must be 18 or older to request guestlist access.'); }
 
+  const gender = document.getElementById('gfGender');
+  if(formNeedsGender() && !gender.value){ fail(gender, 'Please select man or woman.'); }
+
   const instagram = document.getElementById('gfInstagram');
   if(!instagram.value.trim()){ fail(instagram, 'Instagram username is required.'); }
 
@@ -3520,8 +3554,16 @@ function validateGuestlistForm(form){
     if(!gLast.value.trim()){ fail(gLast, 'Last name is required.'); }
     if(!gAge.value){ fail(gAge, 'Age is required.'); }
     else if(parseInt(gAge.value, 10) < 18){ fail(gAge, 'Must be 18 or older.'); }
+    const gGender = document.getElementById('gfGuest' + i + 'Gender');
+    const gEmail = document.getElementById('gfGuest' + i + 'Email');
+    let extraBad = false;
+    if(gGender && !gGender.value){ fail(gGender, 'Please select man or woman.'); extraBad = true; }
+    if(gEmail){
+      if(!gEmail.value.trim()){ fail(gEmail, 'Email is required.'); extraBad = true; }
+      else if(!isValidEmail(gEmail.value.trim())){ fail(gEmail, 'Enter a valid email address.'); extraBad = true; }
+    }
 
-    if((!gFirst.value.trim() || !gLast.value.trim() || !gAge.value || parseInt(gAge.value, 10) < 18)){
+    if(extraBad || (!gFirst.value.trim() || !gLast.value.trim() || !gAge.value || parseInt(gAge.value, 10) < 18)){
       const card = gFirst.closest('.guest-card');
       if(card) card.classList.add('is-open');
     }
@@ -3547,6 +3589,8 @@ function initGuestlistForm(){
   eventSelect.addEventListener('change', function(){
     clearFieldError(eventSelect);
     updateEventBanner();
+    updateMainGenderField();
+    rebuildAdditionalGuests();
     updateSummary();
   });
 
@@ -3561,6 +3605,10 @@ function initGuestlistForm(){
     if(e.target.matches('input')){ clearFieldError(e.target); }
     updateSummary();
   });
+  document.getElementById('additionalGuests').addEventListener('change', function(e){
+    if(e.target.matches('select')){ clearFieldError(e.target); }
+  });
+  document.getElementById('gfGender').addEventListener('change', function(e){ clearFieldError(e.target); });
 
   document.getElementById('gfConsent').addEventListener('change', function(){
     document.getElementById('errConsent').hidden = true;
@@ -3646,6 +3694,7 @@ function buildGuestlistMessageBody(payload, timestampStr){
   lines.push('Instagram: ' + payload.mainGuest.instagram);
   lines.push('Phone: ' + payload.mainGuest.phone);
   lines.push('Email: ' + payload.mainGuest.email);
+  if(payload.mainGuest.gender) lines.push('Gender: ' + payload.mainGuest.gender);
 
   if(payload.additionalGuests.length === 0){
     lines.push('ADDITIONAL GUESTS: None');
@@ -3656,6 +3705,8 @@ function buildGuestlistMessageBody(payload, timestampStr){
       lines.push('First name: ' + g.firstName);
       lines.push('Last name: ' + g.lastName);
       lines.push('Age: ' + g.age);
+      if(g.gender) lines.push('Gender: ' + g.gender);
+      if(g.email) lines.push('Email: ' + g.email);
     });
   }
 
@@ -3729,7 +3780,8 @@ function handleGuestlistSubmit(e){
       age: document.getElementById('gfAge').value.trim(),
       instagram: document.getElementById('gfInstagram').value.trim(),
       phone: getFullPhoneNumber(),
-      email: document.getElementById('gfEmail').value.trim()
+      email: document.getElementById('gfEmail').value.trim(),
+      gender: formNeedsGender() ? document.getElementById('gfGender').value : ''
     },
     additionalGuests: getAdditionalGuestValues(),
     totalGuests: getAdditionalGuestValues().length + 1,
