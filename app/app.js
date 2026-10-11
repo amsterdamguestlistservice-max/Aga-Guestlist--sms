@@ -285,6 +285,9 @@ const EVENTS = [
     ticketUrl: "#",
     ticketLabel: "Discount Tickets Soon Available",
     guestlistUrl: "#guestlist",
+    // Tickets are emailed to each guest to personalise, so every guest
+    // (incl. additional guests) must give first & last name, age and email.
+    guestEmailRequired: true,
     featured: false,
     countdownEnabled: false
   },
@@ -932,24 +935,50 @@ function preselectEvent(eventName){
   }
 }
 
+// The event currently picked in the guestlist form (or null).
+function selectedGuestlistEvent(){
+  const v = document.getElementById('glEvent').value;
+  return v === '' ? null : (EVENTS[parseInt(v, 10)] || null);
+}
+function eventNeedsGuestEmails(ev){
+  return !!(ev && ev.guestEmailRequired);
+}
+
 function rebuildAdditionalGuests(){
   const count = parseInt(document.getElementById('glGuestCount').value, 10) || 0;
   const wrap = document.getElementById('glAdditionalGuests');
+  const needEmail = eventNeedsGuestEmails(selectedGuestlistEvent());
+  // Keep what was already typed when the list is rebuilt (e.g. event switched).
+  const prev = {};
+  wrap.querySelectorAll('input[data-i]').forEach(function(input){
+    prev[input.className + '-' + input.dataset.i] = input.value;
+  });
+  function val(cls, i){ return (prev[cls + '-' + i] || '').replace(/"/g, '&quot;'); }
   let html = '';
+  if(needEmail && count > 0){
+    html += '<p class="guest-email-note">For this event every guest receives their own ticket by email to personalise. Please fill in first &amp; last name, age and email for each guest.</p>';
+  }
   for(let i = 1; i <= count; i++){
     html +=
       '<div class="guest-block">' +
         '<div class="guest-block__title">Guest ' + i + '</div>' +
         '<div class="field-row">' +
-          '<div class="field"><label>First Name</label><input type="text" class="ag-first" data-i="' + i + '"></div>' +
-          '<div class="field"><label>Last Name</label><input type="text" class="ag-last" data-i="' + i + '"></div>' +
+          '<div class="field"><label>First Name</label><input type="text" class="ag-first" data-i="' + i + '" value="' + val('ag-first', i) + '"></div>' +
+          '<div class="field"><label>Last Name</label><input type="text" class="ag-last" data-i="' + i + '" value="' + val('ag-last', i) + '"></div>' +
         '</div>' +
-        '<div class="field"><label>Age</label><input type="number" min="18" class="ag-age" data-i="' + i + '"></div>' +
+        '<div class="field"><label>Age</label><input type="number" min="18" class="ag-age" data-i="' + i + '" value="' + val('ag-age', i) + '"></div>' +
+        (needEmail
+          ? '<div class="field"><label>Email</label><input type="email" class="ag-email" data-i="' + i + '" value="' + val('ag-email', i) + '"></div>'
+          : '') +
+        '<div class="err" id="errGuest' + i + '">' +
+          (needEmail ? 'First name, last name, age (18+) and a valid email are required.' : 'First name, last name and age (18+) are required.') +
+        '</div>' +
       '</div>';
   }
   wrap.innerHTML = html;
 }
 document.getElementById('glGuestCount').addEventListener('change', rebuildAdditionalGuests);
+document.getElementById('glEvent').addEventListener('change', rebuildAdditionalGuests);
 
 function clearErr(id){ const el = document.getElementById(id); if(el) el.classList.remove('is-visible'); }
 function showErr(id){ const el = document.getElementById(id); if(el) el.classList.add('is-visible'); }
@@ -998,16 +1027,32 @@ document.getElementById('glForm').addEventListener('submit', async function(e){
   const phoneCode = document.getElementById('glPhoneCode').value;
   const fullPhone = phoneCode + ' ' + phone.replace(/^0/, '');
 
+  const needGuestEmails = eventNeedsGuestEmails(ev);
   const additionalGuests = [];
+  let guestsValid = true;
   document.querySelectorAll('.ag-first').forEach(function(input){
     const i = input.dataset.i;
     const gFirst = input.value.trim();
     const gLast = document.querySelector('.ag-last[data-i="' + i + '"]').value.trim();
     const gAge = document.querySelector('.ag-age[data-i="' + i + '"]').value.trim();
-    if(gFirst || gLast){
-      additionalGuests.push({ firstName: gFirst, lastName: gLast, age: gAge });
+    const gEmailInput = document.querySelector('.ag-email[data-i="' + i + '"]');
+    const gEmail = gEmailInput ? gEmailInput.value.trim() : '';
+    if(needGuestEmails){
+      // Every chosen guest must be complete: their ticket is emailed to them.
+      const ok = gFirst && gLast && gAge && parseInt(gAge, 10) >= 18 && gEmail.indexOf('@') > 0;
+      if(!ok){ showErr('errGuest' + i); guestsValid = false; } else { clearErr('errGuest' + i); }
+      additionalGuests.push({ firstName: gFirst, lastName: gLast, age: gAge, email: gEmail });
+    } else if(gFirst || gLast){
+      const g = { firstName: gFirst, lastName: gLast, age: gAge };
+      if(gEmail) g.email = gEmail;
+      additionalGuests.push(g);
     }
   });
+  if(!guestsValid){
+    const firstInvalid = document.querySelector('.err.is-visible');
+    if(firstInvalid){ firstInvalid.scrollIntoView({ behavior:'smooth', block:'center' }); }
+    return;
+  }
 
   const payload = {
     event: { name: ev.name, venue: ev.venue, date: ev.date },

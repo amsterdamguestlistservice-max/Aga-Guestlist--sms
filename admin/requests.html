@@ -210,7 +210,7 @@ function renderAdditionalGuests(additionalGuests){
 
   const lines = guests.map(function(g, i){
     const name = [g.firstName, g.lastName].filter(Boolean).join(' ') || ('Guest ' + (i + 2));
-    return (i + 2) + '. ' + escapeHtml(name) + (g.age ? ' (' + escapeHtml(g.age) + ')' : '');
+    return (i + 2) + '. ' + escapeHtml(name) + (g.age ? ' (' + escapeHtml(g.age) + ')' : '') + (g.email ? ' · ' + escapeHtml(g.email) : '');
   });
   return '<span>Additional guests:</span><br>' + lines.join('<br>') + '<br>';
 }
