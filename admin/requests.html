@@ -176,6 +176,7 @@ function render(){
         '</div>' +
         '<div class="card__details">' +
           '<span>Guest:</span> ' + escapeHtml(r.first_name || '') + ' ' + escapeHtml(r.last_name || '') + (r.age ? ' (' + escapeHtml(r.age) + ')' : '') + '<br>' +
+          (r.gender ? '<span>Gender:</span> ' + escapeHtml(r.gender) + '<br>' : '') +
           (r.instagram ? '<span>Instagram:</span> ' + escapeHtml(r.instagram) + '<br>' : '') +
           (r.phone ? '<span>Phone:</span> ' + escapeHtml(r.phone) + '<br>' : '') +
           (r.email ? '<span>Email:</span> ' + escapeHtml(r.email) + '<br>' : '') +
@@ -210,7 +211,7 @@ function renderAdditionalGuests(additionalGuests){
 
   const lines = guests.map(function(g, i){
     const name = [g.firstName, g.lastName].filter(Boolean).join(' ') || ('Guest ' + (i + 2));
-    return (i + 2) + '. ' + escapeHtml(name) + (g.age ? ' (' + escapeHtml(g.age) + ')' : '') + (g.email ? ' · ' + escapeHtml(g.email) : '');
+    return (i + 2) + '. ' + escapeHtml(name) + (g.age ? ' (' + escapeHtml(g.age) + ')' : '') + (g.gender ? ' · ' + escapeHtml(g.gender) : '') + (g.email ? ' · ' + escapeHtml(g.email) : '');
   });
   return '<span>Additional guests:</span><br>' + lines.join('<br>') + '<br>';
 }

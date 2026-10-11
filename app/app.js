@@ -288,6 +288,7 @@ const EVENTS = [
     // Tickets are emailed to each guest to personalise, so every guest
     // (incl. additional guests) must give first & last name, age and email.
     guestEmailRequired: true,
+    guestGenderRequired: true, // MITA needs man/woman per guest for the ticket
     featured: false,
     countdownEnabled: false
   },
@@ -931,6 +932,7 @@ function preselectEvent(eventName){
   const idx = EVENTS.findIndex(function(ev){ return ev.name === eventName; });
   if(idx !== -1){
     document.getElementById('glEvent').value = String(idx);
+    if(typeof rebuildAdditionalGuests === 'function') rebuildAdditionalGuests();
   }
 }
 
@@ -942,20 +944,36 @@ function selectedGuestlistEvent(){
 function eventNeedsGuestEmails(ev){
   return !!(ev && ev.guestEmailRequired);
 }
+function eventNeedsGender(ev){
+  return !!(ev && ev.guestGenderRequired);
+}
+function genderSelectHtml(cls, i, value){
+  return '<select class="' + cls + '"' + (i ? ' data-i="' + i + '"' : '') + '>' +
+    '<option value="">Select…</option>' +
+    '<option value="man"' + (value === 'man' ? ' selected' : '') + '>Man</option>' +
+    '<option value="woman"' + (value === 'woman' ? ' selected' : '') + '>Woman</option>' +
+  '</select>';
+}
+function updateMainGenderField(){
+  const wrap = document.getElementById('glGenderWrap');
+  if(wrap) wrap.style.display = eventNeedsGender(selectedGuestlistEvent()) ? '' : 'none';
+}
 
 function rebuildAdditionalGuests(){
   const count = parseInt(document.getElementById('glGuestCount').value, 10) || 0;
   const wrap = document.getElementById('glAdditionalGuests');
   const needEmail = eventNeedsGuestEmails(selectedGuestlistEvent());
+  const needGender = eventNeedsGender(selectedGuestlistEvent());
+  updateMainGenderField();
   // Keep what was already typed when the list is rebuilt (e.g. event switched).
   const prev = {};
-  wrap.querySelectorAll('input[data-i]').forEach(function(input){
+  wrap.querySelectorAll('input[data-i], select[data-i]').forEach(function(input){
     prev[input.className + '-' + input.dataset.i] = input.value;
   });
   function val(cls, i){ return (prev[cls + '-' + i] || '').replace(/"/g, '&quot;'); }
   let html = '';
   if(needEmail && count > 0){
-    html += '<p class="guest-email-note">For this event every guest receives their own ticket by email to personalise. Please fill in first &amp; last name, age and email for each guest.</p>';
+    html += '<p class="guest-email-note">For this event every guest receives their own ticket by email to personalise. Please fill in first &amp; last name, age, ' + (needGender ? 'man/woman, ' : '') + 'and email for each guest.</p>';
   }
   for(let i = 1; i <= count; i++){
     html +=
@@ -966,11 +984,14 @@ function rebuildAdditionalGuests(){
           '<div class="field"><label>Last Name</label><input type="text" class="ag-last" data-i="' + i + '" value="' + val('ag-last', i) + '"></div>' +
         '</div>' +
         '<div class="field"><label>Age</label><input type="number" min="18" class="ag-age" data-i="' + i + '" value="' + val('ag-age', i) + '"></div>' +
+        (needGender
+          ? '<div class="field"><label>Man / Woman</label>' + genderSelectHtml('ag-gender', i, prev['ag-gender-' + i]) + '</div>'
+          : '') +
         (needEmail
           ? '<div class="field"><label>Email</label><input type="email" class="ag-email" data-i="' + i + '" value="' + val('ag-email', i) + '"></div>'
           : '') +
         '<div class="err" id="errGuest' + i + '">' +
-          (needEmail ? 'First name, last name, age (18+) and a valid email are required.' : 'First name, last name and age (18+) are required.') +
+          (needEmail ? 'First name, last name, age (18+)' + (needGender ? ', man/woman' : '') + ' and a valid email are required.' : 'First name, last name and age (18+) are required.') +
         '</div>' +
       '</div>';
   }
@@ -978,6 +999,7 @@ function rebuildAdditionalGuests(){
 }
 document.getElementById('glGuestCount').addEventListener('change', rebuildAdditionalGuests);
 document.getElementById('glEvent').addEventListener('change', rebuildAdditionalGuests);
+document.getElementById('glEvent').addEventListener('change', updateMainGenderField);
 
 function clearErr(id){ const el = document.getElementById(id); if(el) el.classList.remove('is-visible'); }
 function showErr(id){ const el = document.getElementById(id); if(el) el.classList.add('is-visible'); }
@@ -1014,6 +1036,9 @@ document.getElementById('glForm').addEventListener('submit', async function(e){
   if(!age || parseInt(age, 10) < 18){ showErr('errAge'); valid = false; } else { clearErr('errAge'); }
   if(!phone){ showErr('errPhone'); valid = false; } else { clearErr('errPhone'); }
   if(!email || email.indexOf('@') === -1){ showErr('errEmail'); valid = false; } else { clearErr('errEmail'); }
+  const genderEl = document.getElementById('glGender');
+  const needMainGender = eventNeedsGender(EVENTS[parseInt(eventSelect.value, 10)]);
+  if(needMainGender && !genderEl.value){ showErr('errGender'); valid = false; } else { clearErr('errGender'); }
   if(!consent){ showErr('errConsent'); valid = false; } else { clearErr('errConsent'); }
 
   if(!valid){
@@ -1036,11 +1061,15 @@ document.getElementById('glForm').addEventListener('submit', async function(e){
     const gAge = document.querySelector('.ag-age[data-i="' + i + '"]').value.trim();
     const gEmailInput = document.querySelector('.ag-email[data-i="' + i + '"]');
     const gEmail = gEmailInput ? gEmailInput.value.trim() : '';
+    const gGenderInput = document.querySelector('.ag-gender[data-i="' + i + '"]');
+    const gGender = gGenderInput ? gGenderInput.value : '';
     if(needGuestEmails){
       // Every chosen guest must be complete: their ticket is emailed to them.
-      const ok = gFirst && gLast && gAge && parseInt(gAge, 10) >= 18 && gEmail.indexOf('@') > 0;
+      const ok = gFirst && gLast && gAge && parseInt(gAge, 10) >= 18 && gEmail.indexOf('@') > 0 && (!eventNeedsGender(ev) || gGender);
       if(!ok){ showErr('errGuest' + i); guestsValid = false; } else { clearErr('errGuest' + i); }
-      additionalGuests.push({ firstName: gFirst, lastName: gLast, age: gAge, email: gEmail });
+      const gObj = { firstName: gFirst, lastName: gLast, age: gAge, email: gEmail };
+      if(gGender) gObj.gender = gGender;
+      additionalGuests.push(gObj);
     } else if(gFirst || gLast){
       const g = { firstName: gFirst, lastName: gLast, age: gAge };
       if(gEmail) g.email = gEmail;
@@ -1055,7 +1084,7 @@ document.getElementById('glForm').addEventListener('submit', async function(e){
 
   const payload = {
     event: { name: ev.name, venue: ev.venue, date: ev.date },
-    mainGuest: { firstName: firstName, lastName: lastName, age: age, instagram: document.getElementById('glInstagram').value.trim() || 'None', phone: fullPhone, email: email },
+    mainGuest: { firstName: firstName, lastName: lastName, age: age, instagram: document.getElementById('glInstagram').value.trim() || 'None', phone: fullPhone, email: email, gender: needMainGender ? genderEl.value : '' },
     additionalGuests: additionalGuests,
     totalGuests: 1 + additionalGuests.length,
     consent: consent
@@ -1695,6 +1724,7 @@ async function saveRequestToAccount(payload){
       instagram: payload.mainGuest.instagram,
       phone: payload.mainGuest.phone,
       email: payload.mainGuest.email,
+      gender: payload.mainGuest.gender || null,
       additional_guests: payload.additionalGuests,
       total_guests: payload.totalGuests
     });
