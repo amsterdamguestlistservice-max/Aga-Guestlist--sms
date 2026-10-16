@@ -674,6 +674,7 @@ body.is-gated #tab-account{ display:block !important; }
         <div class="field">
           <label for="glEvent">Select Your Event</label>
           <select id="glEvent" required></select>
+          <div class="err" id="errEvent">Please choose an event.</div>
         </div>
         <div class="field-row">
           <div class="field">
@@ -744,6 +745,7 @@ body.is-gated #tab-account{ display:block !important; }
         </div>
         <div class="err" id="errConsent" style="margin-bottom:14px;">Please confirm to continue.</div>
 
+        <div class="err" id="errSubmit" style="margin-bottom:14px;">Your request could not be sent. Check your connection and try again.</div>
         <button type="submit" class="btn btn--solid" style="width:100%;">Submit Request</button>
       </form>
 

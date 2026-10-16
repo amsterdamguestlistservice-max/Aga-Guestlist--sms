@@ -757,7 +757,7 @@ document.getElementById('eventList').addEventListener('click', async function(e)
       renderAllGuestlistPanels();
       closeEventSheet();
       switchTab('guestlist');
-      if(ev) preselectEvent(ev.name);
+      if(ev) preselectEvent(ev);
       document.getElementById('glSpotNotice').style.display = 'block';
     } else {
       const reasons = {
@@ -904,7 +904,7 @@ function openEventSheet(ev){
     glBtn.addEventListener('click', function(){
       closeEventSheet();
       switchTab('guestlist');
-      preselectEvent(ev.name);
+      preselectEvent(ev);
       document.getElementById('glSpotNotice').style.display = 'none';
     });
   }
@@ -959,8 +959,16 @@ function populateGuestlistSelect(){
       return '<option value="' + originalIndex + '"' + (unavailable ? ' disabled' : '') + '>' + ev.name + ' — ' + eventVenueName(ev) + ' — ' + formatDate(ev.date) + (soon ? ' (guestlist coming soon)' : (ticketsOnly ? ' (tickets only)' : '')) + '</option>';
     }).join('');
 }
-function preselectEvent(eventName){
-  const idx = EVENTS.findIndex(function(ev){ return ev.name === eventName; });
+// Takes the event object itself (or its name, for old callers). Several
+// events share a name (e.g. weekly Behind Closed Doors), so matching by
+// name alone picked an old, already-past date that isn't in the dropdown,
+// leaving the form with no event and the submit button silently doing nothing.
+function preselectEvent(evOrName){
+  let idx = typeof evOrName === 'object' && evOrName ? EVENTS.indexOf(evOrName) : -1;
+  if(idx === -1){
+    const name = typeof evOrName === 'string' ? evOrName : (evOrName && evOrName.name);
+    idx = EVENTS.findIndex(function(ev){ return ev.name === name && !isPastEvent(ev); });
+  }
   if(idx !== -1){
     document.getElementById('glEvent').value = String(idx);
     if(typeof rebuildAdditionalGuests === 'function') rebuildAdditionalGuests();
@@ -1038,7 +1046,7 @@ function showErr(id){ const el = document.getElementById(id); if(el) el.classLis
 ['glFirstName','glLastName','glAge','glPhone','glEmail'].forEach(function(id){
   document.getElementById(id).addEventListener('input', function(){ clearErr('err' + id.slice(2)); });
 });
-document.getElementById('glEvent').addEventListener('change', function(){ this.style.borderColor = ''; });
+document.getElementById('glEvent').addEventListener('change', function(){ this.style.borderColor = ''; clearErr('errEvent'); });
 document.getElementById('glConsent').addEventListener('change', function(){ clearErr('errConsent'); });
 
 document.getElementById('glForm').addEventListener('submit', async function(e){
@@ -1053,7 +1061,7 @@ document.getElementById('glForm').addEventListener('submit', async function(e){
   let valid = true;
 
   const eventSelect = document.getElementById('glEvent');
-  if(!eventSelect.value){ valid = false; }
+  if(!eventSelect.value){ valid = false; showErr('errEvent'); eventSelect.style.borderColor = '#e57373'; } else { clearErr('errEvent'); }
 
   const firstName = document.getElementById('glFirstName').value.trim();
   const lastName = document.getElementById('glLastName').value.trim();
@@ -1123,7 +1131,16 @@ document.getElementById('glForm').addEventListener('submit', async function(e){
 
   // Save to the user's account so it shows up under "My Requests", and
   // is visible to you in the admin dashboard (admin/requests.html).
-  await saveRequestToAccount(payload);
+  const submitBtn = this.querySelector('button[type="submit"]');
+  if(submitBtn){ submitBtn.disabled = true; }
+  const saved = await saveRequestToAccount(payload);
+  if(submitBtn){ submitBtn.disabled = false; }
+  if(!saved){
+    showErr('errSubmit');
+    document.getElementById('errSubmit').scrollIntoView({ behavior:'smooth', block:'center' });
+    return;
+  }
+  clearErr('errSubmit');
 
   document.getElementById('glSuccessMsg').innerHTML =
     'Your request for <strong>' + ev.name + '</strong> has been submitted. We\'ll review it and update the status in your account.';
@@ -1742,9 +1759,9 @@ async function loadMyRequests(){
 // Saves a submitted guestlist request to the signed-in user's account.
 // Never blocks or breaks the WhatsApp flow if it fails.
 async function saveRequestToAccount(payload){
-  if(!supabaseClient || !currentUser) return;
+  if(!supabaseClient || !currentUser) return false;
   try {
-    await supabaseClient.from('guestlist_requests').insert({
+    const { error } = await supabaseClient.from('guestlist_requests').insert({
       user_id: currentUser.id,
       event_name: payload.event.name,
       event_venue: payload.event.venue,
@@ -1759,8 +1776,11 @@ async function saveRequestToAccount(payload){
       additional_guests: payload.additionalGuests,
       total_guests: payload.totalGuests
     });
+    if(error){ console.warn('Could not save request to account.', error); return false; }
+    return true;
   } catch(err){
     console.warn('Could not save request to account.', err);
+    return false;
   }
 }
 
