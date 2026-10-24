@@ -1544,6 +1544,11 @@ document.getElementById('newPasswordForm').addEventListener('submit', async func
   currentUser = data.user;
   showAccountPanel(currentUser);
   unlockAppFromGate();
+  // Reset links from email always open in the phone's browser, never in the
+  // installed home-screen app, so point people back to the app.
+  if(!isStandaloneApp()){
+    alert('Your password has been changed! Have you added AGS to your home screen? Open the app from there and log in with your new password.');
+  }
   checkNotificationGate();
 });
 if(supabaseClient){
