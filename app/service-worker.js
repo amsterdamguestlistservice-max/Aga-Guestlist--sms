@@ -1,7 +1,7 @@
 // Minimal service worker — enables "Add to Home Screen" installability
 // and basic offline support (cache-first for the app shell, since the
 // event data is embedded directly in index.html rather than fetched).
-const CACHE_NAME = 'ags-app-v66';
+const CACHE_NAME = 'ags-app-v67';
 const APP_SHELL = [
   './index.html',
   './manifest.json',
@@ -41,17 +41,19 @@ self.addEventListener('activate', function(event){
 
 self.addEventListener('fetch', function(event){
   if(event.request.method !== 'GET') return;
+  // Network-first: always try the latest version (so event changes show up
+  // right away), and only fall back to the cache when offline.
   event.respondWith(
-    caches.match(event.request).then(function(cached){
-      if(cached) return cached;
-      return fetch(event.request).then(function(response){
-        // Only cache same-origin, successful responses.
-        if(response.ok && event.request.url.startsWith(self.location.origin)){
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(function(cache){ cache.put(event.request, clone); });
-        }
-        return response;
-      }).catch(function(){
+    fetch(event.request).then(function(response){
+      // Only cache same-origin, successful responses.
+      if(response.ok && event.request.url.startsWith(self.location.origin)){
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(function(cache){ cache.put(event.request, clone); });
+      }
+      return response;
+    }).catch(function(){
+      return caches.match(event.request).then(function(cached){
+        if(cached) return cached;
         // Offline and not cached — fall back to the app shell for navigations.
         if(event.request.mode === 'navigate'){ return caches.match('./index.html'); }
       });

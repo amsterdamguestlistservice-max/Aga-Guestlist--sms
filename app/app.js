@@ -696,15 +696,29 @@ function renderGuestlistPanel(panelEl, eventId){
   const state = GUESTLIST_STATE[eventId];
   if(!state){ panelEl.style.display = 'none'; return; }
 
+  const ev = EVENTS.find(function(x){ return x.id === eventId; });
   const urgency = guestlistUrgencyInfo(state);
+  if(ev && ev.guestlistStatus === 'closed') urgency.locked = true;
   const pct = Math.min(100, Math.round((state.claimed_count / state.capacity) * 100));
   const msLeft = new Date(state.deadline).getTime() - Date.now();
 
   panelEl.style.display = 'block';
-  panelEl.className = 'glive' + (urgency.locked ? ' is-locked' : '') + (urgency.label ? ' is-urgent' : '');
+  if(urgency.locked){
+    // Full or closed: no spot counter, bar or countdown — just say it's full.
+    const closedText = msLeft <= 0 ? 'GUESTLIST GESLOTEN' : 'GUESTLIST VOL';
+    panelEl.className = 'glive is-locked';
+    panelEl.innerHTML =
+      '<div class="glive__label">🔒 ' + closedText + '</div>' +
+      '<div class="glive__spots">' + (ev && ev.ticketsSoldOut
+        ? 'Dit event is helemaal uitverkocht.'
+        : 'De guestlist is vol — er zijn geen plekken meer.') + '</div>' +
+      '<button type="button" class="glive__claim-btn" data-event-id="' + eventId + '" disabled>' + closedText + '</button>';
+    return;
+  }
+  panelEl.className = 'glive' + (urgency.label ? ' is-urgent' : '');
   panelEl.innerHTML =
     '<div class="glive__label">🔥 GUESTLIST LIVE' + (urgency.label ? ' · ' + urgency.label : '') + '</div>' +
-    '<div class="glive__spots">🎟️ ' + state.claimed_count + ' / ' + state.capacity + ' plekken beschikbaar</div>' +
+    '<div class="glive__spots">🎟️ ' + urgency.spotsLeft + ' / ' + state.capacity + ' plekken beschikbaar</div>' +
     '<div class="glive__bar"><div class="glive__bar-fill" style="width:' + pct + '%;"></div></div>' +
     '<div class="glive__countdown">⏳ Guestlist sluit over <span class="glive__timer">' + formatCountdown(msLeft) + '</span></div>' +
     '<button type="button" class="glive__claim-btn" data-event-id="' + eventId + '"' + (urgency.locked ? ' disabled' : '') + '>' +
