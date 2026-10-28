@@ -507,6 +507,59 @@ body.is-gated #tab-account{ display:block !important; }
 }
 .venue-filter__pill.is-active{ background:var(--gold); border-color:var(--gold); color:var(--black); }
 .event-card.is-filtered-out{ display:none; }
+
+/* ===== The Salon (members-only chat) ===== */
+.salon-card{ border:1px solid var(--line); background:var(--charcoal); padding:16px; margin-bottom:14px; display:none; }
+.salon-card__label{ font-size:10.5px; letter-spacing:0.14em; text-transform:uppercase; color:var(--gold); margin-bottom:6px; }
+.salon-card__copy{ font-size:13px; line-height:1.5; color:var(--muted); margin-bottom:12px; }
+.salon-card__row{ display:flex; align-items:center; gap:10px; }
+.salon-badge{ display:none; min-width:22px; height:22px; padding:0 6px; border-radius:11px; background:var(--gold); color:var(--black); font-size:12px; font-weight:700; align-items:center; justify-content:center; }
+.salon{ position:fixed; inset:0; z-index:70; background:linear-gradient(180deg,#0e1218,#1a212b); color:var(--white); opacity:0; visibility:hidden; transition:opacity .25s var(--ease), visibility .25s var(--ease); padding-top:env(safe-area-inset-top); }
+.salon.is-open{ opacity:1; visibility:visible; }
+.salon-view{ display:none; flex-direction:column; height:100%; max-width:640px; margin:0 auto; }
+.salon-head{ display:flex; align-items:center; gap:14px; padding:18px 18px 14px; }
+.salon-head__mid{ flex:1; min-width:0; }
+.salon-eyebrow{ font-size:11px; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); }
+.salon-title{ font-family:var(--serif); font-style:italic; font-size:30px; line-height:1.15; }
+.salon-iconbtn{ width:44px; height:44px; border-radius:50%; border:1px solid rgba(255,255,255,0.14); background:rgba(255,255,255,0.04); color:var(--white); font-size:22px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.salon-iconbtn--gold{ background:var(--gold); border-color:var(--gold); color:var(--black); border-radius:12px; }
+.salon-tabs{ display:flex; gap:26px; padding:0 18px; border-bottom:1px solid rgba(255,255,255,0.08); }
+.salon-tab{ background:none; border:none; border-bottom:2px solid transparent; color:var(--muted); font-family:var(--serif); font-style:italic; font-size:20px; padding:10px 0 12px; }
+.salon-tab.is-active{ color:var(--white); border-bottom-color:var(--gold); }
+.salon-list{ flex:1; overflow-y:auto; padding:6px 18px 20px; }
+.salon-row{ width:100%; display:flex; align-items:center; gap:14px; padding:14px 0; background:none; border:none; border-bottom:1px solid rgba(255,255,255,0.07); color:inherit; text-align:left; }
+.salon-avatar{ width:60px; height:60px; border-radius:50%; border:2px solid rgba(201,162,74,0.45); background:#1f2833; color:var(--gold-light); font-family:var(--serif); font-size:20px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.salon-avatar--sm{ width:40px; height:40px; font-size:14px; border-width:1px; }
+.salon-row__mid{ flex:1; min-width:0; }
+.salon-row__name{ font-family:var(--serif); font-size:20px; margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.salon-row__sub{ font-size:14px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.salon-row__sub.is-unread{ color:var(--white); font-weight:600; }
+.salon-row__right{ display:flex; flex-direction:column; align-items:flex-end; gap:6px; align-self:flex-start; padding-top:4px; }
+.salon-row__time{ font-size:12px; color:var(--muted); }
+.salon-dot{ min-width:20px; height:20px; padding:0 6px; border-radius:10px; background:var(--gold); color:var(--black); font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+.salon-empty{ text-align:center; color:var(--muted); font-size:14px; line-height:1.6; padding:36px 10px; }
+.salon-leave{ display:block; margin:26px auto 6px; background:none; border:none; color:var(--muted); font-family:var(--serif); font-style:italic; font-size:16px; padding:8px; }
+.salon-body{ flex:1; overflow-y:auto; padding:8px 20px 20px; }
+.salon-body p{ font-size:14px; line-height:1.6; color:var(--muted); margin-bottom:14px; }
+.salon-rules{ margin:0 0 14px 18px; font-size:13.5px; line-height:1.7; color:var(--muted); }
+.salon-check{ display:flex; gap:10px; align-items:flex-start; font-size:13px; color:var(--muted); margin:14px 0; }
+.salon-check input{ margin-top:3px; }
+.salon-chat-head{ display:flex; align-items:center; gap:12px; padding:14px 16px; border-bottom:1px solid rgba(255,255,255,0.08); position:relative; }
+.salon-chat-name{ flex:1; font-family:var(--serif); font-size:22px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.salon-menu{ display:none; position:absolute; right:16px; top:64px; z-index:3; background:#10151c; border:1px solid var(--line); min-width:170px; }
+.salon-menu button{ display:block; width:100%; text-align:left; padding:13px 16px; background:none; border:none; color:var(--white); font-size:14px; }
+.salon-menu button + button{ border-top:1px solid rgba(255,255,255,0.07); }
+.salon-messages{ flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:8px; }
+.salon-bubble{ max-width:78%; padding:9px 13px; border-radius:14px; font-size:15px; line-height:1.4; word-wrap:break-word; overflow-wrap:anywhere; }
+.salon-bubble.is-mine{ align-self:flex-end; background:var(--gold); color:var(--black); border-bottom-right-radius:4px; }
+.salon-bubble.is-theirs{ align-self:flex-start; background:#232d3a; border-bottom-left-radius:4px; }
+.salon-bubble__text{ white-space:pre-wrap; }
+.salon-bubble__time{ font-size:10.5px; opacity:0.6; margin-top:3px; text-align:right; }
+.salon-compose{ display:flex; gap:10px; padding:10px 14px calc(12px + env(safe-area-inset-bottom)); border-top:1px solid rgba(255,255,255,0.08); }
+.salon-compose input{ flex:1; padding:12px 14px; border-radius:22px; border:1px solid rgba(255,255,255,0.14); background:rgba(255,255,255,0.05); color:var(--white); font-size:16px; }
+.salon-compose button{ padding:0 18px; border-radius:22px; border:none; background:var(--gold); color:var(--black); font-weight:700; font-size:13px; }
+.salon-compose button[disabled]{ opacity:0.5; }
+.salon-err{ display:none; color:#E08A73; font-size:12.5px; padding:0 16px 6px; }
 </style>
 </head>
 <body class="is-gated">
@@ -867,6 +920,15 @@ body.is-gated #tab-account{ display:block !important; }
         </div>
       </div>
 
+      <div class="salon-card" id="salonCard">
+        <div class="salon-card__label">Members Only</div>
+        <p class="salon-card__copy">The Salon — chat privately with other AGS members.</p>
+        <div class="salon-card__row">
+          <button type="button" class="btn btn--solid" id="salonCardBtn" style="flex:1;">Join the Salon</button>
+          <span class="salon-badge" id="salonCardBadge">0</span>
+        </div>
+      </div>
+
       <button type="button" class="account-signout" id="signOutBtn">Sign Out</button>
 
       <div class="my-requests" id="myRequestsList" style="margin-top:20px;">
@@ -1009,8 +1071,69 @@ body.is-gated #tab-account{ display:block !important; }
   </div>
 </div>
 
+<div class="salon" id="salonOverlay">
+  <!-- JOIN -->
+  <div class="salon-view" id="salonView-join">
+    <div class="salon-head">
+      <button type="button" class="salon-iconbtn" id="salonJoinBack" aria-label="Back">&#8249;</button>
+      <div class="salon-head__mid"><div class="salon-eyebrow">Members only</div><div class="salon-title">Salon</div></div>
+    </div>
+    <div class="salon-body">
+      <p>The Salon is where AGS members talk to each other. Pick the name other members will see.</p>
+      <div class="field">
+        <label for="salonJoinName">Your name in the Salon</label>
+        <input type="text" id="salonJoinName" maxlength="30" autocomplete="off">
+      </div>
+      <ul class="salon-rules">
+        <li>Be respectful. No harassment, spam or selling.</li>
+        <li>Conversations are private between you and the other person.</li>
+        <li>You can block or report any member.</li>
+        <li>If you leave, your conversations are deleted.</li>
+      </ul>
+      <label class="salon-check"><input type="checkbox" id="salonJoinRules"> <span>I agree to these rules.</span></label>
+      <div class="err is-visible" id="salonJoinErr" style="display:none;"></div>
+      <button type="button" class="btn btn--solid" id="salonJoinBtn" style="width:100%;">Join the Salon</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="salon-view" id="salonView-main">
+    <div class="salon-head">
+      <button type="button" class="salon-iconbtn" id="salonBackBtn" aria-label="Back">&#8249;</button>
+      <div class="salon-head__mid"><div class="salon-eyebrow">Members only</div><div class="salon-title">Salon</div></div>
+      <button type="button" class="salon-iconbtn salon-iconbtn--gold" id="salonNewBtn" aria-label="New conversation">+</button>
+    </div>
+    <div class="salon-tabs">
+      <button type="button" class="salon-tab is-active" id="salonTabConvos">Conversations</button>
+      <button type="button" class="salon-tab" id="salonTabMembers">Members</button>
+    </div>
+    <div class="salon-list" id="salonList"></div>
+    <button type="button" class="salon-leave" id="salonLeaveBtn">Leave the Salon</button>
+  </div>
+
+  <!-- CHAT -->
+  <div class="salon-view" id="salonView-chat">
+    <div class="salon-chat-head">
+      <button type="button" class="salon-iconbtn" id="salonChatBack" aria-label="Back">&#8249;</button>
+      <div class="salon-chat-name" id="salonChatName"></div>
+      <button type="button" class="salon-iconbtn" id="salonMenuBtn" aria-label="More">&#8943;</button>
+      <div class="salon-menu" id="salonMenu">
+        <button type="button" id="salonReportBtn">Report</button>
+        <button type="button" id="salonBlockBtn">Block</button>
+      </div>
+    </div>
+    <div class="salon-messages" id="salonMessages"></div>
+    <div class="salon-err" id="salonChatErr"></div>
+    <div class="salon-compose">
+      <input type="text" id="salonChatInput" maxlength="1000" placeholder="Message…" autocomplete="off">
+      <button type="button" id="salonSendBtn">Send</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="supabase-config.js"></script>
 <script src="app.js"></script>
+<script src="salon.js"></script>
 </body>
 </html>

@@ -1422,6 +1422,7 @@ function showAccountPanel(user){
   loadMyRequests();
   loadMyPoints();
   linkPushSubscriptionToAccount();
+  if(typeof salonInit === 'function') salonInit(user);
 }
 
 // Tiers are purely derived from the points total — no extra database
@@ -1750,6 +1751,7 @@ document.getElementById('signupForm').addEventListener('submit', async function(
 document.getElementById('signOutBtn').addEventListener('click', async function(){
   if(supabaseClient){ await supabaseClient.auth.signOut(); }
   currentUser = null;
+  if(typeof salonStop === 'function') salonStop();
   lockAppBehindGate();
 });
 
