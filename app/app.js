@@ -333,8 +333,9 @@ const EVENTS = [
     venue: "Jimmy Woo · Amsterdam",
     image: "events/behind-closed-doors-2026-10-31.jpg",
     description: "Halloween: BCD x Luca Nahorst & Friends. Club: Luca Nahorst, Smitmeister, DaniQ, MC Lion. Lounge: Romée, Gabi, Sann.",
-    guestlistStatus: "limited",
-    ticketUrl: "#",
+    guestlistStatus: "none",
+    ticketUrl: "https://shop.celebratix.io/?t=2trbkg",
+    badgeLabel: "Discount Tickets Only",
     guestlistUrl: "#guestlist",
     featured: false,
     countdownEnabled: false
