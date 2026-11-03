@@ -365,6 +365,7 @@ const EVENTS = [
     guestlistStatus: "limited",
     ticketUrl: "#",
     guestlistUrl: "#guestlist",
+    flyerPending: true, // show the "line-up coming soon" card until the flyer is in
     featured: false,
     countdownEnabled: false
   },
@@ -446,10 +447,11 @@ const EVENTS = [
    HELPERS
    ================================================================ */
 function formatDate(dateStr){
-  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const d = new Date(dateStr + 'T00:00:00');
-  const day = String(d.getDate()).padStart(2, '0');
-  return day + ' ' + months[d.getMonth()].toUpperCase() + ' ' + d.getFullYear();
+  const year = d.getFullYear() !== new Date().getFullYear() ? ' ' + d.getFullYear() : '';
+  return days[d.getDay()] + ' ' + d.getDate() + ' ' + months[d.getMonth()] + year;
 }
 function formatDateReadable(dateStr){
   const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -463,6 +465,12 @@ function formatDateDutchShort(dateStr){
 }
 function eventVenueName(ev){
   return ev.venue.split('·')[0].trim();
+}
+function eventMedia(ev, attrs){
+  if(ev.flyerPending && !isPastEvent(ev)){
+    return '<div class="flyer-placeholder"><img src="icon-192.png" alt=""><span>Line-up coming soon</span></div>';
+  }
+  return ev.image ? '<img src="' + ev.image + '" alt="' + ev.name + '"' + (attrs || '') + '>' : '';
 }
 function guestlistBadge(status, label){
   if(status === 'limited') return '<span class="event-card__badge">Limited Guestlist</span>';
@@ -537,7 +545,7 @@ function renderThisWeek(){
 
   list.innerHTML = upcoming.map(function(ev, i){
     const badge = ev.guestlistStatus === 'limited'
-      ? '<span class="this-week__badge">🔥 Limited Guestlist</span>'
+      ? '<span class="this-week__badge">Limited Guestlist</span>'
       : '';
     return (
       '<button type="button" class="this-week__item js-this-week-item" data-index="' + i + '">' +
@@ -594,14 +602,12 @@ function filterEventsByVenue(venueName){
 function renderEventList(){
   const list = document.getElementById('eventList');
   list.innerHTML = getSortedEvents().map(function(ev, i){
-    const mediaContent = ev.image
-      ? '<img src="' + ev.image + '" alt="' + ev.name + '" loading="lazy" decoding="async">'
-      : '';
+    const mediaContent = eventMedia(ev, ' loading="lazy" decoding="async"');
     return (
       '<article class="event-card" data-index="' + i + '" data-event-id="' + (ev.id || '') + '" data-venue="' + eventVenueName(ev) + '">' +
-        '<div class="event-card__media">' + guestlistBadge(ev.guestlistStatus, ev.badgeLabel) + mediaContent + '</div>' +
+        '<div class="event-card__media">' + mediaContent + '</div>' +
         '<div class="event-card__body">' +
-          '<div class="event-card__date">' + formatDate(ev.date) + '</div>' +
+          '<div class="event-card__meta"><div class="event-card__date">' + formatDate(ev.date) + '</div>' + guestlistBadge(ev.guestlistStatus, ev.badgeLabel) + '</div>' +
           '<h3 class="event-card__name">' + ev.name + '</h3>' +
           '<div class="event-card__venue">' + ev.venue + '</div>' +
           '<button type="button" class="event-card__cta">View Details</button>' +
@@ -676,10 +682,10 @@ function guestlistUrgencyInfo(state){
   const spotsLeft = Math.max(state.capacity - state.claimed_count, 0);
   const deadlinePassed = new Date(state.deadline).getTime() <= Date.now();
   if(!state.enabled || deadlinePassed || spotsLeft <= 0){
-    return { locked: true, label: '🔒 GUESTLIST VOL', spotsLeft: spotsLeft };
+    return { locked: true, label: 'Guestlist full', spotsLeft: spotsLeft };
   }
-  if(spotsLeft < 4) return { locked: false, label: '🚨 LAATSTE PLEKKEN', spotsLeft: spotsLeft };
-  if(spotsLeft < 10) return { locked: false, label: '🔥 BIJNA VOL', spotsLeft: spotsLeft };
+  if(spotsLeft < 4) return { locked: false, label: 'Last spots', spotsLeft: spotsLeft };
+  if(spotsLeft < 10) return { locked: false, label: 'Almost full', spotsLeft: spotsLeft };
   return { locked: false, label: '', spotsLeft: spotsLeft };
 }
 
@@ -705,24 +711,24 @@ function renderGuestlistPanel(panelEl, eventId){
   panelEl.style.display = 'block';
   if(urgency.locked){
     // Full or closed: no spot counter, bar or countdown — just say it's full.
-    const closedText = msLeft <= 0 ? 'GUESTLIST GESLOTEN' : 'GUESTLIST VOL';
+    const closedText = msLeft <= 0 ? 'Guestlist closed' : 'Guestlist full';
     panelEl.className = 'glive is-locked';
     panelEl.innerHTML =
-      '<div class="glive__label">🔒 ' + closedText + '</div>' +
+      '<div class="glive__label">' + closedText + '</div>' +
       '<div class="glive__spots">' + (ev && ev.ticketsSoldOut
-        ? 'Dit event is helemaal uitverkocht.'
-        : 'De guestlist is vol — er zijn geen plekken meer.') + '</div>' +
+        ? 'This event is completely sold out.'
+        : 'There are no guestlist spots left.') + '</div>' +
       '<button type="button" class="glive__claim-btn" data-event-id="' + eventId + '" disabled>' + closedText + '</button>';
     return;
   }
   panelEl.className = 'glive' + (urgency.label ? ' is-urgent' : '');
   panelEl.innerHTML =
-    '<div class="glive__label">🔥 GUESTLIST LIVE' + (urgency.label ? ' · ' + urgency.label : '') + '</div>' +
-    '<div class="glive__spots">🎟️ ' + urgency.spotsLeft + ' / ' + state.capacity + ' plekken beschikbaar</div>' +
+    '<div class="glive__label">Guestlist live' + (urgency.label ? ' · ' + urgency.label : '') + '</div>' +
+    '<div class="glive__spots">' + urgency.spotsLeft + ' of ' + state.capacity + ' spots available</div>' +
     '<div class="glive__bar"><div class="glive__bar-fill" style="width:' + pct + '%;"></div></div>' +
-    '<div class="glive__countdown">⏳ Guestlist sluit over <span class="glive__timer">' + formatCountdown(msLeft) + '</span></div>' +
+    '<div class="glive__countdown">Closes in <span class="glive__timer">' + formatCountdown(msLeft) + '</span></div>' +
     '<button type="button" class="glive__claim-btn" data-event-id="' + eventId + '"' + (urgency.locked ? ' disabled' : '') + '>' +
-      (urgency.locked ? (msLeft <= 0 ? 'GUESTLIST GESLOTEN' : 'GUESTLIST VOL') : 'CLAIM JE PLEK') +
+      (urgency.locked ? (msLeft <= 0 ? 'Guestlist closed' : 'Guestlist full') : 'Claim your spot') +
     '</button>';
 }
 
@@ -784,20 +790,20 @@ document.getElementById('eventList').addEventListener('click', async function(e)
       document.getElementById('glSpotNotice').style.display = 'block';
     } else {
       const reasons = {
-        full: 'Helaas, de guestlist is zojuist volgelopen.',
-        deadline_passed: 'Helaas, de guestlist is inmiddels gesloten.',
-        disabled: 'De guestlist voor dit event is niet actief.',
-        not_authenticated: 'Log in om een plek te claimen.',
-        not_found: 'Deze guestlist bestaat niet (meer).'
+        full: 'Sorry, the guestlist has just filled up.',
+        deadline_passed: 'Sorry, the guestlist has closed.',
+        disabled: 'The guestlist for this event is not active.',
+        not_authenticated: 'Log in to claim a spot.',
+        not_found: 'This guestlist no longer exists.'
       };
-      alert(reasons[data && data.reason] || 'Claimen is niet gelukt. Probeer het opnieuw.');
+      alert(reasons[data && data.reason] || 'Your spot could not be claimed. Please try again.');
       await loadLiveGuestlists();
     }
   } catch(err){
     console.warn('Claim failed.', err);
-    alert('Er ging iets mis bij het claimen. Probeer het opnieuw.');
+    alert('Something went wrong while claiming your spot. Please try again.');
     btn.disabled = false;
-    btn.textContent = 'CLAIM JE PLEK';
+    btn.textContent = 'Claim your spot';
   }
 });
 
@@ -903,7 +909,7 @@ async function shareEvent(ev){
 }
 
 function openEventSheet(ev){
-  document.getElementById('sheetMedia').innerHTML = ev.image ? '<img src="' + ev.image + '" alt="' + ev.name + '">' : '';
+  document.getElementById('sheetMedia').innerHTML = eventMedia(ev);
   document.getElementById('sheetDate').textContent = formatDate(ev.date);
   document.getElementById('sheetName').textContent = ev.name;
   document.getElementById('sheetVenue').textContent = ev.venue;
@@ -915,7 +921,7 @@ function openEventSheet(ev){
   const past = isPastEvent(ev);
   let actions = '';
   if(past){
-    actions += '<div class="sheet__past-note">This event has already taken place — thanks to everyone who was on the list! 🖤</div>';
+    actions += '<div class="sheet__past-note">This event has already taken place — thanks to everyone who was on the list.</div>';
   } else {
     if(!noGuestlist){
       actions += soon
@@ -925,14 +931,19 @@ function openEventSheet(ev){
         : '<button type="button" class="btn btn--solid" id="sheetGuestlistBtn">Get on the Guestlist</button>';
     }
     const ticketHref = ev.ticketWhatsapp ? buildTicketWhatsappLink(ev) : ev.ticketUrl;
-    actions += ev.ticketsSoldOut
-      ? '<button type="button" class="btn" disabled>Tickets Sold Out</button>'
-      : ticketHref && ticketHref !== '#'
-      ? '<a class="btn' + (ev.ticketWhatsapp ? ' btn--solid' : '') + '" href="' + ticketHref + '" target="_blank" rel="noopener">' + (ev.ticketButtonLabel || 'Buy Tickets') + '</a>'
-      : '<button type="button" class="btn" disabled>' + (ev.ticketLabel || 'Tickets Coming Soon') + '</button>';
+    const hasTicketLink = ticketHref && ticketHref !== '#';
+    // One gold primary action: the guestlist, or tickets when there's no open guestlist.
+    const ticketsPrimary = ev.ticketWhatsapp || noGuestlist || soon || closed;
+    if(ev.ticketsSoldOut){
+      actions += '<button type="button" class="btn" disabled>Tickets Sold Out</button>';
+    } else if(hasTicketLink){
+      actions += '<a class="btn' + (ticketsPrimary ? ' btn--solid' : '') + '" href="' + ticketHref + '" target="_blank" rel="noopener">' + (ev.ticketButtonLabel || 'Buy Tickets') + '</a>';
+    }
     actions += '<a class="btn btn--table" href="' + buildTableBookingLink(ev) + '" target="_blank" rel="noopener">Book a Table</a>';
-    actions += '<button type="button" class="btn" id="sheetCalendarBtn">📅 Add to Calendar</button>';
-    actions += '<button type="button" class="btn" id="sheetShareBtn">📤 Share with Friends</button>';
+    actions += '<div class="sheet__quiet-actions">' +
+      '<button type="button" class="sheet__quiet" id="sheetCalendarBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="1"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Add to calendar</button>' +
+      '<button type="button" class="sheet__quiet" id="sheetShareBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M7.5 7.5 12 3l4.5 4.5M5 13v8h14v-8"/></svg>Share</button>' +
+    '</div>';
   }
   document.getElementById('sheetActions').innerHTML = actions;
 
@@ -1399,8 +1410,8 @@ let currentUser = null;
 function showAuthPanel(){
   document.getElementById('authPanel').style.display = 'block';
   document.getElementById('accountPanel').style.display = 'none';
-  document.getElementById('accountHeading').textContent = 'Create Your Account';
-  document.getElementById('accountSubhead').textContent = 'Sign up (or log in) to start browsing events and requesting guestlist access.';
+  document.getElementById('accountHeading').textContent = 'Welcome';
+  document.getElementById('accountSubhead').textContent = 'Log in or create an account to request guestlist access.';
 }
 function showAccountPanel(user){
   document.getElementById('authPanel').style.display = 'none';
