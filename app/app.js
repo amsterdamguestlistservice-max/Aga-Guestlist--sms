@@ -466,6 +466,54 @@ function formatDateDutchShort(dateStr){
 function eventVenueName(ev){
   return ev.venue.split('·')[0].trim();
 }
+// Flyers fade in once loaded; until then the frame shows a soft shimmer.
+function markMediaLoaded(e){
+  const el = e.target;
+  if(el && el.tagName === 'IMG' && el.parentElement &&
+     (el.parentElement.classList.contains('event-card__media') || el.parentElement.classList.contains('sheet__media'))){
+    el.parentElement.classList.add('is-loaded');
+  }
+}
+document.addEventListener('load', markMediaLoaded, true);
+document.addEventListener('error', markMediaLoaded, true);
+
+function eventStartTime(ev){
+  return new Date(ev.date + 'T' + (ev.time || '22:00')).getTime();
+}
+function formatStartsIn(ms){
+  if(ms <= 0) return 'Tonight';
+  const totalMinutes = Math.max(1, Math.floor(ms / 60000));
+  const d = Math.floor(totalMinutes / 1440);
+  const h = Math.floor((totalMinutes % 1440) / 60);
+  const m = totalMinutes % 60;
+  if(d > 0) return 'Starts in ' + d + 'd ' + h + 'h';
+  if(h > 0) return 'Starts in ' + h + 'h ' + m + 'm';
+  return 'Starts in ' + m + 'm';
+}
+function updateStartCountdowns(){
+  document.querySelectorAll('.js-starts-in').forEach(function(el){
+    el.textContent = formatStartsIn(parseInt(el.dataset.start, 10) - Date.now());
+  });
+}
+setInterval(updateStartCountdowns, 30000);
+
+function revealCardsOnScroll(){
+  if(!('IntersectionObserver' in window)) return;
+  const observer = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      if(entry.isIntersecting){
+        entry.target.classList.remove('will-reveal');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { rootMargin:'0px 0px -6% 0px' });
+  document.querySelectorAll('#eventList .event-card').forEach(function(card, i){
+    if(i === 0) return; // the featured card is on screen straight away
+    card.classList.add('will-reveal');
+    observer.observe(card);
+  });
+}
+
 function eventMedia(ev, attrs){
   if(ev.flyerPending && !isPastEvent(ev)){
     return '<div class="flyer-placeholder"><img src="icon-192.png" alt=""><span>Line-up coming soon</span></div>';
@@ -528,42 +576,6 @@ document.querySelectorAll('.app-tabbar button').forEach(function(btn){
   });
 });
 
-/* ================================================================
-   EVENTS — list + detail sheet
-   ================================================================ */
-// Compact horizontal strip above the full event list — shows just
-// the next 2-3 upcoming events so they're visible without scrolling.
-function renderThisWeek(){
-  const list = document.getElementById('thisWeekList');
-  if(!list) return;
-
-  const upcoming = getSortedEvents().slice(0, 3);
-  if(upcoming.length === 0){
-    document.getElementById('thisWeek').style.display = 'none';
-    return;
-  }
-
-  list.innerHTML = upcoming.map(function(ev, i){
-    const badge = ev.guestlistStatus === 'limited'
-      ? '<span class="this-week__badge">Limited Guestlist</span>'
-      : '';
-    return (
-      '<button type="button" class="this-week__item js-this-week-item" data-index="' + i + '">' +
-        '<span class="this-week__date">' + formatDate(ev.date) + ' · ' + ev.time + '</span>' +
-        '<span class="this-week__name">' + ev.name + '</span>' +
-        '<span class="this-week__venue">' + ev.venue + '</span>' +
-        badge +
-      '</button>'
-    );
-  }).join('');
-
-  list.querySelectorAll('.js-this-week-item').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      openEventSheet(upcoming[parseInt(btn.dataset.index, 10)]);
-    });
-  });
-}
-
 // Venue filter pills above the full event list — lets a visitor
 // narrow the list to one club. Pills are built from whichever venues
 // actually appear in EVENTS, so a new venue shows up automatically.
@@ -602,9 +614,13 @@ function filterEventsByVenue(venueName){
 function renderEventList(){
   const list = document.getElementById('eventList');
   list.innerHTML = getSortedEvents().map(function(ev, i){
-    const mediaContent = eventMedia(ev, ' loading="lazy" decoding="async"');
+    const featured = i === 0;
+    const mediaContent = eventMedia(ev, featured ? ' decoding="async"' : ' loading="lazy" decoding="async"');
+    const nextUp = featured
+      ? '<div class="event-card__next"><span>Next up</span><span class="js-starts-in" data-start="' + eventStartTime(ev) + '">' + formatStartsIn(eventStartTime(ev) - Date.now()) + '</span></div>'
+      : '';
     return (
-      '<article class="event-card" data-index="' + i + '" data-event-id="' + (ev.id || '') + '" data-venue="' + eventVenueName(ev) + '">' +
+      '<article class="event-card' + (featured ? ' is-featured' : '') + '" data-index="' + i + '" data-event-id="' + (ev.id || '') + '" data-venue="' + eventVenueName(ev) + '">' + nextUp +
         '<div class="event-card__media">' + mediaContent + '</div>' +
         '<div class="event-card__body">' +
           '<div class="event-card__meta"><div class="event-card__date">' + formatDate(ev.date) + '</div>' + guestlistBadge(ev.guestlistStatus, ev.badgeLabel) + '</div>' +
@@ -626,6 +642,7 @@ function renderEventList(){
     });
   });
 
+  revealCardsOnScroll();
   loadLiveGuestlists();
 }
 
@@ -1398,7 +1415,6 @@ if(!isStandalone){
    ================================================================ */
 renderEventList();
 renderVenueFilter();
-renderThisWeek();
 renderPastEventList();
 populateGuestlistSelect();
 
@@ -1410,12 +1426,14 @@ let currentUser = null;
 function showAuthPanel(){
   document.getElementById('authPanel').style.display = 'block';
   document.getElementById('accountPanel').style.display = 'none';
+  document.getElementById('authHero').hidden = false;
   document.getElementById('accountHeading').textContent = 'Welcome';
   document.getElementById('accountSubhead').textContent = 'Log in or create an account to request guestlist access.';
 }
 function showAccountPanel(user){
   document.getElementById('authPanel').style.display = 'none';
   document.getElementById('accountPanel').style.display = 'block';
+  document.getElementById('authHero').hidden = true;
   document.getElementById('accountHeading').textContent = 'Welcome Back';
   document.getElementById('accountSubhead').textContent = 'Here are your guestlist requests.';
   const meta = user.user_metadata || {};

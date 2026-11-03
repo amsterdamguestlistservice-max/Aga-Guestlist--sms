@@ -623,6 +623,47 @@ body{ -webkit-font-smoothing:antialiased; }
 .sheet__quiet-actions{ display:flex; margin-top:6px; }
 .sheet__quiet{ flex:1; display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; background:none; border:none; color:var(--muted); font-size:12px; }
 .sheet__quiet svg{ width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+
+/* ===== Motion, featured event, login hero ===== */
+.tab-panel.is-active{ animation:panel-in 0.35s var(--ease); }
+@keyframes panel-in{ from{ opacity:0; } to{ opacity:1; } }
+.event-card__media:not(.is-loaded):not(:has(.flyer-placeholder))::before,
+.sheet__media:not(.is-loaded):not(:has(.flyer-placeholder))::before{
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(100deg, #0d0d0d 30%, #1c1c1c 50%, #0d0d0d 70%);
+  background-size:220% 100%; animation:media-shimmer 1.4s linear infinite;
+}
+@keyframes media-shimmer{ from{ background-position:120% 0; } to{ background-position:-120% 0; } }
+.sheet__media{ position:relative; }
+.event-card__media > img, .sheet__media > img{ position:relative; opacity:0; transition:opacity 0.5s var(--ease); }
+.event-card__media.is-loaded > img, .sheet__media.is-loaded > img{ opacity:1; }
+.event-card{ transition:opacity 0.6s var(--ease), transform 0.6s var(--ease); }
+.event-card.will-reveal{ opacity:0; transform:translateY(16px); }
+.event-card__cta, .btn, .sheet__quiet, .venue-filter__pill, .app-tabbar button{ transition:transform 0.15s var(--ease), background 0.2s var(--ease), color 0.25s var(--ease); }
+.event-card__cta:active, .btn:active, .venue-filter__pill:active{ transform:scale(0.98); }
+.sheet__close{ transition:transform 0.15s var(--ease); }
+.sheet__close:active{ transform:scale(0.92); }
+.flyer-placeholder{ position:relative; z-index:1; background-color:#050505; }
+/* Featured next event */
+.event-card.is-featured{ border-color:var(--line); }
+.event-card__next{ display:flex; justify-content:space-between; gap:12px; padding:12px 16px; font-size:11px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--gold-light); border-bottom:1px solid var(--line); }
+.event-card__next .js-starts-in{ color:var(--white); font-variant-numeric:tabular-nums; }
+.event-card.is-featured .event-card__name{ font-size:32px; }
+.event-card.is-featured .event-card__cta{ background:var(--gold); border-color:var(--gold); color:var(--black); }
+.venue-filter{ padding-top:2px; }
+/* Login hero */
+.auth-hero[hidden]{ display:none; }
+.auth-hero{ position:relative; height:250px; overflow:hidden; margin-bottom:-34px; }
+.auth-hero__grid{ position:absolute; inset:-14px; display:grid; grid-template-columns:repeat(3,1fr); gap:6px; opacity:0.42; transform:rotate(-3deg) scale(1.08); }
+.auth-hero__grid img{ width:100%; aspect-ratio:4/5; object-fit:cover; }
+.auth-hero::after{ content:''; position:absolute; inset:0; background:linear-gradient(to bottom, rgba(5,5,5,0.15), var(--black) 96%); }
+.auth-hero__logo{ position:absolute; z-index:1; left:50%; top:52%; width:118px; height:118px; transform:translate(-50%,-50%); clip-path:circle(48%); filter:brightness(1.2); }
+#tab-account .auth-hero:not([hidden]) + .section-head{ position:relative; z-index:1; text-align:center; }
+@media (prefers-reduced-motion:reduce){
+  .tab-panel.is-active, .event-card__media::before, .sheet__media::before{ animation:none; }
+  .event-card, .event-card__media > img, .sheet__media > img{ transition:none; }
+  .event-card.will-reveal{ opacity:1; transform:none; }
+}
 </style>
 </head>
 <body class="is-gated">
@@ -661,7 +702,7 @@ body{ -webkit-font-smoothing:antialiased; }
       </div>
       <div class="sheet__body" style="text-align:center;">
         <h2 class="welcome-sheet__title">See What's On</h2>
-        <p class="welcome-sheet__sub">This Week shows the next parties first. Filter by club to find your night.</p>
+        <p class="welcome-sheet__sub">The next party is always at the top. Filter by club to find your night.</p>
       </div>
     </div>
 
@@ -763,7 +804,6 @@ body{ -webkit-font-smoothing:antialiased; }
       <h1>Upcoming Events</h1>
       <p>Amsterdam nightlife, curated.</p>
     </div>
-    <div class="this-week" id="thisWeek"><div class="this-week__head"><span class="this-week__label">This Week</span></div><div class="this-week__list" id="thisWeekList"><!-- rendered by JS --></div></div>
     <div class="venue-filter" id="venueFilter"><!-- rendered by JS --></div>
     <div class="event-list" id="eventList"><!-- rendered by JS --></div>
 
@@ -875,6 +915,10 @@ body{ -webkit-font-smoothing:antialiased; }
 
   <!-- ACCOUNT TAB -->
   <section class="tab-panel" id="tab-account">
+    <div class="auth-hero" id="authHero" hidden>
+      <div class="auth-hero__grid" aria-hidden="true"><img src="events/desire-2026-10-10.jpg" alt="" loading="lazy" decoding="async"><img src="events/behind-closed-doors-2026-10-31.jpg" alt="" loading="lazy" decoding="async"><img src="events/huisfissa-2026-10-09.jpg" alt="" loading="lazy" decoding="async"><img src="events/pretty-young-thing-halloween-2026-10-30.jpg" alt="" loading="lazy" decoding="async"><img src="events/behind-closed-doors-2026-10-03.jpg" alt="" loading="lazy" decoding="async"><img src="events/shift-x-aurea-2026-10-02.jpg" alt="" loading="lazy" decoding="async"></div>
+      <img class="auth-hero__logo" src="icon-512.png" alt="Amsterdam Guestlist Service">
+    </div>
     <div class="section-head">
       <h1 id="accountHeading">Your Account</h1>
       <p id="accountSubhead">Sign in to see your guestlist requests.</p>
