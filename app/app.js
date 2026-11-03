@@ -347,7 +347,7 @@ const EVENTS = [
     time: "23:00",
     venue: "Jimmy Woo · Amsterdam",
     image: "events/behind-closed-doors-2026-11-07.jpg",
-    description: "An intimate late-night set in one of Amsterdam's most exclusive rooms.",
+    description: "BCD presents Damian Bday Bash. Club: Campz, Quinchoo, Luca Nahorst, Damie b2b Jayson Alanzo, Mojo, MC Shel. Lounge: Romée, Benji, Jaci Wodo.",
     guestlistStatus: "limited",
     ticketUrl: "#",
     guestlistUrl: "#guestlist",
