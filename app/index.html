@@ -664,6 +664,42 @@ body{ -webkit-font-smoothing:antialiased; }
   .event-card, .event-card__media > img, .sheet__media > img{ transition:none; }
   .event-card.will-reveal{ opacity:1; transform:none; }
 }
+
+/* ===== Member card as a VIP pass ===== */
+.member-card{
+  --tier-glow:rgba(201,162,74,0.26);
+  padding:24px 22px 20px; border-radius:16px;
+  border-color:rgba(255,255,255,0.14);
+  background:
+    radial-gradient(120% 90% at 100% 0%, var(--tier-glow), transparent 62%),
+    radial-gradient(90% 70% at 0% 100%, rgba(255,255,255,0.05), transparent 70%),
+    linear-gradient(155deg, #191919 0%, #0b0b0b 60%, #060606 100%);
+  box-shadow:0 26px 50px -24px var(--tier-glow), 0 18px 40px -22px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+.member-card.is-bronze{ --tier-glow:rgba(198,138,78,0.34); }
+.member-card.is-silver{ --tier-glow:rgba(199,203,209,0.28); }
+.member-card.is-gold{ --tier-glow:rgba(230,200,117,0.36); }
+.member-card.is-vip{ --tier-glow:rgba(217,166,245,0.38); }
+.member-card::before{
+  top:0; left:0; width:60%; height:100%;
+  background:linear-gradient(105deg, transparent 20%, rgba(255,255,255,0.13) 50%, transparent 80%);
+  transform:translateX(-120%);
+  animation:pass-sheen 7s var(--ease) 0.6s infinite;
+}
+@keyframes pass-sheen{ 0%{ transform:translateX(-120%); } 28%,100%{ transform:translateX(240%); } }
+.member-card::after{ right:-46px; bottom:-52px; width:210px; height:210px; opacity:0.07; }
+.member-card__top{ margin-bottom:0; align-items:flex-start; gap:14px; }
+.member-card__mark{ width:48px; height:48px; border:none; clip-path:circle(48%); filter:brightness(1.25); }
+.member-card__eyebrow{ font-size:9.5px; }
+.member-card__name{ font-size:30px; line-height:1.05; margin-top:5px; }
+.member-card__divider{ display:none; }
+.member-card__row{ margin-top:30px; align-items:flex-end; }
+.member-card__tier{ font-size:15px; letter-spacing:0.18em; }
+.member-card__points{ font-family:var(--sans); font-size:38px; font-weight:300; line-height:1; letter-spacing:-0.01em; display:block; font-variant-numeric:lining-nums tabular-nums; }
+.member-card__bar{ position:relative; height:3px; margin-top:14px; border-radius:2px; background:rgba(255,255,255,0.12); overflow:hidden; }
+.member-card__bar-fill{ height:100%; width:0; border-radius:2px; background:var(--tier-accent, var(--gold)); transition:width 0.9s var(--ease); }
+.member-card__id{ margin-top:12px; }
+@media (prefers-reduced-motion:reduce){ .member-card::before{ animation:none; } }
 </style>
 </head>
 <body class="is-gated">
@@ -1013,6 +1049,7 @@ body{ -webkit-font-smoothing:antialiased; }
             <span class="member-card__points-label">Points</span>
           </div>
         </div>
+        <div class="member-card__bar" aria-hidden="true"><div class="member-card__bar-fill" id="accountUserTierBar"></div></div>
         <div class="member-card__id" id="accountUserId"></div>
       </div>
 

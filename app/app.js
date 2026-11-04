@@ -1490,6 +1490,12 @@ async function loadMyPoints(){
     const tierInfo = getTierInfo(points);
     document.querySelector('.member-card').className = 'member-card ' + tierInfo.current.className;
     tierBadge.textContent = tierInfo.current.name;
+    const tierBar = document.getElementById('accountUserTierBar');
+    if(tierBar){
+      tierBar.style.width = (tierInfo.next
+        ? Math.min(100, Math.round((points - tierInfo.current.min) / (tierInfo.next.min - tierInfo.current.min) * 100))
+        : 100) + '%';
+    }
     tierProgress.textContent = tierInfo.next
       ? (tierInfo.next.min - points) + ' pts to ' + tierInfo.next.name
       : 'Top tier';
