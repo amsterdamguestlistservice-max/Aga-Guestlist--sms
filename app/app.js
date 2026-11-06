@@ -603,6 +603,7 @@ const EVENTS = [
     image: "events/amajoyo-2026-11-27.jpg",
     description: "Amajoyo at Soul Kitchen with De La Noise, Terrie T (Afroholic), Pascal Morais, Dems . Rezaie and Noah Staal. 23:00 till 04:00. 23+.",
     guestlistStatus: "limited",
+    minAge: 23,
     ticketUrl: "https://site.fourvenues.com/en/amsterdam-guestlist-service/events/amajoyo-27-11-2026-XBHW",
     guestlistUrl: "#guestlist",
     featured: false,
@@ -1322,7 +1323,9 @@ document.getElementById('glForm').addEventListener('submit', async function(e){
 
   if(!firstName){ showErr('errFirstName'); valid = false; } else { clearErr('errFirstName'); }
   if(!lastName){ showErr('errLastName'); valid = false; } else { clearErr('errLastName'); }
-  if(!age || parseInt(age, 10) < 18){ showErr('errAge'); valid = false; } else { clearErr('errAge'); }
+  const minAgeMain = eventMinAge(EVENTS[parseInt(eventSelect.value, 10)]);
+  document.getElementById('errAge').textContent = 'Must be ' + minAgeMain + ' or older' + (minAgeMain > 18 ? ' for this event.' : '.');
+  if(!age || parseInt(age, 10) < minAgeMain){ showErr('errAge'); valid = false; } else { clearErr('errAge'); }
   if(!phone){ showErr('errPhone'); valid = false; } else { clearErr('errPhone'); }
   if(!email || email.indexOf('@') === -1){ showErr('errEmail'); valid = false; } else { clearErr('errEmail'); }
   const genderEl = document.getElementById('glGender');
@@ -1354,12 +1357,17 @@ document.getElementById('glForm').addEventListener('submit', async function(e){
     const gGender = gGenderInput ? gGenderInput.value : '';
     if(needGuestEmails){
       // Every chosen guest must be complete: their ticket is emailed to them.
-      const ok = gFirst && gLast && gAge && parseInt(gAge, 10) >= 18 && gEmail.indexOf('@') > 0 && (!eventNeedsGender(ev) || gGender);
+      const ok = gFirst && gLast && gAge && parseInt(gAge, 10) >= eventMinAge(ev) && gEmail.indexOf('@') > 0 && (!eventNeedsGender(ev) || gGender);
       if(!ok){ showErr('errGuest' + i); guestsValid = false; } else { clearErr('errGuest' + i); }
       const gObj = { firstName: gFirst, lastName: gLast, age: gAge, email: gEmail };
       if(gGender) gObj.gender = gGender;
       additionalGuests.push(gObj);
     } else if(gFirst || gLast){
+      if(eventMinAge(ev) > 18 && (!gAge || parseInt(gAge, 10) < eventMinAge(ev))){
+        const eg = document.getElementById('errGuest' + i);
+        if(eg) eg.textContent = 'Guest ' + i + ' must be ' + eventMinAge(ev) + ' or older for this event.';
+        showErr('errGuest' + i); guestsValid = false;
+      } else { clearErr('errGuest' + i); }
       const g = { firstName: gFirst, lastName: gLast, age: gAge };
       if(gEmail) g.email = gEmail;
       additionalGuests.push(g);
@@ -2036,6 +2044,7 @@ async function loadMyRequests(){
 let editingRequest = null;
 let editGuests = [];
 
+function eventMinAge(ev){ return (ev && ev.minAge) || 18; }
 function editEventFor(r){
   for(let i = 0; i < EVENTS.length; i++){
     if(EVENTS[i].name === r.event_name && EVENTS[i].date === r.event_date) return EVENTS[i];
@@ -2135,7 +2144,8 @@ async function saveEditRequest(){
   const gender = document.getElementById('erGender').value;
   const insta = document.getElementById('erInstagram').value.trim();
   if(!first || !last){ editError('Please fill in your first and last name.'); return; }
-  if(!age || parseInt(age, 10) < 18){ editError('You must be 18 or older.'); return; }
+  const editMin = eventMinAge(editEventFor(editingRequest));
+  if(!age || parseInt(age, 10) < editMin){ editError('You must be ' + editMin + ' or older for this event.'); return; }
   if(!phone){ editError('Please fill in your phone number.'); return; }
   if(!email || email.indexOf('@') < 1){ editError('Please enter a valid email address.'); return; }
   if((flags.gender || editingRequest.gender) && document.getElementById('erGenderWrap').style.display !== 'none' && !gender){ editError('Please select man or woman.'); return; }
@@ -2143,7 +2153,7 @@ async function saveEditRequest(){
   for(let i = 0; i < editGuests.length; i++){
     const g = editGuests[i];
     const gf = (g.firstName || '').trim(), gl = (g.lastName || '').trim(), ga = String(g.age || '').trim();
-    if(!gf || !gl || !ga || parseInt(ga, 10) < 18){ editError('Guest ' + (i + 1) + ': first name, last name and age (18+) are required.'); return; }
+    if(!gf || !gl || !ga || parseInt(ga, 10) < editMin){ editError('Guest ' + (i + 1) + ': first name, last name and age (' + editMin + '+) are required.'); return; }
     const out = { firstName: gf, lastName: gl, age: ga };
     if(flags.email || g.email){
       const ge = (g.email || '').trim();
