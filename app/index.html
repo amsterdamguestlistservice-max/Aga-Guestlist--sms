@@ -709,6 +709,13 @@ body{ -webkit-font-smoothing:antialiased; }
 .edit-guest__remove{ background:none; border:none; color:var(--muted); font-size:12px; text-decoration:underline; }
 .edit-actions{ display:flex; gap:10px; margin-top:14px; }
 .edit-actions .btn{ flex:1; }
+.salon-row.is-locked{ opacity:0.55; }
+.salon-roominfo{ text-align:center; font-size:12px; line-height:1.5; color:var(--muted); padding:2px 14px 10px; }
+.salon-bubble__who{ font-size:11px; letter-spacing:0.04em; color:var(--gold-light); margin-bottom:3px; font-weight:600; }
+.salon-bubble__acts{ display:flex; gap:12px; justify-content:flex-end; margin-top:4px; }
+.salon-bubble__acts button{ background:none; border:none; color:inherit; opacity:0.5; font-size:10.5px; text-decoration:underline; padding:0; }
+.salon-tabs{ overflow-x:auto; }
+.salon-tab{ white-space:nowrap; }
 </style>
 </head>
 <body class="is-gated">
@@ -1075,7 +1082,7 @@ body{ -webkit-font-smoothing:antialiased; }
 
       <div class="salon-card" id="salonCard">
         <div class="salon-card__label">Members Only</div>
-        <p class="salon-card__copy">The Salon — chat privately with other AGS members.</p>
+        <p class="salon-card__copy">The Salon — a group chat for every party you are approved for, plus private chats with other members.</p>
         <div class="salon-card__row">
           <button type="button" class="btn btn--solid" id="salonCardBtn" style="flex:1;">Join the Salon</button>
           <span class="salon-badge" id="salonCardBadge">0</span>
@@ -1263,7 +1270,7 @@ body{ -webkit-font-smoothing:antialiased; }
       <div class="salon-head__mid"><div class="salon-eyebrow">Members only</div><div class="salon-title">Salon</div></div>
     </div>
     <div class="salon-body">
-      <p>The Salon is where AGS members talk to each other. Pick the name other members will see.</p>
+      <p>Private chats let AGS members message each other one-to-one. Pick the name other members will see.</p>
       <div class="field">
         <label for="salonJoinName">Your name in the Salon</label>
         <input type="text" id="salonJoinName" maxlength="30" autocomplete="off">
@@ -1288,11 +1295,12 @@ body{ -webkit-font-smoothing:antialiased; }
       <button type="button" class="salon-iconbtn salon-iconbtn--gold" id="salonNewBtn" aria-label="New conversation">+</button>
     </div>
     <div class="salon-tabs">
-      <button type="button" class="salon-tab is-active" id="salonTabConvos">Conversations</button>
+      <button type="button" class="salon-tab is-active" id="salonTabParties">Parties</button>
+      <button type="button" class="salon-tab" id="salonTabConvos">Chats</button>
       <button type="button" class="salon-tab" id="salonTabMembers">Members</button>
     </div>
     <div class="salon-list" id="salonList"></div>
-    <button type="button" class="salon-leave" id="salonLeaveBtn">Leave the Salon</button>
+    <button type="button" class="salon-leave" id="salonLeaveBtn">Leave the private chats</button>
   </div>
 
   <!-- CHAT -->
