@@ -69,7 +69,6 @@
       member = res.data || null;
     } catch(e){ if(card) card.style.display = 'none'; return; }
     renderCard();
-    if(member){ refreshUnreadBadge(); }
   }
 
   function renderCard(){
@@ -199,10 +198,7 @@
   }
 
   /* ---------- main view ---------- */
-  function syncTabs(){
-    $('salonTabParties').classList.toggle('is-active', tab === 'parties');
-    $('salonTabConvos').classList.toggle('is-active', tab === 'convos');
-    $('salonTabMembers').classList.toggle('is-active', tab === 'members');
+  function syncTabs(){ return;
   }
   function setTab(t){
     tab = t; syncTabs(); renderMain();
@@ -218,8 +214,7 @@
     list.appendChild(box);
   }
   function renderMain(){
-    $('salonTabMembers').textContent = member ? 'Members (' + members.length + ')' : 'Members';
-    $('salonLeaveBtn').style.display = member ? 'block' : 'none';
+    $('salonLeaveBtn').style.display = 'none';
     const list = $('salonList');
     clear(list);
 
@@ -247,7 +242,7 @@
       return;
     }
 
-    if(!member){ joinPrompt(list); return; }
+    return; // party chats only
 
     if(tab === 'members'){
       const others = members.filter(function(m){ return m.user_id !== me.id && !blocked.has(m.user_id); });
@@ -474,10 +469,6 @@
     $('salonBackBtn').addEventListener('click', closeSalon);
     $('salonJoinBack').addEventListener('click', function(){ showView('main'); });
     $('salonJoinBtn').addEventListener('click', join);
-    $('salonTabParties').addEventListener('click', function(){ setTab('parties'); });
-    $('salonTabConvos').addEventListener('click', function(){ setTab('convos'); });
-    $('salonTabMembers').addEventListener('click', function(){ setTab('members'); });
-    $('salonNewBtn').addEventListener('click', function(){ if(member){ setTab('members'); } else { openJoin(); } });
     $('salonLeaveBtn').addEventListener('click', leave);
     $('salonChatBack').addEventListener('click', backFromChat);
     $('salonSendBtn').addEventListener('click', send);
