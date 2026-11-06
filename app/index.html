@@ -508,7 +508,7 @@ body.is-gated #tab-account{ display:block !important; }
 .venue-filter__pill.is-active{ background:var(--gold); border-color:var(--gold); color:var(--black); }
 .event-card.is-filtered-out{ display:none; }
 
-/* ===== The Salon (members-only chat) ===== */
+/* ===== The Backroom (members-only chat) ===== */
 .salon-card{ border:1px solid var(--line); background:var(--charcoal); padding:16px; margin-bottom:14px; display:none; }
 .salon-card__label{ font-size:10.5px; letter-spacing:0.14em; text-transform:uppercase; color:var(--gold); margin-bottom:6px; }
 .salon-card__copy{ font-size:13px; line-height:1.5; color:var(--muted); margin-bottom:12px; }
@@ -716,6 +716,10 @@ body{ -webkit-font-smoothing:antialiased; }
 .salon-bubble__acts button{ background:none; border:none; color:inherit; opacity:0.5; font-size:10.5px; text-decoration:underline; padding:0; }
 .salon-tabs{ overflow-x:auto; }
 .salon-tab{ white-space:nowrap; }
+.backroom-home{ margin:28px 18px 8px; padding:22px 20px; text-align:center; border:1px solid var(--line); background:linear-gradient(180deg,#0f1319,#0a0c10); }
+.backroom-home__eyebrow{ font-size:10.5px; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; }
+.backroom-home__title{ font-family:var(--serif); font-style:italic; font-weight:400; font-size:28px; margin-bottom:10px; }
+.backroom-home__copy{ font-size:13.5px; line-height:1.6; color:var(--muted); margin-bottom:16px; }
 </style>
 </head>
 <body class="is-gated">
@@ -858,6 +862,13 @@ body{ -webkit-font-smoothing:antialiased; }
     </div>
     <div class="venue-filter" id="venueFilter"><!-- rendered by JS --></div>
     <div class="event-list" id="eventList"><!-- rendered by JS --></div>
+
+    <div class="backroom-home" id="backroomHome">
+      <div class="backroom-home__eyebrow">Members only</div>
+      <h2 class="backroom-home__title">The Backroom</h2>
+      <p class="backroom-home__copy">The group chat for every party. Get approved for a guestlist and the Backroom of that party opens, so you can meet the other guests before you go.</p>
+      <button type="button" class="btn btn--solid" id="backroomHomeBtn">Enter the Backroom</button>
+    </div>
 
     <div class="past-events-wrap" id="pastEventsWrap" style="display:none;">
       <div class="section-head section-head--past">
@@ -1082,9 +1093,9 @@ body{ -webkit-font-smoothing:antialiased; }
 
       <div class="salon-card" id="salonCard">
         <div class="salon-card__label">Members Only</div>
-        <p class="salon-card__copy">The Salon — a group chat for every party you are approved for, plus private chats with other members.</p>
+        <p class="salon-card__copy">The Backroom — a group chat for every party you are approved for, plus private chats with other members.</p>
         <div class="salon-card__row">
-          <button type="button" class="btn btn--solid" id="salonCardBtn" style="flex:1;">Join the Salon</button>
+          <button type="button" class="btn btn--solid" id="salonCardBtn" style="flex:1;">Join the Backroom</button>
           <span class="salon-badge" id="salonCardBadge">0</span>
         </div>
       </div>
@@ -1267,12 +1278,12 @@ body{ -webkit-font-smoothing:antialiased; }
   <div class="salon-view" id="salonView-join">
     <div class="salon-head">
       <button type="button" class="salon-iconbtn" id="salonJoinBack" aria-label="Back">&#8249;</button>
-      <div class="salon-head__mid"><div class="salon-eyebrow">Members only</div><div class="salon-title">Salon</div></div>
+      <div class="salon-head__mid"><div class="salon-eyebrow">Members only</div><div class="salon-title">Backroom</div></div>
     </div>
     <div class="salon-body">
       <p>Private chats let AGS members message each other one-to-one. Pick the name other members will see.</p>
       <div class="field">
-        <label for="salonJoinName">Your name in the Salon</label>
+        <label for="salonJoinName">Your name in the Backroom</label>
         <input type="text" id="salonJoinName" maxlength="30" autocomplete="off">
       </div>
       <ul class="salon-rules">
@@ -1283,7 +1294,7 @@ body{ -webkit-font-smoothing:antialiased; }
       </ul>
       <label class="salon-check"><input type="checkbox" id="salonJoinRules"> <span>I agree to these rules.</span></label>
       <div class="err is-visible" id="salonJoinErr" style="display:none;"></div>
-      <button type="button" class="btn btn--solid" id="salonJoinBtn" style="width:100%;">Join the Salon</button>
+      <button type="button" class="btn btn--solid" id="salonJoinBtn" style="width:100%;">Join the Backroom</button>
     </div>
   </div>
 
@@ -1291,7 +1302,7 @@ body{ -webkit-font-smoothing:antialiased; }
   <div class="salon-view" id="salonView-main">
     <div class="salon-head">
       <button type="button" class="salon-iconbtn" id="salonBackBtn" aria-label="Back">&#8249;</button>
-      <div class="salon-head__mid"><div class="salon-eyebrow">Members only</div><div class="salon-title">Salon</div></div>
+      <div class="salon-head__mid"><div class="salon-eyebrow">Members only</div><div class="salon-title">Backroom</div></div>
       <button type="button" class="salon-iconbtn salon-iconbtn--gold" id="salonNewBtn" aria-label="New conversation">+</button>
     </div>
     <div class="salon-tabs">

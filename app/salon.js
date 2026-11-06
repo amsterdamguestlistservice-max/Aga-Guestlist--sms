@@ -1,6 +1,6 @@
 /* ================================================================
    THE SALON
-   1) Party Salons — one group chat per party, open only to guests whose
+   1) Party Backrooms — one group chat per party, open only to guests whose
       guestlist request for that party is Approved (enforced in the database).
    2) Private chats — opt-in 1-to-1 chat between AGS members.
    All user-provided text is rendered with textContent (never innerHTML).
@@ -18,7 +18,7 @@
   let parties = [];         // my requests for upcoming parties
   let tab = 'parties';
   let chatWith = null;      // member object while a private chat is open
-  let room = null;          // { name, date, venue } while a party Salon is open
+  let room = null;          // { name, date, venue } while a party Backroom is open
   let roomPeople = {};      // user_id -> display name (approved guests)
   let roomMessages = [];    // party messages, oldest first
   let channel = null;
@@ -76,7 +76,7 @@
     const card = $('salonCard');
     if(!card) return;
     card.style.display = 'block';
-    $('salonCardBtn').textContent = 'Enter the Salon';
+    $('salonCardBtn').textContent = 'Enter the Backroom';
   }
 
   async function refreshUnreadBadge(){
@@ -129,7 +129,7 @@
     const name = $('salonJoinName').value.trim();
     const err = $('salonJoinErr');
     if(name.length < 2 || name.length > 30){ err.textContent = 'Choose a name of 2–30 characters.'; err.style.display = 'block'; return; }
-    if(!$('salonJoinRules').checked){ err.textContent = 'Please agree to the Salon rules.'; err.style.display = 'block'; return; }
+    if(!$('salonJoinRules').checked){ err.textContent = 'Please agree to the Backroom rules.'; err.style.display = 'block'; return; }
     err.style.display = 'none';
     const btn = $('salonJoinBtn'); btn.disabled = true;
     const res = await sb.from('salon_members').insert({ user_id: me.id, display_name: name }).select().single();
@@ -141,7 +141,7 @@
     await loadAll(); renderMain(); startLive();
   }
   async function leave(){
-    if(!window.confirm('Leave the private chats? Your private conversations will be deleted for everyone and you will disappear from the member list. Your party Salons are not affected.')) return;
+    if(!window.confirm('Leave the private chats? Your private conversations will be deleted for everyone and you will disappear from the member list. Your party Backrooms are not affected.')) return;
     const res = await sb.rpc('leave_salon');
     if(res.error){ window.alert('Could not leave right now. Please try again.'); return; }
     member = null; members = []; messages = [];
@@ -210,7 +210,7 @@
   function joinPrompt(list){
     const box = el('div', 'salon-empty');
     box.appendChild(el('p', null, 'Join the private chats to message other AGS members one-to-one.'));
-    const b = el('button', 'btn btn--solid', 'Join the Salon');
+    const b = el('button', 'btn btn--solid', 'Join the Backroom');
     b.type = 'button';
     b.style.marginTop = '14px';
     b.addEventListener('click', openJoin);
@@ -225,7 +225,7 @@
 
     if(tab === 'parties'){
       if(!parties.length){
-        list.appendChild(el('p', 'salon-empty', 'Every party has its own Salon. Request a guestlist spot — once you are approved, the Salon for that party opens here.'));
+        list.appendChild(el('p', 'salon-empty', 'Every party has its own Backroom. Request a guestlist spot — once you are approved, the Backroom for that party opens here.'));
         return;
       }
       parties.forEach(function(p){
@@ -240,7 +240,7 @@
         row.appendChild(el('div', 'salon-row__time', dateLabel(p.event_date)));
         row.addEventListener('click', function(){
           if(ok) openRoom(p);
-          else window.alert('The Salon for ' + p.event_name + ' opens as soon as your guestlist request is approved.');
+          else window.alert('The Backroom for ' + p.event_name + ' opens as soon as your guestlist request is approved.');
         });
         list.appendChild(row);
       });
@@ -329,7 +329,7 @@
     await sb.from('salon_messages').update({ read_at: now }).eq('sender_id', otherId).eq('recipient_id', me.id).is('read_at', null);
   }
 
-  /* ---------- party Salon (group chat) ---------- */
+  /* ---------- party Backroom (group chat) ---------- */
   async function openRoom(p){
     room = { name: p.event_name, date: p.event_date, venue: p.event_venue };
     chatWith = null;
@@ -352,7 +352,7 @@
     ]);
     if(room !== cur) return; // user moved on
     if(res[0].error){
-      if(first){ const e = $('salonChatErr'); e.textContent = 'This Salon is only open to approved guests.'; e.style.display = 'block'; }
+      if(first){ const e = $('salonChatErr'); e.textContent = 'This Backroom is only open to approved guests.'; e.style.display = 'block'; }
       return;
     }
     roomMessages = res[0].data || [];
@@ -413,7 +413,7 @@
         .select('id,sender_id,body,created_at').single();
       btn.disabled = false;
       if(res.error || !res.data){
-        err.textContent = 'Message not sent. This Salon is only open to approved guests.';
+        err.textContent = 'Message not sent. This Backroom is only open to approved guests.';
         err.style.display = 'block';
         return;
       }
@@ -465,6 +465,12 @@
   function wire(){
     if(!$('salonOverlay')) return;
     $('salonCardBtn').addEventListener('click', openSalon);
+    const homeBtn = $('backroomHomeBtn');
+    if(homeBtn) homeBtn.addEventListener('click', function(){
+      if(!me){ if(typeof switchTab === 'function') switchTab('account'); return; }
+      if(!available){ window.alert('The Backroom is not available right now. Please try again later.'); return; }
+      openSalon();
+    });
     $('salonBackBtn').addEventListener('click', closeSalon);
     $('salonJoinBack').addEventListener('click', function(){ showView('main'); });
     $('salonJoinBtn').addEventListener('click', join);
