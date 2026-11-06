@@ -601,7 +601,7 @@ const EVENTS = [
     time: "23:00",
     venue: "Soul Kitchen · Amsterdam",
     image: "events/amajoyo-2026-11-27.jpg",
-    description: "Amajoyo at Soul Kitchen with De La Noise, Terrie T (Afroholic), Pascal Morais, Dems . Rezaie and Noah Staal. 23:00 till 04:00.",
+    description: "Amajoyo at Soul Kitchen with De La Noise, Terrie T (Afroholic), Pascal Morais, Dems . Rezaie and Noah Staal. 23:00 till 04:00. 23+.",
     guestlistStatus: "limited",
     ticketUrl: "https://site.fourvenues.com/en/amsterdam-guestlist-service/events/amajoyo-27-11-2026-XBHW",
     guestlistUrl: "#guestlist",
