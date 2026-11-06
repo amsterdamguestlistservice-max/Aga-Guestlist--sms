@@ -349,7 +349,7 @@ const EVENTS = [
     image: "events/behind-closed-doors-2026-11-07.jpg",
     description: "BCD presents Damian Bday Bash. Club: Campz, Quinchoo, Luca Nahorst, Damie b2b Jayson Alanzo, Mojo, MC Shel. Lounge: Romée, Benji, Jaci Wodo.",
     guestlistStatus: "limited",
-    ticketUrl: "#",
+    ticketUrl: "https://shop.celebratix.io/?t=2trbkg",
     guestlistUrl: "#guestlist",
     featured: false,
     countdownEnabled: false
@@ -363,7 +363,7 @@ const EVENTS = [
     image: "events/behind-closed-doors-2026-11-14.jpg",
     description: "An intimate late-night set in one of Amsterdam's most exclusive rooms.",
     guestlistStatus: "limited",
-    ticketUrl: "#",
+    ticketUrl: "https://shop.celebratix.io/?t=2trbkg",
     guestlistUrl: "#guestlist",
     flyerPending: true, // show the "line-up coming soon" card until the flyer is in
     featured: false,

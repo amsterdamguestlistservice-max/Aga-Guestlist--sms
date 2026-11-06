@@ -1,7 +1,7 @@
 // Minimal service worker — enables "Add to Home Screen" installability
 // and basic offline support (cache-first for the app shell, since the
 // event data is embedded directly in index.html rather than fetched).
-const CACHE_NAME = 'ags-app-v77';
+const CACHE_NAME = 'ags-app-v78';
 const APP_SHELL = [
   './index.html',
   './manifest.json',
