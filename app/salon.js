@@ -460,12 +460,12 @@
   function wire(){
     if(!$('salonOverlay')) return;
     $('salonCardBtn').addEventListener('click', openSalon);
-    const homeBtn = $('backroomHomeBtn');
+    ['backroomHomeBtn','backroomTabBtn'].forEach(function(id){ const homeBtn = $(id);
     if(homeBtn) homeBtn.addEventListener('click', function(){
       if(!me){ if(typeof switchTab === 'function') switchTab('account'); return; }
       if(!available){ window.alert('The Backroom is not available right now. Please try again later.'); return; }
       openSalon();
-    });
+    }); });
     $('salonBackBtn').addEventListener('click', closeSalon);
     $('salonJoinBack').addEventListener('click', function(){ showView('main'); });
     $('salonJoinBtn').addEventListener('click', join);

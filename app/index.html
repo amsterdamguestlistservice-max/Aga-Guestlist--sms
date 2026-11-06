@@ -794,7 +794,7 @@ body{ -webkit-font-smoothing:antialiased; }
 
     <div class="tour-slide">
       <div class="tour-screenshot">
-        <img src="tour-ambassadors.jpg" alt="Ambassadors tab">
+        <img src="tour-ambassadors.jpg" alt="Contact tab">
       </div>
       <div class="sheet__body" style="text-align:center;">
         <h2 class="welcome-sheet__title">Bring Your Crew</h2>
@@ -1109,27 +1109,23 @@ body{ -webkit-font-smoothing:antialiased; }
     <span id="accountUserEmail" style="display:none;"></span>
   </section>
 
-  <!-- CONTACT TAB -->
-  <section class="tab-panel" id="tab-ambassadors">
+  <!-- BACKROOM TAB -->
+  <section class="tab-panel" id="tab-backroom">
     <div class="section-head">
-      <h1>Ambassadors</h1>
-      <p>Promote the nights you love and get priority.</p>
+      <h1>Backroom</h1>
+      <p>The group chat for every party.</p>
     </div>
     <div class="contact-wrap">
-      <div class="contact-card ambassador-card">
-        <span class="ambassador-card__label">Ambassadors</span>
-        <h3>Become an Ambassador</h3>
-        <p style="margin-bottom:14px;">Love the nights we promote? Spread the word to your circle and get priority on the guestlist.</p>
-        <ol class="ambassador-steps">
-          <li><strong>Join the group.</strong> Message us and we add you to the ambassador group of the party.</li>
-          <li><strong>Post it on your story</strong> and tag @amsterdam_guestlist_service.</li>
-          <li><strong>Send us your names.</strong> Your guestlist goes through us. Ambassadors and their friends get guestlist priority.</li>
-        </ol>
-        <a href="https://wa.me/31644948562?text=Hi%2C%20ik%20wil%20graag%20ambassadeur%20worden%20bij%20Amsterdam%20Guestlist%20Service." class="btn btn--solid" target="_blank" rel="noopener">Join the Ambassadors</a>
+      <div class="backroom-home" style="margin:0;">
+        <div class="backroom-home__eyebrow">Members only</div>
+        <h2 class="backroom-home__title">The Backroom</h2>
+        <p class="backroom-home__copy">Get approved for a guestlist and the Backroom of that party opens, so you can meet the other guests before you go.</p>
+        <button type="button" class="btn btn--solid" id="backroomTabBtn">Enter the Backroom</button>
       </div>
     </div>
   </section>
 
+  <!-- CONTACT TAB -->
   <section class="tab-panel" id="tab-contact">
     <div class="section-head">
       <h1>Contact</h1>
@@ -1151,6 +1147,17 @@ body{ -webkit-font-smoothing:antialiased; }
         <p>Club, event organiser, or nightlife brand? Let's work together.</p>
         <a href="https://wa.me/31644948562?text=Hi%2C%20ik%20ben%20ge%C3%AFnteresseerd%20in%20een%20samenwerking%20met%20Amsterdam%20Guestlist%20Service.%20Ik%20zou%20graag%20meer%20informatie%20ontvangen." class="btn" target="_blank" rel="noopener">Partner With Us</a>
       </div>
+      <div class="contact-card ambassador-card">
+        <span class="ambassador-card__label">Ambassadors</span>
+        <h3>Become an Ambassador</h3>
+        <p style="margin-bottom:14px;">Love the nights we promote? Spread the word to your circle and get priority on the guestlist.</p>
+        <ol class="ambassador-steps">
+          <li><strong>Join the group.</strong> Message us and we add you to the ambassador group of the party.</li>
+          <li><strong>Post it on your story</strong> and tag @amsterdam_guestlist_service.</li>
+          <li><strong>Send us your names.</strong> Your guestlist goes through us. Ambassadors and their friends get guestlist priority.</li>
+        </ol>
+        <a href="https://wa.me/31644948562?text=Hi%2C%20ik%20wil%20graag%20ambassadeur%20worden%20bij%20Amsterdam%20Guestlist%20Service." class="btn btn--solid" target="_blank" rel="noopener">Join the Ambassadors</a>
+      </div>
     </div>
   </section>
 
@@ -1169,9 +1176,9 @@ body{ -webkit-font-smoothing:antialiased; }
     <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
     Account
   </button>
-  <button type="button" data-tab="ambassadors">
-    <svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.26 6.85.8-5.06 4.7 1.34 6.79L12 17.1l-6.03 3.45 1.34-6.79-5.06-4.7 6.85-.8z"/></svg>
-    Ambassadors
+  <button type="button" data-tab="backroom">
+    <svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-12.2 7.5L3 21l2-5.6A8.5 8.5 0 1 1 21 11.5z"/><path d="M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01"/></svg>
+    Backroom
   </button>
   <button type="button" data-tab="contact">
     <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
