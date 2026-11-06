@@ -1969,6 +1969,7 @@ document.getElementById('signOutBtn').addEventListener('click', async function()
   lockAppBehindGate();
 });
 
+let myRequestsCache = {};
 async function loadMyRequests(){
   const list = document.getElementById('myRequestsList');
   if(!supabaseClient || !currentUser){ list.innerHTML = ''; return; }
@@ -1995,7 +1996,7 @@ async function loadMyRequests(){
       let note = '';
       if(statusLower === 'approved'){
         statusClass = ' is-approved';
-        note = "You're on the list — see you there!";
+        note = "You're on the list — see you there! Approved requests can't be changed here; message us if something is wrong.";
       } else if(statusLower === 'declined'){
         statusClass = ' is-declined';
         note = 'This request could not be approved this time.';
@@ -2005,20 +2006,185 @@ async function loadMyRequests(){
       } else {
         note = "We'll confirm your spot soon.";
       }
+      const canEdit = statusLower === 'pending' && !(new Date(r.event_date + 'T23:59:59') < new Date());
       return (
         '<div class="request-card">' +
           '<div class="request-card__event">' + r.event_name + '</div>' +
           '<div class="request-card__meta">' + r.event_venue + ' · ' + formatDate(r.event_date) + '</div>' +
           '<span class="request-card__status' + statusClass + '">' + statusRaw + '</span>' +
           '<div class="request-card__note">' + note + '</div>' +
+          (canEdit ? '<button type="button" class="request-card__edit" data-edit-id="' + r.id + '">Edit request</button>' : '') +
         '</div>'
       );
     }).join('');
+    myRequestsCache = {};
+    data.forEach(function(r){ myRequestsCache[r.id] = r; });
+    list.querySelectorAll('[data-edit-id]').forEach(function(btn){
+      btn.addEventListener('click', function(){ openEditRequest(btn.getAttribute('data-edit-id')); });
+    });
   } catch(err){
     console.warn('Could not load requests.', err);
     list.innerHTML = '<p class="my-requests__empty">Could not load your requests.</p>';
   }
 }
+
+
+/* ================================================================
+   EDIT A PENDING REQUEST — only while its status is still Pending.
+   (The database enforces this too: once approved, updates are refused.)
+   ================================================================ */
+let editingRequest = null;
+let editGuests = [];
+
+function editEventFor(r){
+  for(let i = 0; i < EVENTS.length; i++){
+    if(EVENTS[i].name === r.event_name && EVENTS[i].date === r.event_date) return EVENTS[i];
+  }
+  return null;
+}
+function editFlags(){
+  const ev = editingRequest ? editEventFor(editingRequest) : null;
+  return { email: !!(ev && ev.guestEmailRequired), gender: !!(ev && ev.guestGenderRequired) };
+}
+function openEditRequest(id){
+  const r = myRequestsCache[id];
+  if(!r) return;
+  editingRequest = r;
+  document.getElementById('editReqEvent').textContent = r.event_name;
+  document.getElementById('erFirst').value = r.first_name || '';
+  document.getElementById('erLast').value = r.last_name || '';
+  document.getElementById('erAge').value = r.age || '';
+  document.getElementById('erInstagram').value = (r.instagram && r.instagram !== 'None') ? r.instagram : '';
+  document.getElementById('erPhone').value = r.phone || '';
+  document.getElementById('erEmail').value = r.email || '';
+  const flags = editFlags();
+  document.getElementById('erGenderWrap').style.display = (flags.gender || r.gender) ? '' : 'none';
+  document.getElementById('erGender').value = r.gender || '';
+  editGuests = (Array.isArray(r.additional_guests) ? r.additional_guests : []).map(function(g){
+    return { firstName: g.firstName || '', lastName: g.lastName || '', age: g.age || '', email: g.email || '', gender: g.gender || '' };
+  });
+  renderEditGuests();
+  document.getElementById('erError').style.display = 'none';
+  document.getElementById('editReqOverlay').classList.add('is-open');
+}
+function closeEditRequest(){
+  document.getElementById('editReqOverlay').classList.remove('is-open');
+  editingRequest = null;
+}
+function syncEditGuests(){
+  document.querySelectorAll('#erGuests .edit-guest').forEach(function(box, i){
+    if(!editGuests[i]) return;
+    box.querySelectorAll('[data-f]').forEach(function(inp){ editGuests[i][inp.getAttribute('data-f')] = inp.value; });
+  });
+}
+function renderEditGuests(){
+  const wrap = document.getElementById('erGuests');
+  wrap.innerHTML = '';
+  const flags = editFlags();
+  editGuests.forEach(function(g, i){
+    const box = document.createElement('div');
+    box.className = 'edit-guest';
+    const head = document.createElement('div');
+    head.className = 'edit-guest__head';
+    const title = document.createElement('span'); title.textContent = 'Guest ' + (i + 1);
+    const rm = document.createElement('button'); rm.type = 'button'; rm.className = 'edit-guest__remove'; rm.textContent = 'Remove';
+    rm.addEventListener('click', function(){ syncEditGuests(); editGuests.splice(i, 1); renderEditGuests(); });
+    head.appendChild(title); head.appendChild(rm); box.appendChild(head);
+    function field(label, key, type, extra){
+      const f = document.createElement('div'); f.className = 'field';
+      const l = document.createElement('label'); l.textContent = label; f.appendChild(l);
+      let inp;
+      if(type === 'gender'){
+        inp = document.createElement('select');
+        [['', 'Select…'], ['man', 'Man'], ['woman', 'Woman']].forEach(function(o){
+          const op = document.createElement('option'); op.value = o[0]; op.textContent = o[1]; inp.appendChild(op);
+        });
+      } else {
+        inp = document.createElement('input'); inp.type = type;
+        if(extra) inp.min = extra;
+      }
+      inp.setAttribute('data-f', key);
+      inp.value = g[key] || '';
+      f.appendChild(inp);
+      return f;
+    }
+    const row = document.createElement('div'); row.className = 'field-row';
+    row.appendChild(field('First Name', 'firstName', 'text'));
+    row.appendChild(field('Last Name', 'lastName', 'text'));
+    box.appendChild(row);
+    box.appendChild(field('Age', 'age', 'number', '18'));
+    if(flags.gender || g.gender) box.appendChild(field('Man / Woman', 'gender', 'gender'));
+    if(flags.email || g.email) box.appendChild(field('Email', 'email', 'email'));
+    wrap.appendChild(box);
+  });
+  document.getElementById('erAddGuest').style.display = editGuests.length >= 10 ? 'none' : 'block';
+}
+function editError(msg){
+  const el = document.getElementById('erError');
+  el.textContent = msg; el.style.display = 'block';
+}
+async function saveEditRequest(){
+  if(!editingRequest || !supabaseClient || !currentUser) return;
+  syncEditGuests();
+  const flags = editFlags();
+  const first = document.getElementById('erFirst').value.trim();
+  const last = document.getElementById('erLast').value.trim();
+  const age = document.getElementById('erAge').value.trim();
+  const phone = document.getElementById('erPhone').value.trim();
+  const email = document.getElementById('erEmail').value.trim();
+  const gender = document.getElementById('erGender').value;
+  const insta = document.getElementById('erInstagram').value.trim();
+  if(!first || !last){ editError('Please fill in your first and last name.'); return; }
+  if(!age || parseInt(age, 10) < 18){ editError('You must be 18 or older.'); return; }
+  if(!phone){ editError('Please fill in your phone number.'); return; }
+  if(!email || email.indexOf('@') < 1){ editError('Please enter a valid email address.'); return; }
+  if((flags.gender || editingRequest.gender) && document.getElementById('erGenderWrap').style.display !== 'none' && !gender){ editError('Please select man or woman.'); return; }
+  const guests = [];
+  for(let i = 0; i < editGuests.length; i++){
+    const g = editGuests[i];
+    const gf = (g.firstName || '').trim(), gl = (g.lastName || '').trim(), ga = String(g.age || '').trim();
+    if(!gf || !gl || !ga || parseInt(ga, 10) < 18){ editError('Guest ' + (i + 1) + ': first name, last name and age (18+) are required.'); return; }
+    const out = { firstName: gf, lastName: gl, age: ga };
+    if(flags.email || g.email){
+      const ge = (g.email || '').trim();
+      if(ge.indexOf('@') < 1){ editError('Guest ' + (i + 1) + ': a valid email is required.'); return; }
+      out.email = ge;
+    }
+    if(flags.gender || g.gender){
+      if(!g.gender){ editError('Guest ' + (i + 1) + ': please select man or woman.'); return; }
+      out.gender = g.gender;
+    }
+    guests.push(out);
+  }
+  const btn = document.getElementById('erSave'); btn.disabled = true;
+  const upd = {
+    first_name: first, last_name: last, age: age, instagram: insta || 'None', phone: phone, email: email,
+    additional_guests: guests, total_guests: 1 + guests.length
+  };
+  if(document.getElementById('erGenderWrap').style.display !== 'none' && gender) upd.gender = gender;
+  const res = await supabaseClient.from('guestlist_requests').update(upd).eq('id', editingRequest.id).select('id');
+  btn.disabled = false;
+  if(res.error){ editError('Could not save right now. Please try again.'); return; }
+  if(!res.data || res.data.length === 0){
+    closeEditRequest();
+    await loadMyRequests();
+    window.alert("This request was already approved, so it can't be changed anymore.");
+    return;
+  }
+  closeEditRequest();
+  await loadMyRequests();
+}
+document.getElementById('editReqClose').addEventListener('click', closeEditRequest);
+document.getElementById('erCancel').addEventListener('click', closeEditRequest);
+document.getElementById('erSave').addEventListener('click', saveEditRequest);
+document.getElementById('erAddGuest').addEventListener('click', function(){
+  syncEditGuests();
+  editGuests.push({ firstName: '', lastName: '', age: '', email: '', gender: '' });
+  renderEditGuests();
+});
+document.getElementById('editReqOverlay').addEventListener('click', function(e){
+  if(e.target === this) closeEditRequest();
+});
 
 // Saves a submitted guestlist request to the signed-in user's account.
 // Never blocks or breaks the WhatsApp flow if it fails.
