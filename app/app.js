@@ -370,6 +370,171 @@ const EVENTS = [
     countdownEnabled: false
   },
   {
+    id: "behind-closed-doors-2026-11-21",
+    name: "Behind Closed Doors",
+    date: "2026-11-21",
+    time: "23:00",
+    venue: "Jimmy Woo · Amsterdam",
+    image: "events/behind-closed-doors-2026-11-21.jpg",
+    description: "An intimate late-night set in one of Amsterdam's most exclusive rooms.",
+    guestlistStatus: "limited",
+    ticketUrl: "https://shop.celebratix.io/?t=2trbkg",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // show the "line-up coming soon" card until the flyer is in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
+    id: "behind-closed-doors-2026-11-28",
+    name: "Behind Closed Doors",
+    date: "2026-11-28",
+    time: "23:00",
+    venue: "Jimmy Woo · Amsterdam",
+    image: "events/behind-closed-doors-2026-11-28.jpg",
+    description: "An intimate late-night set in one of Amsterdam's most exclusive rooms.",
+    guestlistStatus: "limited",
+    ticketUrl: "https://shop.celebratix.io/?t=2trbkg",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // show the "line-up coming soon" card until the flyer is in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
+    id: "behind-closed-doors-2026-12-05",
+    name: "Behind Closed Doors",
+    date: "2026-12-05",
+    time: "23:00",
+    venue: "Jimmy Woo · Amsterdam",
+    image: "events/behind-closed-doors-2026-12-05.jpg",
+    description: "An intimate late-night set in one of Amsterdam's most exclusive rooms.",
+    guestlistStatus: "limited",
+    ticketUrl: "https://shop.celebratix.io/?t=2trbkg",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // show the "line-up coming soon" card until the flyer is in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
+    id: "behind-closed-doors-2026-12-12",
+    name: "Behind Closed Doors",
+    date: "2026-12-12",
+    time: "23:00",
+    venue: "Jimmy Woo · Amsterdam",
+    image: "events/behind-closed-doors-2026-12-12.jpg",
+    description: "An intimate late-night set in one of Amsterdam's most exclusive rooms.",
+    guestlistStatus: "limited",
+    ticketUrl: "https://shop.celebratix.io/?t=2trbkg",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // show the "line-up coming soon" card until the flyer is in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
+    id: "behind-closed-doors-2026-12-19",
+    name: "Behind Closed Doors",
+    date: "2026-12-19",
+    time: "23:00",
+    venue: "Jimmy Woo · Amsterdam",
+    image: "events/behind-closed-doors-2026-12-19.jpg",
+    description: "An intimate late-night set in one of Amsterdam's most exclusive rooms.",
+    guestlistStatus: "limited",
+    ticketUrl: "https://shop.celebratix.io/?t=2trbkg",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // show the "line-up coming soon" card until the flyer is in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
+    id: "behind-closed-doors-2026-12-26",
+    name: "Behind Closed Doors",
+    date: "2026-12-26",
+    time: "23:00",
+    venue: "Jimmy Woo · Amsterdam",
+    image: "events/behind-closed-doors-2026-12-26.jpg",
+    description: "An intimate late-night set in one of Amsterdam's most exclusive rooms.",
+    guestlistStatus: "limited",
+    ticketUrl: "https://shop.celebratix.io/?t=2trbkg",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // show the "line-up coming soon" card until the flyer is in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
+    id: "behind-closed-doors-2027-01-02",
+    name: "Behind Closed Doors",
+    date: "2027-01-02",
+    time: "23:00",
+    venue: "Jimmy Woo · Amsterdam",
+    image: "events/behind-closed-doors-2027-01-02.jpg",
+    description: "An intimate late-night set in one of Amsterdam's most exclusive rooms.",
+    guestlistStatus: "limited",
+    ticketUrl: "https://shop.celebratix.io/?t=2trbkg",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // show the "line-up coming soon" card until the flyer is in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
+    id: "behind-closed-doors-2027-01-09",
+    name: "Behind Closed Doors",
+    date: "2027-01-09",
+    time: "23:00",
+    venue: "Jimmy Woo · Amsterdam",
+    image: "events/behind-closed-doors-2027-01-09.jpg",
+    description: "An intimate late-night set in one of Amsterdam's most exclusive rooms.",
+    guestlistStatus: "limited",
+    ticketUrl: "https://shop.celebratix.io/?t=2trbkg",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // show the "line-up coming soon" card until the flyer is in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
+    id: "behind-closed-doors-2027-01-16",
+    name: "Behind Closed Doors",
+    date: "2027-01-16",
+    time: "23:00",
+    venue: "Jimmy Woo · Amsterdam",
+    image: "events/behind-closed-doors-2027-01-16.jpg",
+    description: "An intimate late-night set in one of Amsterdam's most exclusive rooms.",
+    guestlistStatus: "limited",
+    ticketUrl: "https://shop.celebratix.io/?t=2trbkg",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // show the "line-up coming soon" card until the flyer is in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
+    id: "behind-closed-doors-2027-01-23",
+    name: "Behind Closed Doors",
+    date: "2027-01-23",
+    time: "23:00",
+    venue: "Jimmy Woo · Amsterdam",
+    image: "events/behind-closed-doors-2027-01-23.jpg",
+    description: "An intimate late-night set in one of Amsterdam's most exclusive rooms.",
+    guestlistStatus: "limited",
+    ticketUrl: "https://shop.celebratix.io/?t=2trbkg",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // show the "line-up coming soon" card until the flyer is in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
+    id: "behind-closed-doors-2027-01-30",
+    name: "Behind Closed Doors",
+    date: "2027-01-30",
+    time: "23:00",
+    venue: "Jimmy Woo · Amsterdam",
+    image: "events/behind-closed-doors-2027-01-30.jpg",
+    description: "An intimate late-night set in one of Amsterdam's most exclusive rooms.",
+    guestlistStatus: "limited",
+    ticketUrl: "https://shop.celebratix.io/?t=2trbkg",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // show the "line-up coming soon" card until the flyer is in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
     id: "afroholic-2026-10-23",
     name: "Afroholic",
     date: "2026-10-23",
