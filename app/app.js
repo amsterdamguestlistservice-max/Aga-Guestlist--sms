@@ -428,6 +428,20 @@ const EVENTS = [
     guestlistUrl: "#guestlist",
     featured: false,
     countdownEnabled: false
+  },
+  {
+    id: "amajoyo-2026-11-27",
+    name: "Amajoyo",
+    date: "2026-11-27",
+    time: "23:00",
+    venue: "Soul Kitchen · Amsterdam",
+    image: "events/amajoyo-2026-11-27.jpg",
+    description: "Amajoyo at Soul Kitchen with De La Noise, Terrie T (Afroholic), Pascal Morais, Dems . Rezaie and Noah Staal. 23:00 till 04:00.",
+    guestlistStatus: "soon",
+    ticketUrl: "#",
+    guestlistUrl: "#guestlist",
+    featured: false,
+    countdownEnabled: false
   }
 ];
 /* ================================================================
