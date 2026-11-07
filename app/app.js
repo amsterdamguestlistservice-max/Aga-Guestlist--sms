@@ -625,6 +625,22 @@ const EVENTS = [
     guestlistUrl: "#guestlist",
     featured: false,
     countdownEnabled: false
+  },
+  {
+    id: "common-sense-all-or-nothing-2026-11-13",
+    name: "Common Sense: All or Nothing",
+    date: "2026-11-13",
+    time: "23:30",
+    venue: "Club Panama · Amsterdam",
+    image: "events/common-sense-all-or-nothing-2026-11-13.jpg",
+    description: "Common Sense Events presents All or Nothing at Club Panama. Main Stage: Sam Last, Jacob. Boiler Room: DJ Stem, Wootroo, Deivv. 23:30 till 05:00. 18+.",
+    guestlistStatus: "none",
+    minAge: 18,
+    ticketUrl: "https://shop.celebratix.io/?t=355v52",
+    ticketButtonLabel: "Buy Discount Tickets",
+    guestlistUrl: "#guestlist",
+    featured: false,
+    countdownEnabled: false
   }
 ];
 /* ================================================================
