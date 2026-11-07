@@ -608,7 +608,6 @@ const EVENTS = [
     badgeLabel: "Discount Tickets Only",
     guestlistUrl: "#guestlist",
     minAge: 21,
-    flyerPending: true, // show the "line-up coming soon" card until the flyer is in
     featured: false,
     countdownEnabled: false
   },
