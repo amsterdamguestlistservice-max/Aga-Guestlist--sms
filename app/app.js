@@ -601,11 +601,10 @@ const EVENTS = [
     time: "23:00",
     venue: "Chin Chin Club · Amsterdam",
     image: "events/house-of-zenda-2026-11-28.jpg",
-    description: "House of Zenda at Chin Chin Club. 21+. Discounted tickets only, the ticket link is coming soon.",
+    description: "House of Zenda at Chin Chin Club. 21+.",
     guestlistStatus: "none",
     ticketUrl: "#",
-    ticketLabel: "Discount Tickets Soon Available",
-    badgeLabel: "Discount Tickets Only",
+    badgeLabel: "", // empty = no badge on the card
     guestlistUrl: "#guestlist",
     minAge: 21,
     featured: false,
@@ -737,7 +736,7 @@ function guestlistBadge(status, label){
   if(status === 'limited') return '<span class="event-card__badge">Limited Guestlist</span>';
   if(status === 'closed') return '<span class="event-card__badge is-closed">' + (label || 'Guestlist Closed') + '</span>';
   if(status === 'soon') return '<span class="event-card__badge">Guestlist Coming Soon</span>';
-  if(status === 'none') return '<span class="event-card__badge">' + (label || 'Tickets Only') + '</span>';
+  if(status === 'none') return label === '' ? '' : '<span class="event-card__badge">' + (label || 'Tickets Only') + '</span>';
   return '';
 }
 function buildTableBookingLink(ev){
