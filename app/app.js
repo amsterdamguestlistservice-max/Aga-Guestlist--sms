@@ -595,6 +595,24 @@ const EVENTS = [
     countdownEnabled: false
   },
   {
+    id: "house-of-zenda-2026-11-28",
+    name: "House of Zenda",
+    date: "2026-11-28",
+    time: "23:00",
+    venue: "Chin Chin Club · Amsterdam",
+    image: "events/house-of-zenda-2026-11-28.jpg",
+    description: "House of Zenda at Chin Chin Club. 21+. Discounted tickets only, the ticket link is coming soon.",
+    guestlistStatus: "none",
+    ticketUrl: "#",
+    ticketLabel: "Discount Tickets Soon Available",
+    badgeLabel: "Discount Tickets Only",
+    guestlistUrl: "#guestlist",
+    minAge: 21,
+    flyerPending: true, // show the "line-up coming soon" card until the flyer is in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
     id: "amajoyo-2026-11-27",
     name: "Amajoyo",
     date: "2026-11-27",
