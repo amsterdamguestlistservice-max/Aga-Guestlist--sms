@@ -2037,6 +2037,10 @@ async function loadMyRequests(){
       if(statusLower === 'approved'){
         statusClass = ' is-approved';
         note = "You're on the list — see you there! Approved requests can't be changed here; message us if something is wrong.";
+        const missing = Number(r.missing_guests) || 0;
+        if(missing > 0){
+          note = (missing === 1 ? '1 person' : missing + ' people') + ' from your group did not show up. -' + (missing * 2) + ' points.';
+        }
       } else if(statusLower === 'declined'){
         statusClass = ' is-declined';
         note = 'This request could not be approved this time.';

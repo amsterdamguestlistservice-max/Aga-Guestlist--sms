@@ -16,6 +16,11 @@
 //      (never below 0)
 //   2. sends that guest a personal push notification explaining why
 //
+// On a change of missing_guests on an approved request (partial no-show):
+//   1. deducts PARTIAL_NO_SHOW_PER_PERSON points per newly missing guest
+//      from the requester (a lower number gives points back)
+//   2. sends the requester a push notification
+//
 // Required environment variables (same Vercel project as the other
 // functions):
 //   WEBHOOK_SECRET             — the same one already used for the
@@ -34,6 +39,7 @@ const { createClient } = require('@supabase/supabase-js');
 const POINTS_PER_APPROVAL = 10;
 const REFERRAL_BONUS_POINTS = 20;
 const NO_SHOW_PENALTY = 15;
+const PARTIAL_NO_SHOW_PER_PERSON = 2;
 
 
 // ---- Guest email (needs a verified sending domain in Resend) ----
@@ -147,7 +153,16 @@ module.exports = async function handler(req, res) {
   const justApproved = newStatus === 'approved' && oldStatus !== 'approved';
   const justMarkedNoShow = newStatus === 'no-show' && oldStatus !== 'no-show';
 
-  if (!justApproved && !justMarkedNoShow) {
+  // Partial no-show: part of an approved group did not come.
+  // missing_guests is set by the admin; only the change since the last
+  // update counts, so marking 1 then 2 deducts 2 + 2 (never double).
+  // Lowering it (a correction) gives the points back.
+  const newMissing = Number(record.missing_guests) || 0;
+  const oldMissing = Number(oldRecord.missing_guests) || 0;
+  const missingDelta = newMissing - oldMissing;
+  const partialChange = newStatus === 'approved' && oldStatus === 'approved' && missingDelta !== 0;
+
+  if (!justApproved && !justMarkedNoShow && !partialChange) {
     res.status(200).json({ skipped: true });
     return;
   }
@@ -174,6 +189,20 @@ module.exports = async function handler(req, res) {
           '. -' + NO_SHOW_PENALTY + ' points (total: ' + newPoints + ').'
       );
       res.status(200).json({ penalty: NO_SHOW_PENALTY, newPoints: newPoints, pushed: pushed });
+      return;
+    }
+
+    // ---- Partial no-show: -PARTIAL_NO_SHOW_PER_PERSON per missing guest ----
+    if (partialChange) {
+      const change = -missingDelta * PARTIAL_NO_SHOW_PER_PERSON;
+      const newPoints = await addPoints(supabase, record.user_id, change);
+      const eventName = record.event_name || 'your event';
+      const body = missingDelta > 0
+        ? (missingDelta === 1 ? '1 person' : missingDelta + ' people') + ' from your group did not show up at ' +
+          eventName + '. ' + change + ' points (total: ' + newPoints + ').'
+        : 'Correction for ' + eventName + ': +' + change + ' points returned (total: ' + newPoints + ').';
+      const pushed = await sendPush(supabase, record.user_id, 'Amsterdam Guestlist Service', body);
+      res.status(200).json({ partialNoShow: newMissing, change: change, newPoints: newPoints, pushed: pushed });
       return;
     }
 

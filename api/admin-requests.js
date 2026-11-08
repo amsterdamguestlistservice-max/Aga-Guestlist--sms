@@ -56,7 +56,41 @@ module.exports = async function handler(req, res) {
 
   if (req.method === 'POST') {
     try {
-      const { id, status } = req.body || {};
+      const { id, status, missing_guests } = req.body || {};
+
+      // Partial no-show: set how many guests of an approved group did not come.
+      if (id && missing_guests !== undefined && status === undefined) {
+        const missing = Number(missing_guests);
+        const { data: row, error: readErr } = await supabase
+          .from('guestlist_requests')
+          .select('status, total_guests')
+          .eq('id', id)
+          .maybeSingle();
+        if (readErr || !row) {
+          res.status(404).json({ error: 'Request not found' });
+          return;
+        }
+        const total = Number(row.total_guests) || 1;
+        if (String(row.status || '').trim().toLowerCase() !== 'approved') {
+          res.status(400).json({ error: 'Only approved requests can be marked as partial no-show' });
+          return;
+        }
+        if (!Number.isInteger(missing) || missing < 0 || missing >= total) {
+          res.status(400).json({ error: 'Missing guests must be between 0 and ' + (total - 1) + '. If nobody came, use No-Show.' });
+          return;
+        }
+        const { error: updErr } = await supabase
+          .from('guestlist_requests')
+          .update({ missing_guests: missing })
+          .eq('id', id);
+        if (updErr) {
+          res.status(500).json({ error: updErr.message });
+          return;
+        }
+        res.status(200).json({ ok: true, missing_guests: missing });
+        return;
+      }
+
       const allowed = ['Pending', 'Approved', 'Declined', 'No-Show'];
       if (!id || !allowed.includes(status)) {
         res.status(400).json({ error: 'Missing or invalid id/status' });
