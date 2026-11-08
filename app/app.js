@@ -1426,6 +1426,11 @@ document.getElementById('glForm').addEventListener('submit', async function(e){
   const saved = await saveRequestToAccount(payload);
   if(submitBtn){ submitBtn.disabled = false; }
   if(!saved){
+    const errSubmitEl = document.getElementById('errSubmit');
+    if(errSubmitEl){
+      if(!errSubmitEl.dataset.defaultText) errSubmitEl.dataset.defaultText = errSubmitEl.textContent;
+      errSubmitEl.textContent = lastSaveBlockMessage || errSubmitEl.dataset.defaultText;
+    }
     showErr('errSubmit');
     document.getElementById('errSubmit').scrollIntoView({ behavior:'smooth', block:'center' });
     return;
@@ -2210,7 +2215,7 @@ async function saveEditRequest(){
   if(document.getElementById('erGenderWrap').style.display !== 'none' && gender) upd.gender = gender;
   const res = await supabaseClient.from('guestlist_requests').update(upd).eq('id', editingRequest.id).select('id');
   btn.disabled = false;
-  if(res.error){ editError('Could not save right now. Please try again.'); return; }
+  if(res.error){ editError(noShowBlockMessage(res.error) || 'Could not save right now. Please try again.'); return; }
   if(!res.data || res.data.length === 0){
     closeEditRequest();
     await loadMyRequests();
@@ -2232,9 +2237,19 @@ document.getElementById('editReqOverlay').addEventListener('click', function(e){
   if(e.target === this) closeEditRequest();
 });
 
+// The database blocks guestlist requests after repeated no-shows and
+// returns a readable reason prefixed with "AGS_BLOCKED|".
+function noShowBlockMessage(error){
+  const msg = error && error.message ? String(error.message) : '';
+  const i = msg.indexOf('AGS_BLOCKED|');
+  return i === -1 ? '' : msg.slice(i + 'AGS_BLOCKED|'.length).trim();
+}
+let lastSaveBlockMessage = '';
+
 // Saves a submitted guestlist request to the signed-in user's account.
 // Never blocks or breaks the WhatsApp flow if it fails.
 async function saveRequestToAccount(payload){
+  lastSaveBlockMessage = '';
   if(!supabaseClient || !currentUser) return false;
   try {
     const { error } = await supabaseClient.from('guestlist_requests').insert({
@@ -2252,7 +2267,11 @@ async function saveRequestToAccount(payload){
       additional_guests: payload.additionalGuests,
       total_guests: payload.totalGuests
     });
-    if(error){ console.warn('Could not save request to account.', error); return false; }
+    if(error){
+      lastSaveBlockMessage = noShowBlockMessage(error);
+      console.warn('Could not save request to account.', error);
+      return false;
+    }
     return true;
   } catch(err){
     console.warn('Could not save request to account.', err);
