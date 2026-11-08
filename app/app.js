@@ -1712,7 +1712,7 @@ async function loadMyPoints(){
     const tierBar = document.getElementById('accountUserTierBar');
     if(tierBar){
       tierBar.style.width = (tierInfo.next
-        ? Math.min(100, Math.round((points - tierInfo.current.min) / (tierInfo.next.min - tierInfo.current.min) * 100))
+        ? Math.max(0, Math.min(100, Math.round((points - tierInfo.current.min) / (tierInfo.next.min - tierInfo.current.min) * 100)))
         : 100) + '%';
     }
     tierProgress.textContent = tierInfo.next

@@ -13,7 +13,7 @@
 //
 // On a new "No-Show" (only meaningful after an approval):
 //   1. deducts NO_SHOW_PENALTY points from that guest's profile
-//      (never below 0)
+//      (the total can go below 0)
 //   2. sends that guest a personal push notification explaining why
 //
 // On a change of missing_guests on an approved request (partial no-show):
@@ -85,7 +85,8 @@ async function addPoints(supabase, userId, amount) {
     .eq('user_id', userId)
     .maybeSingle();
 
-  const newTotal = Math.max(0, (existing ? existing.points : 0) + amount);
+  // Points may go below 0 (e.g. repeated no-shows).
+  const newTotal = (existing ? existing.points : 0) + amount;
 
   await supabase
     .from('profiles')
