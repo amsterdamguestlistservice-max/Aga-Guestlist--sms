@@ -2051,7 +2051,23 @@ async function loadMyRequests(){
         note = 'This request could not be approved this time.';
       } else if(statusLower === 'no-show'){
         statusClass = ' is-no-show';
-        note = 'You were marked as a no-show for this event.';
+        const key = String(r.event_name || '').trim().toLowerCase();
+        const sameParty = data.filter(function(x){
+          return String(x.status || '').trim().toLowerCase() === 'no-show' &&
+            String(x.event_name || '').trim().toLowerCase() === key;
+        });
+        const lastDate = sameParty.map(function(x){ return x.event_date; }).sort().pop();
+        const until = lastDate ? new Date(lastDate + 'T00:00:00') : null;
+        if(until) until.setDate(until.getDate() + 14);
+        if(sameParty.length >= 2 && until && until > new Date()){
+          note = 'You were marked as a no-show for this event. Because of 2 no-shows you can\'t request the guestlist for ' +
+            r.event_name + ' until ' + formatDate(until.getFullYear() + '-' + String(until.getMonth() + 1).padStart(2, '0') + '-' + String(until.getDate()).padStart(2, '0')) + '. You can still buy tickets.';
+        } else if(sameParty.length === 1){
+          note = 'You were marked as a no-show for this event. Warning: one more no-show for ' + r.event_name +
+            ' and you can\'t request its guestlist for 2 weeks.';
+        } else {
+          note = 'You were marked as a no-show for this event.';
+        }
       } else {
         note = "We'll confirm your spot soon.";
       }

@@ -78,6 +78,12 @@ async function emailGuest(record, subject, heading, line) {
   }
 }
 
+function formatDate(isoDate) {
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const d = new Date(String(isoDate) + 'T00:00:00Z');
+  return d.getUTCDate() + ' ' + months[d.getUTCMonth()] + ' ' + d.getUTCFullYear();
+}
+
 async function addPoints(supabase, userId, amount) {
   const { data: existing } = await supabase
     .from('profiles')
@@ -182,12 +188,28 @@ module.exports = async function handler(req, res) {
     // ---- No-show: deduct points, notify, done ----
     if (justMarkedNoShow) {
       const newPoints = await addPoints(supabase, record.user_id, -NO_SHOW_PENALTY);
+      const eventName = record.event_name || 'your event';
+
+      // Warn after the 1st no-show; tell them about the block after the 2nd.
+      let policyLine = '';
+      try {
+        const { data: st } = await supabase.rpc('ags_no_show_status', { p_request_id: record.id });
+        const row = Array.isArray(st) ? st[0] : st;
+        if (row && row.no_shows >= 2 && row.blocked_until) {
+          policyLine = ' You can\'t request the guestlist for ' + eventName + ' until ' +
+            formatDate(row.blocked_until) + '. You can still buy tickets.';
+        } else if (row && row.no_shows === 1) {
+          policyLine = ' Warning: one more no-show for ' + eventName +
+            ' and you can\'t request its guestlist for 2 weeks.';
+        }
+      } catch (e) { /* the warning is optional, never block the penalty */ }
+
       const pushed = await sendPush(
         supabase,
         record.user_id,
         'Amsterdam Guestlist Service',
-        "You were marked as a no-show for " + (record.event_name || 'your event') +
-          '. -' + NO_SHOW_PENALTY + ' points (total: ' + newPoints + ').'
+        'You were marked as a no-show for ' + eventName +
+          '. -' + NO_SHOW_PENALTY + ' points (total: ' + newPoints + ').' + policyLine
       );
       res.status(200).json({ penalty: NO_SHOW_PENALTY, newPoints: newPoints, pushed: pushed });
       return;
