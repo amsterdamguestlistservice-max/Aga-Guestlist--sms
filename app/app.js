@@ -361,11 +361,10 @@ const EVENTS = [
     time: "23:00",
     venue: "Jimmy Woo · Amsterdam",
     image: "events/behind-closed-doors-2026-11-14.jpg",
-    description: "An intimate late-night set in one of Amsterdam's most exclusive rooms.",
+    description: "BCD x Soirée x Autrefois. Club: Diana, Yung Alxndr, Quinchoo, hosted by Razberry. Lounge: Denna, Merlu, Jo'ell.",
     guestlistStatus: "limited",
     ticketUrl: "https://shop.celebratix.io/?t=2trbkg",
     guestlistUrl: "#guestlist",
-    flyerPending: true, // show the "line-up coming soon" card until the flyer is in
     featured: false,
     countdownEnabled: false
   },
