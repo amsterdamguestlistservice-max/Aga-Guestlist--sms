@@ -238,6 +238,11 @@ body.is-gated #tab-account{ display:block !important; }
 .quick-sheet__done{ text-align:center; padding:10px 0 4px; }
 .quick-sheet__done .gl-success__mark{ margin:0 auto 14px; }
 
+.sound-toggle{ display:flex; align-items:center; justify-content:center; gap:10px; width:100%; margin:14px 0 6px; padding:12px; background:transparent; border:1px solid var(--line); color:var(--gold-light); font-size:11px; letter-spacing:0.14em; text-transform:uppercase; }
+.sound-toggle__icon{ font-size:15px; }
+.sound-toggle[aria-pressed="false"]{ color:var(--muted); }
+.sound-toggle[aria-pressed="false"] .sound-toggle__icon{ opacity:0.4; text-decoration:line-through; }
+
 /* ===== Welcome popup ===== */
 .welcome-overlay{
   align-items: stretch;
@@ -1240,6 +1245,7 @@ body{ background:#020202; }
         </div>
       </div>
 
+      <button type="button" class="sound-toggle" id="soundToggle" aria-pressed="true"><span class="sound-toggle__icon" aria-hidden="true">♪</span><span id="soundToggleLabel">App sounds: On</span></button>
       <button type="button" class="account-signout" id="signOutBtn">Sign Out</button>
 
       <div class="my-requests" id="myRequestsList" style="margin-top:20px;">

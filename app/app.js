@@ -1047,6 +1047,7 @@ document.getElementById('eventList').addEventListener('click', async function(e)
     if(error){ throw error; }
 
     if(data && data.success){
+      AppSound.play('success');
       GUESTLIST_STATE[eventId].claimed_count = data.claimed_count;
       renderAllGuestlistPanels();
       closeEventSheet();
@@ -1176,6 +1177,7 @@ async function shareEvent(ev){
 }
 
 function openEventSheet(ev){
+  if(typeof AppSound !== 'undefined') AppSound.play('open');
   document.getElementById('sheetMedia').innerHTML = eventMedia(ev);
   document.getElementById('sheetMedia').setAttribute('style', flyerStyle(ev).replace(/^ style="|"$/g, ''));
   document.getElementById('sheetDate').textContent = formatDate(ev.date);
@@ -1569,6 +1571,7 @@ document.getElementById('glForm').addEventListener('submit', async function(e){
   document.getElementById('glForm').style.display = 'none';
   document.getElementById('glSpotNotice').style.display = 'none';
   document.getElementById('glSuccess').classList.add('is-visible');
+  AppSound.play('success');
   window.scrollTo({ top: 0, behavior: 'smooth' });
   if(typeof loadNextNight === 'function') loadNextNight();
 });
@@ -2577,6 +2580,7 @@ async function saveRequestToAccount(payload){
       return;
     }
     currentUser = data.user;
+    AppSound.play('success');
     showAuthView('login');
     showAccountPanel(currentUser);
     unlockAppFromGate();
@@ -2670,6 +2674,7 @@ function renderNextNight(){
       const { data, error } = await supabaseClient.rpc('cancel_guestlist_request', { p_request_id: r.id, p_event_id: ev ? ev.id : null });
       if(error || !data || !data.success) throw error || new Error((data && data.reason) || 'failed');
       rel.textContent = 'Spot released — thanks for letting us know';
+      AppSound.play('release');
       setTimeout(function(){ loadNextNight(); if(typeof loadMyRequests === 'function') loadMyRequests(); if(typeof loadLiveGuestlists === 'function') loadLiveGuestlists(); }, 1200);
     } catch(err){
       rel.disabled = false; rel.classList.remove('is-armed');
@@ -2786,6 +2791,7 @@ async function tryQuickRequest(ev){
       e.classList.add('is-visible');
       return;
     }
+    AppSound.play('success');
     body.innerHTML = head +
       '<div class="quick-sheet__done"><div class="gl-success__mark">✓</div>' +
       '<p class="quick-sheet__note">Request sent. We’ll review it and let you know as soon as you’re on the list.</p></div>' +
@@ -2797,3 +2803,94 @@ async function tryQuickRequest(ev){
   });
   return true;
 }
+
+/* ================================================================
+   APP SOUNDS — small, premium UI sounds made with Web Audio
+   (no audio files). Off switch in Account; remembered per device.
+   ================================================================ */
+var AppSound = (function(){
+  let ctx = null;
+  let enabled = true;
+  try{ enabled = localStorage.getItem('ags_sounds') !== 'off'; } catch(e){}
+
+  function ac(){
+    if(!enabled) return null;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return null;
+    if(!ctx){ try{ ctx = new AC(); } catch(e){ return null; } }
+    if(ctx.state === 'suspended'){ try{ ctx.resume(); } catch(e){} }
+    return ctx;
+  }
+  // One soft bell-like note: sine + quiet octave, quick attack, smooth decay.
+  function note(freq, start, dur, vol, type){
+    const c = ac(); if(!c) return;
+    const t = c.currentTime + (start || 0);
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    g.connect(c.destination);
+    [[freq, type || 'sine', 1], [freq * 2, 'sine', 0.25]].forEach(function(p){
+      const o = c.createOscillator(); const og = c.createGain();
+      o.type = p[1]; o.frequency.setValueAtTime(p[0], t); og.gain.value = p[2];
+      o.connect(og); og.connect(g); o.start(t); o.stop(t + dur + 0.05);
+    });
+  }
+  function buzz(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms); } catch(e){} }
+
+  const sounds = {
+    tap: function(){ note(1760, 0, 0.06, 0.035); buzz(8); },
+    open: function(){
+      const c = ac(); if(!c) return;
+      const t = c.currentTime, len = 0.32;
+      const buf = c.createBuffer(1, Math.floor(c.sampleRate * len), c.sampleRate);
+      const d = buf.getChannelData(0); for(let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+      const src = c.createBufferSource(); src.buffer = buf;
+      const f = c.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 0.8;
+      f.frequency.setValueAtTime(400, t); f.frequency.exponentialRampToValueAtTime(3200, t + len);
+      const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.05, t + 0.06); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+      src.connect(f); f.connect(g); g.connect(c.destination); src.start(t); src.stop(t + len);
+    },
+    success: function(){ note(659.25, 0, 0.5, 0.09); note(987.77, 0.11, 0.9, 0.08); note(1318.5, 0.22, 1.1, 0.05); buzz([12, 40, 18]); },
+    release: function(){ note(783.99, 0, 0.35, 0.06); note(523.25, 0.12, 0.6, 0.05); buzz(15); },
+    error: function(){ note(220, 0, 0.14, 0.07, 'triangle'); note(196, 0.16, 0.22, 0.07, 'triangle'); buzz([30, 50, 30]); }
+  };
+  return {
+    play: function(name){ if(enabled && sounds[name]){ try{ sounds[name](); } catch(e){} } },
+    isOn: function(){ return enabled; },
+    set: function(on){ enabled = !!on; try{ localStorage.setItem('ags_sounds', on ? 'on' : 'off'); } catch(e){} }
+  };
+})();
+
+// Soft tick on buttons and tabs (one listener for the whole app).
+document.addEventListener('click', function(e){
+  const el = e.target.closest('.btn, .app-tabbar button, .glive__claim-btn, .event-card__cta, .venue-filter button, .auth-switch__btn');
+  if(el && !el.disabled) AppSound.play('tap');
+}, true);
+
+// Error messages appearing anywhere -> soft low double note.
+(function(){
+  let last = 0;
+  const obs = new MutationObserver(function(muts){
+    for(const m of muts){
+      const el = m.target;
+      if(!(el instanceof HTMLElement)) continue;
+      const shown = el.classList.contains('err') && (el.classList.contains('is-visible') && el.style.display !== 'none');
+      if(shown && el.textContent.trim() && Date.now() - last > 600){ last = Date.now(); AppSound.play('error'); break; }
+    }
+  });
+  obs.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
+})();
+
+// Sound on/off in Account.
+(function(){
+  const btn = document.getElementById('soundToggle');
+  if(!btn) return;
+  function paint(){
+    const on = AppSound.isOn();
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    document.getElementById('soundToggleLabel').textContent = 'App sounds: ' + (on ? 'On' : 'Off');
+  }
+  btn.addEventListener('click', function(){ AppSound.set(!AppSound.isOn()); paint(); if(AppSound.isOn()) AppSound.play('success'); });
+  paint();
+})();
