@@ -2467,6 +2467,8 @@ async function saveRequestToAccount(payload){
     document.getElementById('codeEmailField').style.display = codeStep ? 'none' : '';
     document.getElementById('codeTokenField').style.display = codeStep ? '' : 'none';
     resend.style.display = codeStep ? '' : 'none';
+    document.getElementById('codeHelpers').style.display = codeStep ? 'flex' : 'none';
+    if(codeStep) setupMailButton(codeSentTo);
     btn.textContent = codeStep ? 'Log In' : 'Send Code';
     document.getElementById('codeNote').textContent = codeStep
       ? 'We sent a login code to ' + codeSentTo + '. Enter it below — it can take a minute, check your spam too.'
@@ -2474,6 +2476,51 @@ async function saveRequestToAccount(payload){
     if(codeStep){ tokenEl.value = ''; setTimeout(function(){ tokenEl.focus(); }, 50); }
   }
   function showErr(msg){ errEl.textContent = msg; errEl.style.display = 'block'; }
+
+  // One tap to the right mail app, based on the email address.
+  function setupMailButton(email){
+    const a = document.getElementById('codeOpenMail');
+    const domain = String(email.split('@')[1] || '').toLowerCase();
+    const ua = navigator.userAgent || '';
+    const ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const android = /Android/.test(ua);
+    let label = 'Open Mail', href = ios ? 'message://' : 'mailto:';
+    if(/^(gmail|googlemail)\.com$/.test(domain)){
+      label = 'Open Gmail';
+      href = ios ? 'googlegmail://' : android ? 'intent://#Intent;package=com.google.android.gm;end' : 'https://mail.google.com/';
+    } else if(/^(outlook|hotmail|live|msn)\./.test(domain)){
+      label = 'Open Outlook';
+      href = ios ? 'ms-outlook://' : android ? 'intent://#Intent;package=com.microsoft.office.outlook;end' : 'https://outlook.live.com/mail/';
+    } else if(/^(icloud|me|mac)\.com$/.test(domain)){
+      label = 'Open Mail';
+      href = ios ? 'message://' : 'https://www.icloud.com/mail';
+    }
+    a.textContent = label;
+    a.setAttribute('href', href);
+    if(/^https?:/.test(href)) a.setAttribute('target', '_blank'); else a.removeAttribute('target');
+  }
+
+  // Paste straight from the clipboard (iOS shows a small "Paste" bubble).
+  document.getElementById('codePaste').addEventListener('click', async function(){
+    try{
+      const txt = await navigator.clipboard.readText();
+      const digits = String(txt || '').replace(/\D/g, '').slice(0, 8);
+      if(digits.length >= 6){ tokenEl.value = digits; maybeAutoSubmit(); }
+      else { showErr('Copy the code from the email first, then tap Paste code.'); }
+    } catch(err){
+      tokenEl.focus();
+      showErr('Tap the code field and choose Paste.');
+    }
+  });
+
+  // Log in automatically as soon as the full code is in.
+  function maybeAutoSubmit(){
+    const digits = tokenEl.value.replace(/\D/g, '');
+    if(codeSentTo && digits.length === 6 && !btn.disabled){
+      if(form.requestSubmit) form.requestSubmit(); else btn.click();
+    }
+  }
+  tokenEl.addEventListener('input', function(){ errEl.style.display = 'none'; maybeAutoSubmit(); });
 
   async function sendCode(){
     const email = emailEl.value.trim();

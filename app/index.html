@@ -322,6 +322,8 @@ body.is-gated #tab-account{ display:block !important; }
 .err{ color:#E08A73; font-size:11.5px; margin-top:6px; display:none; }
 .link-btn{ display:block; margin:14px auto 0; background:none; border:none; color:var(--gold-light); font-size:12px; letter-spacing:0.04em; text-decoration:underline; cursor:pointer; padding:6px; }
 .auth-note{ font-size:12.5px; color:var(--muted); line-height:1.6; margin-bottom:16px; }
+.code-helpers{ display:flex; gap:10px; margin:0 0 14px; }
+.code-helpers .btn{ padding-left:8px; padding-right:8px; font-size:11px; text-align:center; }
 .auth-or{ display:flex; align-items:center; gap:12px; margin:16px 0 12px; color:var(--muted); font-size:11px; letter-spacing:0.18em; text-transform:uppercase; }
 .auth-or::before, .auth-or::after{ content:''; flex:1; height:1px; background:var(--line, rgba(201,162,74,0.22)); }
 .auth-ok{ color:#8FE0A6; font-size:12.5px; line-height:1.5; margin:0 0 14px; }
@@ -1024,6 +1026,10 @@ body{ -webkit-font-smoothing:antialiased; }
         <div class="field" id="codeTokenField" style="display:none;">
           <label for="codeToken">Login code</label>
           <input type="text" id="codeToken" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="123456" style="letter-spacing:0.3em;font-size:20px;text-align:center;">
+        </div>
+        <div class="code-helpers" id="codeHelpers" style="display:none;">
+          <a class="btn" id="codeOpenMail" href="#" style="flex:1;">Open Gmail</a>
+          <button type="button" class="btn" id="codePaste" style="flex:1;">Paste code</button>
         </div>
         <div class="err is-visible" id="codeError" style="display:none;"></div>
         <button type="submit" class="btn btn--solid" id="codeSubmitBtn" style="width:100%;">Send Code</button>
