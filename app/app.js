@@ -782,7 +782,10 @@ function switchTab(name){
 }
 document.querySelectorAll('.app-tabbar button').forEach(function(btn){
   btn.addEventListener('click', function(){
-    if(btn.dataset.tab === 'guestlist'){ document.getElementById('glSpotNotice').style.display = 'none'; }
+    if(btn.dataset.tab === 'guestlist'){
+      document.getElementById('glSpotNotice').style.display = 'none';
+      if(typeof resetGuestlistFormForNext === 'function'){ resetGuestlistFormForNext(); prefillGuestlistForm(); }
+    }
     switchTab(btn.dataset.tab);
   });
 });
@@ -1025,7 +1028,7 @@ document.getElementById('eventList').addEventListener('click', async function(e)
   e.stopPropagation();
 
   if(!currentUser){
-    switchTab('account');
+    rememberEventAndLogin(EVENTS.find(function(x){ return x.id === btn.dataset.eventId; }));
     return;
   }
 
@@ -1042,8 +1045,10 @@ document.getElementById('eventList').addEventListener('click', async function(e)
       GUESTLIST_STATE[eventId].claimed_count = data.claimed_count;
       renderAllGuestlistPanels();
       closeEventSheet();
+      resetGuestlistFormForNext();
       switchTab('guestlist');
       if(ev) preselectEvent(ev);
+      prefillGuestlistForm();
       document.getElementById('glSpotNotice').style.display = 'block';
     } else {
       const reasons = {
@@ -1217,8 +1222,10 @@ function openEventSheet(ev){
   if(glBtn){
     glBtn.addEventListener('click', function(){
       closeEventSheet();
+      resetGuestlistFormForNext();
       switchTab('guestlist');
       preselectEvent(ev);
+      prefillGuestlistForm();
       document.getElementById('glSpotNotice').style.display = 'none';
     });
   }
@@ -1364,12 +1371,90 @@ function showErr(id){ const el = document.getElementById(id); if(el) el.classLis
 document.getElementById('glEvent').addEventListener('change', function(){ this.style.borderColor = ''; clearErr('errEvent'); });
 document.getElementById('glConsent').addEventListener('change', function(){ clearErr('errConsent'); });
 
+/* ---------------------------------------------------------------
+   EASY REPEAT REQUESTS
+   Logged-in guests never retype their details: the form is filled
+   from their most recent request (or their account for a first one).
+   Only empty fields are filled, so nothing they typed is overwritten.
+   --------------------------------------------------------------- */
+let pendingGuestlistEvent = null; // event to return to after logging in
+
+function setIfEmpty(id, value){
+  const el = document.getElementById(id);
+  if(el && !el.value && value !== undefined && value !== null && String(value).trim() !== '') el.value = String(value).trim();
+}
+
+async function prefillGuestlistForm(){
+  if(!currentUser) return;
+  const meta = currentUser.user_metadata || {};
+  let last = null;
+  try{
+    const { data } = await supabaseClient
+      .from('guestlist_requests')
+      .select('first_name,last_name,age,instagram,phone,email,gender')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    last = data && data[0] ? data[0] : null;
+  } catch(err){ /* fall back to account details */ }
+
+  setIfEmpty('glFirstName', (last && last.first_name) || meta.first_name);
+  setIfEmpty('glLastName', (last && last.last_name) || meta.last_name);
+  setIfEmpty('glEmail', (last && last.email) || currentUser.email);
+  if(last){
+    setIfEmpty('glAge', last.age);
+    if(last.instagram && last.instagram !== 'None') setIfEmpty('glInstagram', last.instagram);
+    if(last.gender) setIfEmpty('glGender', last.gender);
+    // Stored as "+31 612345678" -> country code + number.
+    const m = String(last.phone || '').match(/^(\+\d{1,4})\s*(.*)$/);
+    const phoneEl = document.getElementById('glPhone');
+    if(m && phoneEl && !phoneEl.value){
+      const codeEl = document.getElementById('glPhoneCode');
+      if(codeEl && Array.prototype.some.call(codeEl.options, function(o){ return o.value === m[1]; })) codeEl.value = m[1];
+      phoneEl.value = m[2].replace(/\s+/g, '');
+    } else if(!m){
+      setIfEmpty('glPhone', last.phone);
+    }
+  }
+  ['FirstName','LastName','Age','Phone','Email'].forEach(function(f){ clearErr('err' + f); });
+}
+
+// After a request the form was hidden for good; bring it back for the next
+// night, keeping the guest's own details and clearing the per-event parts.
+function resetGuestlistFormForNext(){
+  const success = document.getElementById('glSuccess');
+  if(!success || !success.classList.contains('is-visible')) return;
+  success.classList.remove('is-visible');
+  document.getElementById('glForm').style.display = '';
+  document.getElementById('glEvent').value = '';
+  document.getElementById('glGuestCount').value = '0';
+  document.getElementById('glConsent').checked = false;
+  rebuildAdditionalGuests();
+  prefillGuestlistForm();
+}
+
+// Logged-out guest picked an event: remember it, send them to log in, and
+// bring them straight back to that event afterwards (see showAccountPanel).
+function rememberEventAndLogin(ev){
+  pendingGuestlistEvent = ev || null;
+  switchTab('account');
+}
+function resumePendingGuestlistEvent(){
+  if(!pendingGuestlistEvent) return;
+  const ev = pendingGuestlistEvent;
+  pendingGuestlistEvent = null;
+  resetGuestlistFormForNext();
+  switchTab('guestlist');
+  preselectEvent(ev);
+  prefillGuestlistForm();
+}
+
 document.getElementById('glForm').addEventListener('submit', async function(e){
   e.preventDefault();
 
   if(!currentUser){
-    switchTab('account');
-    showAuthError('loginError', 'Please log in or create an account to submit a guestlist request.');
+    rememberEventAndLogin(selectedGuestlistEvent());
+    showAuthError('loginError', 'Log in or create an account to send your request — your details are kept.');
     return;
   }
 
@@ -1708,6 +1793,8 @@ function showAccountPanel(user){
   loadMyPoints();
   linkPushSubscriptionToAccount();
   if(typeof salonInit === 'function') salonInit(user);
+  prefillGuestlistForm();
+  resumePendingGuestlistEvent();
 }
 
 // Tiers are purely derived from the points total — no extra database
@@ -1829,6 +1916,8 @@ function showAuthView(view){
   document.getElementById('loginForm').style.display = view === 'login' ? 'block' : 'none';
   document.getElementById('forgotForm').style.display = view === 'forgot' ? 'block' : 'none';
   document.getElementById('newPasswordForm').style.display = view === 'newPassword' ? 'block' : 'none';
+  const codeFormEl = document.getElementById('codeForm');
+  if(codeFormEl) codeFormEl.style.display = view === 'code' ? 'block' : 'none';
   document.getElementById('signupForm').style.display = 'none';
   document.querySelector('.auth-switch').style.display = view === 'login' ? 'flex' : 'none';
   document.getElementById('authTabLogin').classList.add('is-active');
@@ -2345,4 +2434,92 @@ async function saveRequestToAccount(payload){
   } else {
     lockAppBehindGate();
   }
+})();
+
+// "Request another night" on the success screen.
+(function(){
+  const btn = document.getElementById('glAnotherBtn');
+  if(btn) btn.addEventListener('click', function(){
+    resetGuestlistFormForNext();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+})();
+
+
+/* ---------------------------------------------------------------
+   LOG IN WITH AN EMAIL CODE (no password)
+   A 6-digit code instead of a magic link, because on iPhone a link
+   opens Safari, not the home-screen app — a code works everywhere.
+   Needs {{ .Token }} in Supabase → Auth → Email Templates → Magic Link.
+   --------------------------------------------------------------- */
+(function(){
+  const form = document.getElementById('codeForm');
+  if(!form) return;
+  let codeSentTo = '';
+  const emailEl = document.getElementById('codeEmail');
+  const tokenEl = document.getElementById('codeToken');
+  const errEl = document.getElementById('codeError');
+  const btn = document.getElementById('codeSubmitBtn');
+  const resend = document.getElementById('codeResendLink');
+
+  function setStep(step){
+    const codeStep = step === 'code';
+    document.getElementById('codeEmailField').style.display = codeStep ? 'none' : '';
+    document.getElementById('codeTokenField').style.display = codeStep ? '' : 'none';
+    resend.style.display = codeStep ? '' : 'none';
+    btn.textContent = codeStep ? 'Log In' : 'Send Code';
+    document.getElementById('codeNote').textContent = codeStep
+      ? 'We sent a login code to ' + codeSentTo + '. Enter it below — it can take a minute, check your spam too.'
+      : 'No password needed. Enter your email and we\'ll send you a login code.';
+    if(codeStep){ tokenEl.value = ''; setTimeout(function(){ tokenEl.focus(); }, 50); }
+  }
+  function showErr(msg){ errEl.textContent = msg; errEl.style.display = 'block'; }
+
+  async function sendCode(){
+    const email = emailEl.value.trim();
+    if(!email || email.indexOf('@') < 1){ showErr('Enter the email you signed up with.'); return; }
+    btn.disabled = true;
+    const { error } = await supabaseClient.auth.signInWithOtp({ email: email, options: { shouldCreateUser: false } });
+    btn.disabled = false;
+    if(error){
+      const msg = String(error.message || '');
+      if(/signup|not allowed|not found|user/i.test(msg)) showErr('There is no account with this email yet. Go back and tap Sign Up to create one.');
+      else if(/rate|seconds|too many/i.test(msg)) showErr('Please wait a minute before asking for a new code.');
+      else showErr(msg || 'The code could not be sent. Please try again.');
+      return;
+    }
+    codeSentTo = email;
+    setStep('code');
+  }
+
+  document.getElementById('codeLoginLink').addEventListener('click', function(){
+    emailEl.value = document.getElementById('loginEmail').value.trim();
+    errEl.style.display = 'none';
+    codeSentTo = '';
+    setStep('email');
+    showAuthView('code');
+  });
+  document.getElementById('codeBackLink').addEventListener('click', function(){ showAuthView('login'); });
+  resend.addEventListener('click', function(){ errEl.style.display = 'none'; setStep('email'); emailEl.value = codeSentTo; sendCode(); });
+
+  form.addEventListener('submit', async function(e){
+    e.preventDefault();
+    errEl.style.display = 'none';
+    if(!supabaseClient){ showErr('Accounts are not set up yet. Please try again later.'); return; }
+    if(!codeSentTo){ await sendCode(); return; }
+    const token = tokenEl.value.replace(/\D/g, '');
+    if(token.length < 6){ showErr('Enter the code from the email.'); return; }
+    btn.disabled = true;
+    const { data, error } = await supabaseClient.auth.verifyOtp({ email: codeSentTo, token: token, type: 'email' });
+    btn.disabled = false;
+    if(error || !data || !data.user){
+      showErr('That code is not valid or has expired. Check the email or send a new code.');
+      return;
+    }
+    currentUser = data.user;
+    showAuthView('login');
+    showAccountPanel(currentUser);
+    unlockAppFromGate();
+    checkNotificationGate();
+  });
 })();

@@ -322,6 +322,8 @@ body.is-gated #tab-account{ display:block !important; }
 .err{ color:#E08A73; font-size:11.5px; margin-top:6px; display:none; }
 .link-btn{ display:block; margin:14px auto 0; background:none; border:none; color:var(--gold-light); font-size:12px; letter-spacing:0.04em; text-decoration:underline; cursor:pointer; padding:6px; }
 .auth-note{ font-size:12.5px; color:var(--muted); line-height:1.6; margin-bottom:16px; }
+.auth-or{ display:flex; align-items:center; gap:12px; margin:16px 0 12px; color:var(--muted); font-size:11px; letter-spacing:0.18em; text-transform:uppercase; }
+.auth-or::before, .auth-or::after{ content:''; flex:1; height:1px; background:var(--line, rgba(201,162,74,0.22)); }
 .auth-ok{ color:#8FE0A6; font-size:12.5px; line-height:1.5; margin:0 0 14px; }
 .err.is-visible{ display:block; }
 .consent-row{ display:flex; gap:10px; align-items:flex-start; margin:18px 0; }
@@ -974,6 +976,7 @@ body{ -webkit-font-smoothing:antialiased; }
         <div class="gl-success__mark">✓</div>
         <h2>Request Submitted</h2>
         <p id="glSuccessMsg">Your request is ready. We'll review it and update the status in your account.</p>
+        <button type="button" class="btn" id="glAnotherBtn" style="width:100%;margin-top:18px;">Request another night</button>
       </div>
     </div>
   </section>
@@ -1007,7 +1010,25 @@ body{ -webkit-font-smoothing:antialiased; }
         </div>
         <div class="err is-visible" id="loginError" style="display:none;"></div>
         <button type="submit" class="btn btn--solid" style="width:100%;">Log In</button>
+        <div class="auth-or"><span>or</span></div>
+        <button type="button" class="btn" id="codeLoginLink" style="width:100%;">Log in with an email code</button>
         <button type="button" class="link-btn" id="forgotPasswordLink">Forgot password?</button>
+      </form>
+
+      <form id="codeForm" novalidate style="display:none;">
+        <p class="auth-note" id="codeNote">No password needed. Enter your email and we'll send you a login code.</p>
+        <div class="field" id="codeEmailField">
+          <label for="codeEmail">Email</label>
+          <input type="email" id="codeEmail" autocomplete="email" required>
+        </div>
+        <div class="field" id="codeTokenField" style="display:none;">
+          <label for="codeToken">Login code</label>
+          <input type="text" id="codeToken" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="123456" style="letter-spacing:0.3em;font-size:20px;text-align:center;">
+        </div>
+        <div class="err is-visible" id="codeError" style="display:none;"></div>
+        <button type="submit" class="btn btn--solid" id="codeSubmitBtn" style="width:100%;">Send Code</button>
+        <button type="button" class="link-btn" id="codeResendLink" style="display:none;">Send a new code</button>
+        <button type="button" class="link-btn" id="codeBackLink">Back to log in</button>
       </form>
 
       <form id="forgotForm" novalidate style="display:none;">
