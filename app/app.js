@@ -621,11 +621,11 @@ const EVENTS = [
     date: "2026-11-20",
     time: "23:00",
     venue: "Oliva · Amsterdam",
-    description: "Club Fair at Oliva. Line-up coming soon.",
+    image: "events/club-fair-2026-11-20.jpg",
+    description: "Club Fair — the most special night out. Moulin Rouge, hits & house at Oliva. 23:00 till 05:00.",
     guestlistStatus: "limited",
     ticketUrl: "#",
     guestlistUrl: "#guestlist",
-    flyerPending: true, // recurring night (3rd Friday) — add the flyer when it's in
     featured: false,
     countdownEnabled: false
   },
