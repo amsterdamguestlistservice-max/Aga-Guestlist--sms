@@ -616,6 +616,202 @@ const EVENTS = [
     countdownEnabled: false
   },
   {
+    id: "club-fair-2026-11-20",
+    name: "Club Fair",
+    date: "2026-11-20",
+    time: "23:00",
+    venue: "Oliva · Amsterdam",
+    description: "Club Fair at Oliva. Line-up coming soon.",
+    guestlistStatus: "limited",
+    ticketUrl: "#",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // recurring night (3rd Friday) — add the flyer when it's in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
+    id: "roza-2026-11-27",
+    name: "Roza",
+    date: "2026-11-27",
+    time: "23:00",
+    venue: "Chin Chin Club · Amsterdam",
+    description: "Roza at Chin Chin Club. Line-up coming soon.",
+    guestlistStatus: "limited",
+    ticketUrl: "#",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // recurring night (4th Friday) — add the flyer when it's in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
+    id: "huisfissa-2026-12-11",
+    name: "Huisfissa",
+    date: "2026-12-11",
+    time: "23:00",
+    venue: "Oliva · Amsterdam",
+    description: "Huisfissa at Oliva — Main Room and Area 2. Line-up coming soon.",
+    guestlistStatus: "limited",
+    ticketUrl: "#",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // recurring night (2nd Friday) — add the flyer when it's in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
+    id: "club-fair-2026-12-18",
+    name: "Club Fair",
+    date: "2026-12-18",
+    time: "23:00",
+    venue: "Oliva · Amsterdam",
+    description: "Club Fair at Oliva. Line-up coming soon.",
+    guestlistStatus: "limited",
+    ticketUrl: "#",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // recurring night (3rd Friday) — add the flyer when it's in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
+    id: "roza-2026-12-25",
+    name: "Roza",
+    date: "2026-12-25",
+    time: "23:00",
+    venue: "Chin Chin Club · Amsterdam",
+    description: "Roza at Chin Chin Club. Line-up coming soon.",
+    guestlistStatus: "limited",
+    ticketUrl: "#",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // recurring night (4th Friday) — add the flyer when it's in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
+    id: "huisfissa-2027-01-08",
+    name: "Huisfissa",
+    date: "2027-01-08",
+    time: "23:00",
+    venue: "Oliva · Amsterdam",
+    description: "Huisfissa at Oliva — Main Room and Area 2. Line-up coming soon.",
+    guestlistStatus: "limited",
+    ticketUrl: "#",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // recurring night (2nd Friday) — add the flyer when it's in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
+    id: "club-fair-2027-01-15",
+    name: "Club Fair",
+    date: "2027-01-15",
+    time: "23:00",
+    venue: "Oliva · Amsterdam",
+    description: "Club Fair at Oliva. Line-up coming soon.",
+    guestlistStatus: "limited",
+    ticketUrl: "#",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // recurring night (3rd Friday) — add the flyer when it's in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
+    id: "roza-2027-01-22",
+    name: "Roza",
+    date: "2027-01-22",
+    time: "23:00",
+    venue: "Chin Chin Club · Amsterdam",
+    description: "Roza at Chin Chin Club. Line-up coming soon.",
+    guestlistStatus: "limited",
+    ticketUrl: "#",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // recurring night (4th Friday) — add the flyer when it's in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
+    id: "huisfissa-2027-02-12",
+    name: "Huisfissa",
+    date: "2027-02-12",
+    time: "23:00",
+    venue: "Oliva · Amsterdam",
+    description: "Huisfissa at Oliva — Main Room and Area 2. Line-up coming soon.",
+    guestlistStatus: "limited",
+    ticketUrl: "#",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // recurring night (2nd Friday) — add the flyer when it's in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
+    id: "club-fair-2027-02-19",
+    name: "Club Fair",
+    date: "2027-02-19",
+    time: "23:00",
+    venue: "Oliva · Amsterdam",
+    description: "Club Fair at Oliva. Line-up coming soon.",
+    guestlistStatus: "limited",
+    ticketUrl: "#",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // recurring night (3rd Friday) — add the flyer when it's in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
+    id: "roza-2027-02-26",
+    name: "Roza",
+    date: "2027-02-26",
+    time: "23:00",
+    venue: "Chin Chin Club · Amsterdam",
+    description: "Roza at Chin Chin Club. Line-up coming soon.",
+    guestlistStatus: "limited",
+    ticketUrl: "#",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // recurring night (4th Friday) — add the flyer when it's in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
+    id: "huisfissa-2027-03-12",
+    name: "Huisfissa",
+    date: "2027-03-12",
+    time: "23:00",
+    venue: "Oliva · Amsterdam",
+    description: "Huisfissa at Oliva — Main Room and Area 2. Line-up coming soon.",
+    guestlistStatus: "limited",
+    ticketUrl: "#",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // recurring night (2nd Friday) — add the flyer when it's in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
+    id: "club-fair-2027-03-19",
+    name: "Club Fair",
+    date: "2027-03-19",
+    time: "23:00",
+    venue: "Oliva · Amsterdam",
+    description: "Club Fair at Oliva. Line-up coming soon.",
+    guestlistStatus: "limited",
+    ticketUrl: "#",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // recurring night (3rd Friday) — add the flyer when it's in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
+    id: "roza-2027-03-26",
+    name: "Roza",
+    date: "2027-03-26",
+    time: "23:00",
+    venue: "Chin Chin Club · Amsterdam",
+    description: "Roza at Chin Chin Club. Line-up coming soon.",
+    guestlistStatus: "limited",
+    ticketUrl: "#",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // recurring night (4th Friday) — add the flyer when it's in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
     id: "shift-amsterdam-2026-12-10",
     name: "Shift Amsterdam",
     date: "2026-12-10",
