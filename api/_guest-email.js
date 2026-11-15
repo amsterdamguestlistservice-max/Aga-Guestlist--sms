@@ -10,7 +10,11 @@
 // Gmail, Apple Mail, Outlook and on phones. Always sends a plain-text
 // version too (better deliverability, fewer spam hits).
 
+const events = require('./_events');
+const cancelToken = require('./_cancel-token');
+
 const APP_URL = 'https://www.amsterdamguestlistservice.website/app/';
+const INNER_CIRCLE_URL = 'https://chat.whatsapp.com/LxMQwsnah2b5oe9WRdOFAw';
 const LOGO_URL = 'https://www.amsterdamguestlistservice.website/app/icon-192.png';
 
 const C = {
@@ -77,7 +81,7 @@ const VARIANTS = {
     },
     noteTitle: 'At the door',
     note: 'Arrive on time, bring a valid photo ID for everyone in your group and give the name above at the door. ' +
-      'Can’t make it anymore? Let us know, so your spot can go to someone else — no-shows lose points.',
+      'No-shows lose points, so if your plans change, please release your spot below.',
     cta: 'Open the app'
   },
   reminder: {
@@ -91,7 +95,7 @@ const VARIANTS = {
     },
     noteTitle: 'Before you go',
     note: 'Arrive on time, bring a valid photo ID for everyone in your group and give the name above at the door. ' +
-      'Plans changed? Let us know, so your spot can go to someone else.',
+      'Plans changed? Release your spot below so someone else can go.',
     cta: 'Open the app'
   }
 };
@@ -103,9 +107,20 @@ function detailRow(label, value, last) {
   '</tr>';
 }
 
-function renderGuestEmail(type, record) {
+function smallButton(href, label) {
+  return '<td align="center" width="50%" style="padding:0 4px;">' +
+    '<a href="' + esc(href) + '" target="_blank" style="display:block;padding:12px 6px;border:1px solid ' + C.gold + ';color:' + C.goldLight + ';font-family:' + SANS + ';font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;text-decoration:none;white-space:nowrap;">' + esc(label) + '</a>' +
+  '</td>';
+}
+
+// event: the matching entry from the app's EVENTS (flyer, time, id), or null.
+function renderGuestEmail(type, record, event) {
   const v = VARIANTS[type];
   const r = record || {};
+  const ev = event || null;
+  const confirmed = type === 'approved' || type === 'reminder';
+  const flyer = events.flyerUrl(ev);
+  const cancelHref = confirmed ? cancelToken.cancelUrl(r.id) : '';
   const firstName = (r.first_name && String(r.first_name).trim()) || 'there';
   const fullName = [r.first_name, r.last_name].filter(Boolean).join(' ').trim() || firstName;
   const venue = venueParts(r.event_venue);
@@ -116,7 +131,7 @@ function renderGuestEmail(type, record) {
 
   const details =
     detailRow('Event', '<strong style="font-family:' + SERIF + ';font-size:17px;font-weight:normal;color:' + C.white + ';">' + esc(r.event_name) + '</strong>') +
-    detailRow('Date', esc(prettyDate(r.event_date))) +
+    detailRow('Date', esc(prettyDate(r.event_date)) + (ev && ev.time ? '<br><span style="color:' + C.muted + ';font-size:13px;">From ' + esc(ev.time) + '</span>' : '')) +
     detailRow('Venue', esc(venue.name) + '<br><span style="color:' + C.muted + ';font-size:13px;">' + esc(venue.city) + '</span>') +
     detailRow('Name on the list', esc(fullName)) +
     detailRow('Guests', esc(partyLabel(r.total_guests)), true);
@@ -141,6 +156,7 @@ function renderGuestEmail(type, record) {
   // Card
   '<tr><td style="background:' + C.card + ';border:1px solid ' + C.line + ';border-top:2px solid ' + C.gold + ';">' +
   '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">' +
+    (flyer ? '<tr><td style="padding:0;line-height:0;font-size:0;"><img src="' + esc(flyer) + '" width="560" alt="' + esc(r.event_name) + '" style="display:block;width:100%;max-width:560px;height:auto;border:0;"></td></tr>' : '') +
     '<tr><td style="padding:36px 32px 8px;">' +
       '<div style="font-family:' + SANS + ';font-size:11px;letter-spacing:3px;text-transform:uppercase;color:' + C.gold + ';padding-bottom:14px;">' + esc(v.eyebrow) + '</div>' +
       '<h1 style="margin:0 0 18px;font-family:' + SERIF + ';font-size:30px;line-height:1.2;font-weight:normal;color:' + C.white + ';">' + esc(v.heading) + '</h1>' +
@@ -157,6 +173,16 @@ function renderGuestEmail(type, record) {
       '</table>' +
     '</td></tr>' +
 
+    // Quick actions: calendar (Apple/Outlook .ics + Google) and route
+    (confirmed && ev ?
+    '<tr><td style="padding:16px 28px 0;">' +
+      '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>' +
+        smallButton(events.icsUrl(ev), 'Add to calendar') +
+        smallButton(events.mapsUrl(r.event_venue || ev.venue), 'Route') +
+      '</tr></table>' +
+      '<div style="font-family:' + SANS + ';font-size:12px;color:' + C.muted + ';text-align:center;padding-top:10px;">Using Google Calendar? <a href="' + esc(events.googleCalendarUrl(ev)) + '" target="_blank" style="color:' + C.goldLight + ';text-decoration:underline;">Add it here</a></div>' +
+    '</td></tr>' : '') +
+
     // Note
     '<tr><td style="padding:26px 32px 4px;">' +
       '<div style="font-family:' + SANS + ';font-size:11px;letter-spacing:2px;text-transform:uppercase;color:' + C.goldLight + ';padding-bottom:8px;">' + esc(v.noteTitle) + '</div>' +
@@ -168,8 +194,21 @@ function renderGuestEmail(type, record) {
       '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" bgcolor="' + C.gold + '" style="background:' + C.gold + ';">' +
         '<a href="' + APP_URL + '" target="_blank" style="display:inline-block;padding:15px 38px;font-family:' + SANS + ';font-size:12px;font-weight:700;letter-spacing:2.4px;text-transform:uppercase;color:#000000;text-decoration:none;">' + esc(v.cta) + '</a>' +
       '</td></tr></table>' +
+      (cancelHref ? '<div style="font-family:' + SANS + ';font-size:13px;color:' + C.muted + ';padding-top:18px;">Can\u2019t make it? <a href="' + esc(cancelHref) + '" target="_blank" style="color:' + C.goldLight + ';text-decoration:underline;">Release your spot</a></div>' : '') +
     '</td></tr>' +
   '</table>' +
+  '</td></tr>' +
+
+  // Inner Circle
+  '<tr><td style="padding:16px 0 0;">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:' + C.card + ';border:1px solid ' + C.line + ';">' +
+      '<tr><td style="padding:24px 28px;" align="center">' +
+        '<div style="font-family:' + SANS + ';font-size:11px;letter-spacing:3px;text-transform:uppercase;color:' + C.gold + ';padding-bottom:8px;">The Inner Circle</div>' +
+        '<div style="font-family:' + SERIF + ';font-size:20px;color:' + C.white + ';padding-bottom:8px;">Hear about new parties first</div>' +
+        '<p style="margin:0 0 16px;font-family:' + SANS + ';font-size:14px;line-height:1.6;color:' + C.text + ';">Join our WhatsApp group and be the first to know when new nights and discount tickets drop.</p>' +
+        '<a href="' + INNER_CIRCLE_URL + '" target="_blank" style="display:inline-block;padding:12px 26px;border:1px solid ' + C.gold + ';color:' + C.goldLight + ';font-family:' + SANS + ';font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;text-decoration:none;">Join the Inner Circle</a>' +
+      '</td></tr>' +
+    '</table>' +
   '</td></tr>' +
 
   // Footer
@@ -192,7 +231,7 @@ function renderGuestEmail(type, record) {
     v.intro(firstName),
     '',
     'Event: ' + (r.event_name || ''),
-    'Date: ' + prettyDate(r.event_date),
+    'Date: ' + prettyDate(r.event_date) + (ev && ev.time ? ', from ' + ev.time : ''),
     'Venue: ' + venue.name + ', ' + venue.city,
     'Name on the list: ' + fullName,
     'Guests: ' + partyLabel(r.total_guests),
@@ -200,6 +239,10 @@ function renderGuestEmail(type, record) {
     v.noteTitle + ': ' + v.note,
     '',
     v.cta + ': ' + APP_URL,
+    (confirmed && ev ? 'Add to calendar: ' + events.icsUrl(ev) + '\nRoute: ' + events.mapsUrl(r.event_venue || ev.venue) : ''),
+    (cancelHref ? "Can't make it? Release your spot: " + cancelHref : ''),
+    '',
+    'Join the Inner Circle (WhatsApp): ' + INNER_CIRCLE_URL,
     '',
     'Access to Amsterdam’s finest nights.'
   ].join('\n');
@@ -212,7 +255,8 @@ async function sendGuestEmail(type, record) {
   try {
     const from = process.env.RESEND_GUEST_FROM;
     if (!from || !process.env.RESEND_API_KEY || !record || !record.email || !VARIANTS[type]) return false;
-    const mail = renderGuestEmail(type, record);
+    const ev = await events.findEvent(record.event_name, record.event_date).catch(function () { return null; });
+    const mail = renderGuestEmail(type, record, ev);
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
