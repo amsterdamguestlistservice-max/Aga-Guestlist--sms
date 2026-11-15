@@ -55,7 +55,7 @@ module.exports = async function handler(req, res) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'Amsterdam Guestlist Service <onboarding@resend.dev>',
+        from: process.env.RESEND_ADMIN_FROM || 'AGS Admin <notifications@amsterdamguestlistservice.website>',
         to: [NOTIFY_EMAIL_TO],
         subject: 'New account created — ' + fullName,
         text:
