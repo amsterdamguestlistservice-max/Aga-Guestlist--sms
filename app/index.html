@@ -929,6 +929,13 @@ body{ background:#020202; }
 .points-toast span{ display:block; font-family:var(--serif); font-size:84px; letter-spacing:0; font-weight:600; background:linear-gradient(180deg, #fff3cf, #e6c875 50%, #b88a2e); -webkit-background-clip:text; background-clip:text; color:transparent; }
 .points-toast.is-in{ opacity:1; transform:translate(-50%, 0) scale(1); }
 @media (prefers-reduced-motion: reduce){ .tonight__glow, .tonight__dot{ animation:none !important; } }
+
+/* ===== Notification ask after a request ===== */
+.push-ask{ margin:18px 0 14px; padding:16px; border:1px solid rgba(201,162,74,0.55); background:rgba(201,162,74,0.07); text-align:center; }
+.push-ask__title{ font-family:var(--serif); font-size:21px; color:var(--white); margin-bottom:6px; }
+.push-ask__text{ font-size:12.5px; color:var(--muted); line-height:1.55; margin-bottom:12px; }
+.push-ask .btn{ width:100%; }
+.push-ask.is-done .push-ask__title{ color:var(--gold-light); font-size:17px; margin:0; }
 </style>
 </head>
 <body class="is-gated">
@@ -1186,6 +1193,7 @@ body{ background:#020202; }
         <div class="gl-success__mark">✓</div>
         <h2>Request Submitted</h2>
         <p id="glSuccessMsg">Your request is ready. We'll review it and update the status in your account.</p>
+        <div id="glPushAsk"></div>
         <button type="button" class="btn btn--solid" id="glShareBtn" style="width:100%;margin-top:18px;">Share to your story</button>
         <button type="button" class="btn" id="glAnotherBtn" style="width:100%;margin-top:10px;">Request another night</button>
       </div>

@@ -1320,9 +1320,9 @@ function openEventSheet(ev){
     if(ev.ticketsSoldOut){
       actions += '<button type="button" class="btn" disabled>Tickets Sold Out</button>';
     } else if(hasTicketLink){
-      actions += '<a class="btn' + (ticketsPrimary ? ' btn--solid' : '') + '" href="' + ticketHref + '" target="_blank" rel="noopener">' + (ev.ticketButtonLabel || 'Buy Tickets') + '</a>';
+      actions += '<a class="btn' + (ticketsPrimary ? ' btn--solid' : '') + '" href="' + ticketHref + '" target="_blank" rel="noopener" data-track="tickets" data-event-id="' + (ev.id || '') + '">' + (ev.ticketButtonLabel || 'Buy Tickets') + '</a>';
     }
-    actions += '<a class="btn btn--table" href="' + buildTableBookingLink(ev) + '" target="_blank" rel="noopener">Book a Table</a>';
+    actions += '<a class="btn btn--table" href="' + buildTableBookingLink(ev) + '" target="_blank" rel="noopener" data-track="table" data-event-id="' + (ev.id || '') + '">Book a Table</a>';
     actions += '<div class="sheet__quiet-actions">' +
       '<button type="button" class="sheet__quiet" id="sheetCalendarBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="1"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Add to calendar</button>' +
       '<button type="button" class="sheet__quiet" id="sheetShareBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M7.5 7.5 12 3l4.5 4.5M5 13v8h14v-8"/></svg>Share</button>' +
@@ -1682,6 +1682,8 @@ document.getElementById('glForm').addEventListener('submit', async function(e){
   document.getElementById('glForm').style.display = 'none';
   document.getElementById('glSpotNotice').style.display = 'none';
   document.getElementById('glSuccess').classList.add('is-visible');
+  const askBox = document.getElementById('glPushAsk');
+  if(askBox){ askBox.innerHTML = pushAskHtml(); bindPushAsk(askBox); }
   AppSound.play('success');
   window.scrollTo({ top: 0, behavior: 'smooth' });
   if(typeof loadNextNight === 'function') loadNextNight();
@@ -1748,14 +1750,10 @@ async function subscribeToPush(){
       };
       if(typeof currentUser !== 'undefined' && currentUser){ payload.user_id = currentUser.id; }
       const { error } = await supabaseClient.from('push_subscriptions').upsert(payload, { onConflict: 'endpoint' });
-      if(error){ alert('Opslaan mislukt: ' + error.message); }
-      else { alert('Gelukt! Abonnement opgeslagen.'); }
-    } else {
-      alert('supabaseClient bestaat niet — supabase-config.js is niet goed geladen.');
+      if(error) console.warn('Saving push subscription failed:', error.message);
     }
   } catch(err){
     console.warn('Push subscribe failed:', err);
-    alert('Fout bij aanmelden voor meldingen: ' + (err && err.message ? err.message : err));
   }
   await updateNotifyBtnState();
 }
@@ -2937,9 +2935,11 @@ async function tryQuickRequest(ev){
     body.innerHTML = head +
       '<div class="quick-sheet__done"><div class="gl-success__mark">✓</div>' +
       '<p class="quick-sheet__note">Request sent. We’ll review it and let you know as soon as you’re on the list.</p></div>' +
+      pushAskHtml() +
       '<div class="quick-sheet__btns"><button type="button" class="btn btn--solid" id="quickShare">Share to your story</button><button type="button" class="btn" id="quickDone">Done</button></div>';
     document.getElementById('quickDone').addEventListener('click', closeQuickSheet);
     const qs = document.getElementById('quickShare'); qs.addEventListener('click', function(){ shareStory(ev, qs); });
+    bindPushAsk(body);
     loadNextNight();
     if(typeof loadMyRequests === 'function') loadMyRequests();
     if(typeof loadGuestCounts === 'function') loadGuestCounts().then(function(){ if(typeof renderAllGuestlistPanels === 'function') renderAllGuestlistPanels(); });
@@ -3276,3 +3276,51 @@ function showPointsToast(n){
   const btn = document.getElementById('glShareBtn');
   if(btn) btn.addEventListener('click', function(){ const ev = selectedGuestlistEvent() || lastRequestedEvent; shareStory(ev, btn); });
 })();
+
+/* ================================================================
+   NOTIFICATION ASK — right after a request, when it's obviously useful.
+   ================================================================ */
+function pushAskHtml(){
+  try{
+    if(typeof pushSupported !== 'undefined' && pushSupported && Notification.permission === 'default'){
+      return '<div class="push-ask"><div class="push-ask__title">Know the second you’re in</div>' +
+        '<p class="push-ask__text">Turn on notifications and we’ll tell you the moment you’re approved, remind you on the night, and ping you when a spot opens up.</p>' +
+        '<button type="button" class="btn btn--solid push-ask__btn">Turn on notifications</button></div>';
+    }
+    if(isIosDevice() && !isStandaloneApp()){
+      return '<div class="push-ask"><div class="push-ask__title">Get notified when you’re in</div>' +
+        '<p class="push-ask__text">On iPhone, notifications work from the app on your Home Screen: tap the Share icon in Safari, then “Add to Home Screen”.</p></div>';
+    }
+  } catch(e){}
+  return '';
+}
+function bindPushAsk(root){
+  const btn = root && root.querySelector('.push-ask__btn');
+  if(!btn) return;
+  btn.addEventListener('click', async function(){
+    btn.disabled = true; btn.textContent = 'One moment…';
+    await subscribeToPush();
+    const box = btn.closest('.push-ask');
+    if(Notification.permission === 'granted'){
+      box.classList.add('is-done');
+      box.innerHTML = '<div class="push-ask__title">Notifications on ✓</div>';
+      AppSound.play('success');
+    } else {
+      box.innerHTML = '<p class="push-ask__text">No problem — you can turn them on later with the bell icon at the top.</p>';
+    }
+  });
+}
+
+/* ================================================================
+   LINK CLICKS — count "Buy Tickets" / "Book a Table" per event
+   (sales happen on Fourvenues/Celebratix, so this is AGS's proof).
+   ================================================================ */
+document.addEventListener('click', function(e){
+  const a = e.target.closest('a[data-track]');
+  if(!a || !supabaseClient) return;
+  const ev = EVENTS.find(function(x){ return x.id === a.dataset.eventId; });
+  try{
+    supabaseClient.rpc('log_link_click', { p_event_id: a.dataset.eventId, p_event_name: ev ? ev.name : null, p_kind: a.dataset.track })
+      .then(function(){}, function(){});
+  } catch(err){ /* never block the link */ }
+}, true);
