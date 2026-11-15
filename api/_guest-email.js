@@ -260,7 +260,12 @@ async function sendGuestEmail(type, record) {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: from, to: record.email, subject: mail.subject, html: mail.html, text: mail.text })
+      body: JSON.stringify(Object.assign(
+        { from: from, to: record.email, subject: mail.subject, html: mail.html, text: mail.text },
+        // Replies from guests go to a real inbox (GUEST_REPLY_TO) — mail you can
+        // reply to is trusted more by spam filters than a dead "noreply".
+        process.env.GUEST_REPLY_TO ? { reply_to: process.env.GUEST_REPLY_TO } : {}
+      ))
     });
     return res.ok;
   } catch (e) {
