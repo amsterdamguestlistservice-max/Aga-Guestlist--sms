@@ -1,0 +1,20 @@
+{
+  "name": "ags-ios",
+  "private": true,
+  "description": "Native iPhone (App Store) wrapper for the AGS app in ../app",
+  "scripts": {
+    "copy-web": "rm -rf www && cp -R ../app www && rm -f www/service-worker.js",
+    "sync": "npm run copy-web && npx cap sync ios",
+    "open": "npx cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "^7.4.0",
+    "@capacitor/ios": "^7.4.0",
+    "@capacitor/push-notifications": "^7.0.1",
+    "@capacitor/splash-screen": "^7.0.1",
+    "@capacitor/status-bar": "^7.0.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.0"
+  }
+}

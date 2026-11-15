@@ -1,0 +1,5 @@
+node_modules/
+package-lock.json
+ios-app/node_modules/
+ios-app/www/
+.DS_Store

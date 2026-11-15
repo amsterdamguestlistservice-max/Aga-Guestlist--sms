@@ -1,3 +1,9 @@
+// Web and native (App Store) builds share this file. In the native app the
+// page is served from capacitor://localhost, so API calls need the full URL.
+const SITE_URL = 'https://www.amsterdamguestlistservice.website';
+const IS_NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+const API_BASE = /^https?:$/.test(location.protocol) && !IS_NATIVE ? '' : SITE_URL;
+
 const EVENTS = [
   {
     id: "behind-closed-doors-2026-09-05",
@@ -1758,16 +1764,53 @@ function urlBase64ToUint8Array(base64String){
 }
 
 const notifyBtn = document.getElementById('notifyBtn');
-const pushSupported = ('serviceWorker' in navigator) && ('PushManager' in window) && (typeof Notification !== 'undefined');
+const NATIVE_PUSH = IS_NATIVE && window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications;
+const pushSupported = !!NATIVE_PUSH || (('serviceWorker' in navigator) && ('PushManager' in window) && (typeof Notification !== 'undefined'));
+
+/* Native (App Store) notifications via Apple Push. The device token is stored
+   in push_subscriptions as endpoint "apns:<token>"; api/_push.js sends it. */
+let nativePushOn = false;
+function pushPermission(){
+  if(NATIVE_PUSH) return nativePushOn ? 'granted' : 'default';
+  return (typeof Notification !== 'undefined') ? Notification.permission : 'denied';
+}
+async function nativePushSubscribe(){
+  try{
+    let perm = await NATIVE_PUSH.checkPermissions();
+    if(perm.receive !== 'granted') perm = await NATIVE_PUSH.requestPermissions();
+    if(perm.receive !== 'granted'){ nativePushOn = false; return false; }
+    await new Promise(function(resolve){
+      let done = false;
+      NATIVE_PUSH.addListener('registration', async function(t){
+        if(supabaseClient && t && t.value){
+          const row = { endpoint: 'apns:' + t.value, p256dh: 'native', auth: 'ios' };
+          if(currentUser) row.user_id = currentUser.id;
+          await supabaseClient.from('push_subscriptions').upsert(row, { onConflict: 'endpoint' });
+        }
+        nativePushOn = true; if(!done){ done = true; resolve(); }
+      });
+      NATIVE_PUSH.addListener('registrationError', function(){ if(!done){ done = true; resolve(); } });
+      NATIVE_PUSH.register();
+      setTimeout(function(){ if(!done){ done = true; resolve(); } }, 8000);
+    });
+    return nativePushOn;
+  } catch(e){ return false; }
+}
+if(NATIVE_PUSH){
+  NATIVE_PUSH.checkPermissions().then(function(p){ if(p.receive === 'granted'){ nativePushSubscribe(); } }).catch(function(){});
+  NATIVE_PUSH.addListener('pushNotificationActionPerformed', function(){ try{ switchTab('events'); } catch(e){} });
+}
 
 async function updateNotifyBtnState(){
   if(!notifyBtn || !pushSupported) return;
+  if(NATIVE_PUSH){ notifyBtn.classList.toggle('is-active', nativePushOn); return; }
   const reg = await navigator.serviceWorker.ready;
   const sub = await reg.pushManager.getSubscription();
   notifyBtn.classList.toggle('is-active', !!sub && Notification.permission === 'granted');
 }
 
 async function subscribeToPush(){
+  if(NATIVE_PUSH){ await nativePushSubscribe(); await updateNotifyBtnState(); return; }
   try{
     const reg = await navigator.serviceWorker.ready;
     const permission = await Notification.requestPermission();
@@ -1812,7 +1855,16 @@ async function unsubscribeFromPush(){
   await updateNotifyBtnState();
 }
 
-if(notifyBtn && pushSupported){
+if(notifyBtn && NATIVE_PUSH){
+  notifyBtn.hidden = false;
+  updateNotifyBtnState();
+  notifyBtn.addEventListener('click', async function(){
+    if(nativePushOn){
+      try{ await NATIVE_PUSH.unregister(); } catch(e){}
+      nativePushOn = false; await updateNotifyBtnState();
+    } else { await subscribeToPush(); }
+  });
+} else if(notifyBtn && pushSupported){
   notifyBtn.hidden = false;
   navigator.serviceWorker.ready.then(updateNotifyBtnState);
   notifyBtn.addEventListener('click', async function(){
@@ -1854,7 +1906,7 @@ const isInAppBrowser = /instagram|fban|fbav|fb_iab|tiktok|musical_ly|bytedance|s
 // but only if not already running as an installed app.
 const isIos = /iphone|ipad|ipod/.test(ua);
 const isAndroid = /android/.test(ua);
-const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+const isStandalone = IS_NATIVE || window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
 
 // Slim, dismissible "Add to Home Screen" bar: one line, steps on tap,
 // and once closed it stays closed on this device.
@@ -2029,7 +2081,7 @@ async function loadMyPoints(){
     if(data && data.referral_code){
       const referralCard = document.getElementById('referralCard');
       const linkText = document.getElementById('referralLinkText');
-      const link = window.location.origin + window.location.pathname + '?ref=' + data.referral_code;
+      const link = SITE_URL + '/app/?ref=' + data.referral_code;
       linkText.textContent = link;
       referralCard.dataset.link = link;
       referralCard.style.display = 'block';
@@ -2063,6 +2115,7 @@ document.getElementById('referralCopyBtn').addEventListener('click', async funct
 // to their account so points/status push notifications can reach them.
 async function linkPushSubscriptionToAccount(){
   if(!supabaseClient || !currentUser || !pushSupported) return;
+  if(NATIVE_PUSH){ if(nativePushOn) nativePushSubscribe(); return; }
   try{
     const reg = await navigator.serviceWorker.ready;
     const sub = await reg.pushManager.getSubscription();
@@ -2123,7 +2176,7 @@ document.getElementById('forgotForm').addEventListener('submit', async function(
   const email = document.getElementById('forgotEmail').value.trim();
   if(!email){ errEl.textContent = 'Please enter your email address.'; errEl.style.display = 'block'; return; }
   const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin + '/app/'
+    redirectTo: (API_BASE ? SITE_URL : window.location.origin) + '/app/'
   });
   if(error){ errEl.textContent = error.message; errEl.style.display = 'block'; return; }
   okEl.textContent = 'If there is an account with this email, a reset link is on its way. Check your inbox (and spam).';
@@ -2191,7 +2244,7 @@ function isIosDevice(){
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 function isStandaloneApp(){
-  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  return IS_NATIVE || window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 }
 function setNotifyGateMode(mode){
   // mode: 'ask' (default) | 'install' (iPhone, not added to home screen yet)
@@ -2231,10 +2284,10 @@ function checkNotificationGate(){
   // screen — explain that instead of silently skipping the prompt.
   if(!pushSupported && isIosDevice() && !isStandaloneApp()){
     setNotifyGateMode('install');
-  } else if(!pushSupported || Notification.permission === 'granted'){
+  } else if(!pushSupported || pushPermission() === 'granted'){
     switchTab('events');
     return;
-  } else if(Notification.permission === 'denied'){
+  } else if(pushPermission() === 'denied'){
     setNotifyGateMode('blocked');
   } else {
     setNotifyGateMode('ask');
@@ -2318,6 +2371,56 @@ document.getElementById('signOutBtn').addEventListener('click', async function()
   if(typeof salonStop === 'function') salonStop();
   lockAppBehindGate();
 });
+
+/* ---------- Delete account (App Store 5.1.1(v), GDPR) ---------- */
+(function(){
+  const btn = document.getElementById('deleteAccountBtn');
+  if(!btn) return;
+  btn.addEventListener('click', function(){
+    if(!currentUser) return;
+    const body = document.getElementById('quickBody');
+    body.innerHTML =
+      '<div class="quick-sheet__eyebrow">Account</div>' +
+      '<div class="quick-sheet__title" id="quickTitle">Delete your account?</div>' +
+      '<p class="quick-sheet__note" style="margin-top:10px;">This permanently deletes your account, points, waitlist spots and Backroom chats. Upcoming guestlist requests are cancelled and the spots are released. This can’t be undone.</p>' +
+      '<label for="delConfirm" class="quick-sheet__note" style="display:block;margin:14px 0 0;">Type <strong>DELETE</strong> to confirm</label>' +
+      '<input id="delConfirm" class="del-input" autocomplete="off" autocapitalize="characters" spellcheck="false">' +
+      '<div class="err" id="delErr" style="margin-bottom:12px;"></div>' +
+      '<div class="quick-sheet__btns">' +
+        '<button type="button" class="btn btn--solid btn--danger" id="delGo" disabled>Delete my account</button>' +
+        '<button type="button" class="btn" id="delCancel">Keep my account</button>' +
+      '</div>';
+    openQuickSheet();
+    const input = document.getElementById('delConfirm'), go = document.getElementById('delGo');
+    input.addEventListener('input', function(){ go.disabled = input.value.trim().toUpperCase() !== 'DELETE'; });
+    document.getElementById('delCancel').addEventListener('click', closeQuickSheet);
+    go.addEventListener('click', async function(){
+      go.disabled = true; go.textContent = 'Deleting…';
+      const err = document.getElementById('delErr');
+      try {
+        const { data } = await supabaseClient.auth.getSession();
+        const token = data && data.session && data.session.access_token;
+        const r = await fetch(API_BASE + '/api/delete-account', { method:'POST', headers:{ 'Authorization': 'Bearer ' + token } });
+        const j = await r.json().catch(function(){ return {}; });
+        if(!r.ok || !j.ok) throw new Error(j.error || 'failed');
+        try { await supabaseClient.auth.signOut(); } catch(e){}
+        try { localStorage.removeItem('ags_points_seen_' + currentUser.id); } catch(e){}
+        currentUser = null;
+        if(typeof salonStop === 'function') salonStop();
+        body.innerHTML =
+          '<div class="quick-sheet__eyebrow">Account deleted</div>' +
+          '<div class="quick-sheet__title" id="quickTitle">Your account is gone</div>' +
+          '<p class="quick-sheet__note" style="margin-top:10px;">All your personal data has been removed. Thanks for partying with us — you’re always welcome back.</p>' +
+          '<div class="quick-sheet__btns"><button type="button" class="btn btn--solid" id="delDone">Close</button></div>';
+        document.getElementById('delDone').addEventListener('click', function(){ closeQuickSheet(); lockAppBehindGate(); });
+      } catch(e){
+        go.disabled = false; go.textContent = 'Delete my account';
+        err.textContent = 'Your account could not be deleted right now. Please try again, or contact us via the Support page.';
+        err.classList.add('is-visible');
+      }
+    });
+  });
+})();
 
 let myRequestsCache = {};
 async function loadMyRequests(){
@@ -2867,7 +2970,7 @@ function renderNextNight(){
       const { data, error } = await supabaseClient.rpc('cancel_guestlist_request', { p_request_id: r.id, p_event_id: ev ? ev.id : null });
       if(error || !data || !data.success) throw error || new Error((data && data.reason) || 'failed');
       rel.textContent = 'Spot released — thanks for letting us know';
-      if(ev){ try{ fetch('/api/waitlist-notify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event_id: ev.id }) }); } catch(e){} }
+      if(ev){ try{ fetch(API_BASE + '/api/waitlist-notify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event_id: ev.id }) }); } catch(e){} }
       AppSound.play('release');
       setTimeout(function(){ loadNextNight(); if(typeof loadMyRequests === 'function') loadMyRequests(); if(typeof loadLiveGuestlists === 'function') loadLiveGuestlists(); }, 1200);
     } catch(err){
@@ -3336,7 +3439,7 @@ function showPointsToast(n){
    ================================================================ */
 function pushAskHtml(){
   try{
-    if(typeof pushSupported !== 'undefined' && pushSupported && Notification.permission === 'default'){
+    if(typeof pushSupported !== 'undefined' && pushSupported && pushPermission() === 'default'){
       return '<div class="push-ask"><div class="push-ask__title">Know the second you’re in</div>' +
         '<p class="push-ask__text">Turn on notifications and we’ll tell you the moment you’re approved, remind you on the night, and ping you when a spot opens up.</p>' +
         '<button type="button" class="btn btn--solid push-ask__btn">Turn on notifications</button></div>';
@@ -3355,7 +3458,7 @@ function bindPushAsk(root){
     btn.disabled = true; btn.textContent = 'One moment…';
     await subscribeToPush();
     const box = btn.closest('.push-ask');
-    if(Notification.permission === 'granted'){
+    if(pushPermission() === 'granted'){
       box.classList.add('is-done');
       box.innerHTML = '<div class="push-ask__title">Notifications on ✓</div>';
       AppSound.play('success');

@@ -34,6 +34,7 @@
 // package.json for the push notification feature.
 
 const webpush = require('web-push');
+const { sendPush: sendAnyPush } = require('./_push');
 const { createClient } = require('@supabase/supabase-js');
 
 const POINTS_PER_APPROVAL = 10;
@@ -89,7 +90,7 @@ async function sendPush(supabase, userId, title, body) {
 
   await Promise.all(subs.map(async function (sub) {
     try {
-      await webpush.sendNotification(
+      await sendAnyPush(webpush, 
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
         payload
       );

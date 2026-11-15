@@ -21,6 +21,7 @@
 // notify-new-account.js's "resend" dependency lives).
 
 const webpush = require('web-push');
+const { sendPush: sendAnyPush } = require('./_push');
 const { createClient } = require('@supabase/supabase-js');
 
 module.exports = async function handler(req, res) {
@@ -82,7 +83,7 @@ module.exports = async function handler(req, res) {
 
     await Promise.all((subs || []).map(async function (sub) {
       try {
-        await webpush.sendNotification(
+        await sendAnyPush(webpush, 
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
           payload
         );

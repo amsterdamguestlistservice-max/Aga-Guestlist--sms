@@ -13,6 +13,8 @@
   let available = false;    // salon tables exist
   let member = null;        // my salon_members row (private chats), or null
   let members = [];         // all salon members (visible to members only)
+  const BANNED_MSG = 'You can no longer use the Backroom because of reports from other members.';
+  function banned(e){ return !!(e && String(e.message || '').indexOf('AGS_BANNED') >= 0); }
   let blocked = new Set();  // ids I blocked
   let messages = [];        // my private messages, newest first
   let parties = [];         // my requests for upcoming parties
@@ -133,7 +135,7 @@
     const btn = $('salonJoinBtn'); btn.disabled = true;
     const res = await sb.from('salon_members').insert({ user_id: me.id, display_name: name }).select().single();
     btn.disabled = false;
-    if(res.error){ err.textContent = 'Could not join right now. Please try again.'; err.style.display = 'block'; return; }
+    if(res.error){ err.textContent = banned(res.error) ? BANNED_MSG : 'Could not join right now. Please try again.'; err.style.display = 'block'; return; }
     member = res.data;
     tab = 'convos';
     showView('main'); syncTabs();
@@ -408,7 +410,7 @@
         .select('id,sender_id,body,created_at').single();
       btn.disabled = false;
       if(res.error || !res.data){
-        err.textContent = 'Message not sent. This Backroom is only open to approved guests.';
+        err.textContent = banned(res.error) ? BANNED_MSG : 'Message not sent. This Backroom is only open to approved guests.';
         err.style.display = 'block';
         return;
       }
@@ -423,7 +425,7 @@
       .select('id,sender_id,recipient_id,body,created_at,read_at').single();
     btn.disabled = false;
     if(res.error || !res.data){
-      err.textContent = 'Message not sent. This member may have left or blocked you.';
+      err.textContent = banned(res.error) ? BANNED_MSG : 'Message not sent. This member may have left or blocked you.';
       err.style.display = 'block';
       return;
     }

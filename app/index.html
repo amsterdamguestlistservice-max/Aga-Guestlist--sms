@@ -955,6 +955,17 @@ body{ background:#020202; }
 /* polish pass: comfortable tap targets */
 #forgotPasswordLink{ min-height:44px; padding:10px 6px; display:inline-flex; align-items:center; }
 #contactBackBtn{ min-height:44px; padding:10px 12px 10px 0; display:inline-flex; align-items:center; }
+
+/* legal + account deletion */
+.legal-links{ display:flex; justify-content:center; flex-wrap:wrap; gap:8px; margin:16px 0 4px; font-size:12px; color:var(--muted); }
+.legal-links a{ color:var(--muted); text-decoration:underline; text-underline-offset:3px; min-height:32px; display:inline-flex; align-items:center; }
+.account-delete{ display:block; width:100%; background:none; border:0; color:#c9707e; font-size:12px; letter-spacing:0.04em; padding:12px; min-height:44px; text-decoration:underline; text-underline-offset:3px; }
+.legal-note{ font-size:12px; color:var(--muted); text-align:center; line-height:1.5; margin:12px 0 0; }
+.legal-note a{ color:var(--gold-light); }
+.salon-rules a{ color:var(--gold-light); }
+.del-input{ width:100%; box-sizing:border-box; padding:13px 14px; background:#0c0c0c; border:1px solid var(--line); color:#fff; font-size:16px; letter-spacing:0.2em; text-transform:uppercase; margin:6px 0 12px; }
+.btn--danger{ background:#6b1f2b !important; border-color:#8a2a38 !important; color:#fff !important; }
+.btn--danger:disabled{ opacity:0.45; }
 </style>
 </head>
 <body class="is-gated">
@@ -1316,6 +1327,7 @@ body{ background:#020202; }
         </div>
         <div class="err is-visible" id="signupError" style="display:none;"></div>
         <button type="submit" class="btn btn--solid" style="width:100%;">Create Account</button>
+        <p class="legal-note">By creating an account you agree to our <a href="https://www.amsterdamguestlistservice.website/terms" target="_blank" rel="noopener">Terms</a> and <a href="https://www.amsterdamguestlistservice.website/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</p>
       </form>
     </div>
 
@@ -1368,6 +1380,12 @@ body{ background:#020202; }
       <button type="button" class="account-link" id="openContactBtn"><span>Tables, Inner Circle &amp; contact</span><span aria-hidden="true">→</span></button>
       <button type="button" class="sound-toggle" id="soundToggle" aria-pressed="true"><span class="sound-toggle__icon" aria-hidden="true">♪</span><span id="soundToggleLabel">App sounds: On</span></button>
       <button type="button" class="account-signout" id="signOutBtn">Sign Out</button>
+      <nav class="legal-links" aria-label="Legal">
+        <a href="https://www.amsterdamguestlistservice.website/privacy" target="_blank" rel="noopener">Privacy Policy</a><span aria-hidden="true">·</span>
+        <a href="https://www.amsterdamguestlistservice.website/terms" target="_blank" rel="noopener">Terms</a><span aria-hidden="true">·</span>
+        <a href="https://www.amsterdamguestlistservice.website/support" target="_blank" rel="noopener">Support</a>
+      </nav>
+      <button type="button" class="account-delete" id="deleteAccountBtn">Delete my account</button>
 
       <div class="my-requests" id="myRequestsList" style="margin-top:20px;">
         <!-- rendered by JS -->
@@ -1560,7 +1578,8 @@ body{ background:#020202; }
       <ul class="salon-rules">
         <li>Be respectful. No harassment, spam or selling.</li>
         <li>Conversations are private between you and the other person.</li>
-        <li>You can block or report any member.</li>
+        <li>You can block or report any member. Reports are reviewed by AGS within 24 hours.</li>
+<li>Full rules: <a href="https://www.amsterdamguestlistservice.website/terms#backroom" target="_blank" rel="noopener">Terms of Use</a>.</li>
         <li>If you leave, your conversations are deleted.</li>
       </ul>
       <label class="salon-check"><input type="checkbox" id="salonJoinRules"> <span>I agree to these rules.</span></label>

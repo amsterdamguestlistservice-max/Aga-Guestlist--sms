@@ -19,6 +19,7 @@
 // optional RESEND_API_KEY + RESEND_GUEST_FROM.
 
 const webpush = require('web-push');
+const { sendPush: sendAnyPush } = require('./_push');
 const { createClient } = require('@supabase/supabase-js');
 const { sendGuestEmail } = require('./_guest-email');
 const { notifyForEvent } = require('./waitlist-notify');
@@ -52,7 +53,7 @@ async function pushReminder(supabase, r, text) {
   let pushed = 0;
   await Promise.all(subs.map(async function (sub) {
     try {
-      await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload);
+      await sendAnyPush(webpush, { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload);
       pushed++;
     } catch (err) {
       if (err && (err.statusCode === 404 || err.statusCode === 410)) {

@@ -21,6 +21,7 @@
 
 const reviewToken = require('./_review-token');
 const webpush = require('web-push');
+const { sendPush: sendAnyPush } = require('./_push');
 const { createClient } = require('@supabase/supabase-js');
 
 
@@ -50,7 +51,7 @@ async function pushToGuest(record) {
   let pushed = 0;
   await Promise.all(subs.map(async function (sub) {
     try {
-      await webpush.sendNotification(
+      await sendAnyPush(webpush, 
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
         payload
       );

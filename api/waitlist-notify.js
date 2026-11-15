@@ -11,6 +11,7 @@
 // so one free spot doesn't alert the whole waitlist at once.
 
 const webpush = require('web-push');
+const { sendPush: sendAnyPush } = require('./_push');
 const { createClient } = require('@supabase/supabase-js');
 const { sendGuestEmail } = require('./_guest-email');
 
@@ -24,7 +25,7 @@ async function pushTo(supabase, userId, title, body) {
   const payload = JSON.stringify({ title: title, body: body, url: './index.html' });
   let n = 0;
   await Promise.all(subs.map(async function (s) {
-    try { await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload); n++; }
+    try { await sendAnyPush(webpush, { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload); n++; }
     catch (err) { if (err && (err.statusCode === 404 || err.statusCode === 410)) await supabase.from('push_subscriptions').delete().eq('endpoint', s.endpoint); }
   }));
   return n;
@@ -79,6 +80,7 @@ async function notifyForEvent(supabase, eventId) {
 }
 
 module.exports = async function handler(req, res) {
+  if (require('./_cors')(req, res)) return;
   if (req.method !== 'POST') { res.status(405).json({ ok: false }); return; }
   const eventId = String((req.body && req.body.event_id) || '').slice(0, 120);
   if (!/^[a-z0-9-]+$/i.test(eventId)) { res.status(400).json({ ok: false }); return; }
