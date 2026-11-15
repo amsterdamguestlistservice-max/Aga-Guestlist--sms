@@ -635,11 +635,11 @@ const EVENTS = [
     date: "2026-11-27",
     time: "23:00",
     venue: "Chin Chin Club · Amsterdam",
-    description: "Roza at Chin Chin Club. Line-up coming soon.",
+    image: "events/roza-2026-11-27.jpg",
+    description: "Roza at Chin Chin Club with Brayen, Djay, Mick Moscou and Pequeno. 23:00 till 05:00. Dresscode: black, white, red.",
     guestlistStatus: "limited",
     ticketUrl: "#",
     guestlistUrl: "#guestlist",
-    flyerPending: true, // recurring night (4th Friday) — add the flyer when it's in
     featured: false,
     countdownEnabled: false
   },
