@@ -207,6 +207,37 @@ body.is-gated #tab-account{ display:block !important; }
 .sheet__media img{ max-width:75%; max-height:75%; object-fit:contain; }
 .sheet__body{ padding:20px 20px 8px; }
 
+/* ===== Your next night ===== */
+.next-night{ margin:0 18px 22px; border:1px solid var(--line); border-top:2px solid var(--gold); background:var(--charcoal); padding:18px 18px 16px; animation:glive-in 0.4s var(--ease); }
+.next-night__eyebrow{ font-size:10.5px; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.next-night__pill{ font-size:9.5px; font-weight:700; letter-spacing:0.16em; padding:5px 10px; border:1px solid var(--gold); color:var(--gold-light); white-space:nowrap; }
+.next-night__pill.is-confirmed{ background:var(--gold); color:var(--black); }
+.next-night__pill.is-tonight{ background:var(--gold-light); color:var(--black); border-color:var(--gold-light); }
+.next-night__name{ font-family:var(--serif); font-size:26px; line-height:1.15; color:var(--white); margin-bottom:4px; cursor:pointer; }
+.next-night__meta{ font-size:13px; color:var(--muted); margin-bottom:14px; }
+.next-night__actions{ display:flex; gap:8px; }
+.next-night__actions .btn{ flex:1; padding:11px 6px; font-size:10.5px; }
+.next-night__release{ display:block; margin:12px auto 0; background:none; border:none; color:var(--muted); font-size:12px; text-decoration:underline; cursor:pointer; padding:4px; }
+.next-night__release.is-armed{ color:#e57373; }
+.next-night__more{ font-size:12px; color:var(--muted); margin-top:10px; text-align:center; }
+
+/* ===== One-tap request sheet ===== */
+.quick-sheet__body{ padding:14px 22px 6px; }
+.quick-sheet__eyebrow{ font-size:10.5px; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; }
+.quick-sheet__title{ font-family:var(--serif); font-size:28px; line-height:1.15; color:var(--white); margin-bottom:4px; }
+.quick-sheet__meta{ font-size:13px; color:var(--muted); margin-bottom:18px; }
+.quick-sheet__details{ border:1px solid var(--line); background:var(--charcoal-2); padding:4px 14px; margin-bottom:16px; }
+.quick-sheet__row{ display:flex; justify-content:space-between; gap:12px; padding:11px 0; font-size:14px; border-bottom:1px solid var(--line); }
+.quick-sheet__row:last-child{ border-bottom:none; }
+.quick-sheet__row span:first-child{ color:var(--muted); font-size:11px; letter-spacing:0.14em; text-transform:uppercase; padding-top:2px; }
+.quick-sheet__row span:last-child{ color:var(--white); text-align:right; }
+.quick-sheet__note{ font-size:12px; color:var(--muted); line-height:1.6; margin-bottom:16px; }
+.quick-sheet__btns{ display:flex; flex-direction:column; gap:10px; }
+.quick-sheet__btns .btn{ width:100%; }
+.quick-sheet__link{ display:block; margin:12px auto 4px; background:none; border:none; color:var(--gold-light); font-size:12px; text-decoration:underline; cursor:pointer; padding:6px; }
+.quick-sheet__done{ text-align:center; padding:10px 0 4px; }
+.quick-sheet__done .gl-success__mark{ margin:0 auto 14px; }
+
 /* ===== Welcome popup ===== */
 .welcome-overlay{
   align-items: stretch;
@@ -866,6 +897,7 @@ body{ -webkit-font-smoothing:antialiased; }
       <h1>Upcoming Events</h1>
       <p>Amsterdam nightlife, curated.</p>
     </div>
+    <div class="next-night" id="nextNight" hidden><!-- rendered by JS --></div>
     <div class="venue-filter" id="venueFilter"><!-- rendered by JS --></div>
     <div class="event-list" id="eventList"><!-- rendered by JS --></div>
 
@@ -1369,5 +1401,13 @@ body{ -webkit-font-smoothing:antialiased; }
 <script src="supabase-config.js"></script>
 <script src="app.js"></script>
 <script src="salon.js"></script>
+
+  <!-- One-tap guestlist request -->
+  <div class="sheet-overlay" id="quickOverlay" aria-hidden="true">
+    <div class="sheet quick-sheet" role="dialog" aria-modal="true" aria-labelledby="quickTitle">
+      <div class="sheet__handle"></div>
+      <div class="quick-sheet__body" id="quickBody"><!-- rendered by JS --></div>
+    </div>
+  </div>
 </body>
 </html>

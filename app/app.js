@@ -1220,8 +1220,12 @@ function openEventSheet(ev){
 
   const glBtn = document.getElementById('sheetGuestlistBtn');
   if(glBtn){
-    glBtn.addEventListener('click', function(){
+    glBtn.addEventListener('click', async function(){
+      glBtn.disabled = true;
+      const handled = await tryQuickRequest(ev);
+      glBtn.disabled = false;
       closeEventSheet();
+      if(handled){ openQuickSheet(); return; }
       resetGuestlistFormForNext();
       switchTab('guestlist');
       preselectEvent(ev);
@@ -1560,6 +1564,7 @@ document.getElementById('glForm').addEventListener('submit', async function(e){
   document.getElementById('glSpotNotice').style.display = 'none';
   document.getElementById('glSuccess').classList.add('is-visible');
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  if(typeof loadNextNight === 'function') loadNextNight();
 });
 
 /* ================================================================
@@ -1795,6 +1800,7 @@ function showAccountPanel(user){
   if(typeof salonInit === 'function') salonInit(user);
   prefillGuestlistForm();
   resumePendingGuestlistEvent();
+  loadNextNight();
 }
 
 // Tiers are purely derived from the points total — no extra database
@@ -2131,6 +2137,7 @@ document.getElementById('signupForm').addEventListener('submit', async function(
 document.getElementById('signOutBtn').addEventListener('click', async function(){
   if(supabaseClient){ await supabaseClient.auth.signOut(); }
   currentUser = null;
+  if(typeof loadNextNight === 'function') loadNextNight();
   if(typeof salonStop === 'function') salonStop();
   lockAppBehindGate();
 });
@@ -2570,3 +2577,217 @@ async function saveRequestToAccount(payload){
     checkNotificationGate();
   });
 })();
+
+/* ================================================================
+   YOUR NEXT NIGHT — the guest's next request, right on the home screen
+   ================================================================ */
+function escHtml(v){
+  return String(v === null || v === undefined ? '' : v).replace(/[&<>"']/g, function(ch){
+    return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch];
+  });
+}
+function todayAmsterdam(){
+  try{ return new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' }); }
+  catch(e){ return new Date().toISOString().slice(0, 10); }
+}
+function findEventFor(name, date){
+  return EVENTS.find(function(e){ return e.name === name && e.date === String(date).slice(0, 10); }) || null;
+}
+function mapsLinkFor(venue){
+  const parts = String(venue || '').split('·');
+  return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent((parts[0] || '').trim() + ', ' + ((parts[1] || 'Amsterdam').trim()));
+}
+let nextNightRows = [];
+
+async function loadNextNight(){
+  const box = document.getElementById('nextNight');
+  if(!box) return;
+  if(!supabaseClient || !currentUser){ box.hidden = true; box.innerHTML = ''; return; }
+  try{
+    const { data } = await supabaseClient
+      .from('guestlist_requests')
+      .select('id,event_name,event_venue,event_date,status,total_guests')
+      .eq('user_id', currentUser.id)
+      .gte('event_date', todayAmsterdam())
+      .order('event_date', { ascending: true });
+    nextNightRows = (data || []).filter(function(r){
+      const st = String(r.status || 'Pending').trim().toLowerCase();
+      return st === 'pending' || st === 'approved';
+    });
+  } catch(err){ nextNightRows = []; }
+  renderNextNight();
+}
+
+function renderNextNight(){
+  const box = document.getElementById('nextNight');
+  if(!box) return;
+  const r = nextNightRows[0];
+  if(!r){ box.hidden = true; box.innerHTML = ''; return; }
+  const ev = findEventFor(r.event_name, r.event_date);
+  const approved = String(r.status || '').trim().toLowerCase() === 'approved';
+  const tonight = approved && String(r.event_date).slice(0, 10) === todayAmsterdam();
+  const pill = tonight ? '<span class="next-night__pill is-tonight">Tonight</span>'
+    : approved ? '<span class="next-night__pill is-confirmed">Confirmed</span>'
+    : '<span class="next-night__pill">Under review</span>';
+  const guests = (r.total_guests || 1) > 1 ? r.total_guests + ' people' : 'Just you';
+  const meta = formatDate(String(r.event_date).slice(0, 10)) + (ev && ev.time ? ' · ' + ev.time : '') + ' · ' + escHtml(String(r.event_venue || '').split('·')[0].trim()) + ' · ' + guests;
+  box.innerHTML =
+    '<div class="next-night__eyebrow"><span>Your next night</span>' + pill + '</div>' +
+    '<div class="next-night__name" id="nextNightName">' + escHtml(r.event_name) + '</div>' +
+    '<div class="next-night__meta">' + meta + '</div>' +
+    (approved ? '' : '<div class="next-night__meta" style="margin-top:-8px;">We’ll notify you as soon as you’re approved.</div>') +
+    '<div class="next-night__actions">' +
+      '<a class="btn" href="' + mapsLinkFor(r.event_venue) + '" target="_blank" rel="noopener">Route</a>' +
+      (ev ? '<button type="button" class="btn" id="nextNightCal">Calendar</button>' : '') +
+      (ev ? '<button type="button" class="btn" id="nextNightDetails">Details</button>' : '') +
+    '</div>' +
+    '<button type="button" class="next-night__release" id="nextNightRelease">Can’t make it? Release your spot</button>' +
+    (nextNightRows.length > 1 ? '<div class="next-night__more">+ ' + (nextNightRows.length - 1) + ' more upcoming request' + (nextNightRows.length > 2 ? 's' : '') + ' in your account</div>' : '');
+  box.hidden = false;
+
+  if(ev){
+    document.getElementById('nextNightCal').addEventListener('click', function(){ addEventToCalendar(ev); });
+    document.getElementById('nextNightDetails').addEventListener('click', function(){ openEventSheet(ev); });
+    document.getElementById('nextNightName').addEventListener('click', function(){ openEventSheet(ev); });
+  }
+  // Two taps to release, so it never happens by accident.
+  const rel = document.getElementById('nextNightRelease');
+  rel.addEventListener('click', async function(){
+    if(!rel.classList.contains('is-armed')){
+      rel.classList.add('is-armed');
+      rel.textContent = 'Tap again to release your spot';
+      setTimeout(function(){ if(rel.isConnected && rel.classList.contains('is-armed')){ rel.classList.remove('is-armed'); rel.textContent = 'Can’t make it? Release your spot'; } }, 5000);
+      return;
+    }
+    rel.disabled = true; rel.textContent = 'Releasing…';
+    try{
+      const { data, error } = await supabaseClient.rpc('cancel_guestlist_request', { p_request_id: r.id, p_event_id: ev ? ev.id : null });
+      if(error || !data || !data.success) throw error || new Error((data && data.reason) || 'failed');
+      rel.textContent = 'Spot released — thanks for letting us know';
+      setTimeout(function(){ loadNextNight(); if(typeof loadMyRequests === 'function') loadMyRequests(); if(typeof loadLiveGuestlists === 'function') loadLiveGuestlists(); }, 1200);
+    } catch(err){
+      rel.disabled = false; rel.classList.remove('is-armed');
+      rel.textContent = 'Could not release — try again';
+    }
+  });
+}
+
+/* ================================================================
+   ONE-TAP GUESTLIST REQUEST
+   Guests whose details we already have confirm in one tap instead of
+   filling in the form. Anything unusual (extra guests, events that need
+   per-guest emails, missing details) goes to the normal form.
+   ================================================================ */
+async function savedGuestDetails(){
+  if(!supabaseClient || !currentUser) return null;
+  try{
+    const { data } = await supabaseClient
+      .from('guestlist_requests')
+      .select('first_name,last_name,age,instagram,phone,email,gender')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    const d = data && data[0];
+    if(!d || !d.first_name || !d.last_name || !d.age || !d.phone || !d.email) return null;
+    return d;
+  } catch(err){ return null; }
+}
+
+// The sheet markup sits after this script in index.html, so bind lazily.
+function quickOverlayEl(){
+  const el = document.getElementById('quickOverlay');
+  if(el && !el.dataset.bound){
+    el.dataset.bound = '1';
+    el.addEventListener('click', function(e){ if(e.target === el) closeQuickSheet(); });
+  }
+  return el;
+}
+function openQuickSheet(){ const el = quickOverlayEl(); if(!el) return; el.classList.add('is-open'); document.body.style.overflow = 'hidden'; }
+function closeQuickSheet(){ const el = quickOverlayEl(); if(!el) return; el.classList.remove('is-open'); document.body.style.overflow = ''; }
+
+function goToFullForm(ev, guestCount){
+  closeQuickSheet();
+  resetGuestlistFormForNext();
+  switchTab('guestlist');
+  preselectEvent(ev);
+  if(guestCount){ document.getElementById('glGuestCount').value = String(guestCount); rebuildAdditionalGuests(); }
+  prefillGuestlistForm();
+  document.getElementById('glSpotNotice').style.display = 'none';
+}
+
+// Returns true when the one-tap sheet took over; false -> use the form.
+async function tryQuickRequest(ev){
+  if(!currentUser || !ev || eventNeedsGuestEmails(ev)) return false;
+  const d = await savedGuestDetails();
+  if(!d) return false;
+  if(parseInt(d.age, 10) < eventMinAge(ev)) return false;
+  if(eventNeedsGender(ev) && !d.gender) return false;
+
+  // Already requested this night? Show that instead of a duplicate.
+  const dup = (nextNightRows || []).find(function(r){ return r.event_name === ev.name && String(r.event_date).slice(0, 10) === ev.date; });
+  const body = document.getElementById('quickBody');
+  const head =
+    '<div class="quick-sheet__eyebrow">Guestlist</div>' +
+    '<div class="quick-sheet__title" id="quickTitle">' + escHtml(ev.name) + '</div>' +
+    '<div class="quick-sheet__meta">' + formatDate(ev.date) + (ev.time ? ' · ' + escHtml(ev.time) : '') + ' · ' + escHtml(eventVenueName(ev)) + '</div>';
+  if(dup){
+    const approved = String(dup.status || '').toLowerCase() === 'approved';
+    body.innerHTML = head +
+      '<p class="quick-sheet__note">You already requested this night' + (approved ? ' and you’re on the list.' : ' — it’s under review.') + '</p>' +
+      '<div class="quick-sheet__btns"><button type="button" class="btn btn--solid" id="quickClose">OK</button></div>';
+    openQuickSheet();
+    document.getElementById('quickClose').addEventListener('click', closeQuickSheet);
+    return true;
+  }
+
+  const name = escHtml(d.first_name + ' ' + d.last_name);
+  body.innerHTML = head +
+    '<div class="quick-sheet__details">' +
+      '<div class="quick-sheet__row"><span>Name on the list</span><span>' + name + '</span></div>' +
+      '<div class="quick-sheet__row"><span>Phone</span><span>' + escHtml(d.phone) + '</span></div>' +
+      '<div class="quick-sheet__row"><span>Guests</span><span>Just you</span></div>' +
+    '</div>' +
+    '<p class="quick-sheet__note">By confirming you confirm you are ' + eventMinAge(ev) + '+ and agree to be contacted about this request.</p>' +
+    '<div class="err" id="quickErr" style="margin-bottom:12px;"></div>' +
+    '<div class="quick-sheet__btns">' +
+      '<button type="button" class="btn btn--solid" id="quickConfirm">Confirm request</button>' +
+      '<button type="button" class="btn" id="quickAddGuests">Bringing friends? Add guests</button>' +
+    '</div>' +
+    '<button type="button" class="quick-sheet__link" id="quickEdit">Change my details</button>';
+  openQuickSheet();
+
+  document.getElementById('quickAddGuests').addEventListener('click', function(){ goToFullForm(ev, 1); });
+  document.getElementById('quickEdit').addEventListener('click', function(){ goToFullForm(ev, 0); });
+  document.getElementById('quickConfirm').addEventListener('click', async function(){
+    const btn = this;
+    btn.disabled = true; btn.textContent = 'Sending…';
+    const payload = {
+      event: { name: ev.name, venue: ev.venue, date: ev.date },
+      mainGuest: {
+        firstName: d.first_name, lastName: d.last_name, age: String(d.age),
+        instagram: d.instagram || 'None', phone: d.phone, email: d.email,
+        gender: eventNeedsGender(ev) ? (d.gender || '') : ''
+      },
+      additionalGuests: [],
+      totalGuests: 1,
+      consent: true
+    };
+    const ok = await saveRequestToAccount(payload);
+    if(!ok){
+      btn.disabled = false; btn.textContent = 'Confirm request';
+      const e = document.getElementById('quickErr');
+      e.textContent = lastSaveBlockMessage || 'Your request could not be sent. Check your connection and try again.';
+      e.classList.add('is-visible');
+      return;
+    }
+    body.innerHTML = head +
+      '<div class="quick-sheet__done"><div class="gl-success__mark">✓</div>' +
+      '<p class="quick-sheet__note">Request sent. We’ll review it and let you know as soon as you’re on the list.</p></div>' +
+      '<div class="quick-sheet__btns"><button type="button" class="btn btn--solid" id="quickDone">Done</button></div>';
+    document.getElementById('quickDone').addEventListener('click', closeQuickSheet);
+    loadNextNight();
+    if(typeof loadMyRequests === 'function') loadMyRequests();
+    if(typeof loadGuestCounts === 'function') loadGuestCounts().then(function(){ if(typeof renderAllGuestlistPanels === 'function') renderAllGuestlistPanels(); });
+  });
+  return true;
+}
