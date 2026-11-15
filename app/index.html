@@ -883,6 +883,52 @@ body{ background:#020202; }
 .account-link span:last-child{ color:var(--gold-light); font-size:16px; }
 .back-link{ background:none; border:none; color:var(--gold-light); font-size:11px; letter-spacing:0.14em; text-transform:uppercase; padding:0 0 10px; }
 @media (prefers-reduced-motion: reduce){ .auto-poster__light, .auto-poster__beam, .night-head span::after{ animation:none !important; } }
+
+/* ===== Feature pass: waitlist, story share, tonight pass, points ===== */
+.glive.is-waitlist{ border-color:rgba(201,162,74,0.45); }
+.glive__wait-btn{ width:100%; padding:13px; background:transparent; border:1px solid var(--gold); color:var(--gold-light); font-size:11.5px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; }
+.glive__wait-btn[disabled]{ border-color:var(--line); color:var(--muted); }
+.glive.is-waitlist .glive__spots strong{ color:var(--gold-light); }
+.next-night__pass{ width:100%; margin:0 0 10px; }
+.next-night__share{ display:block; margin:12px auto 0; background:none; border:none; color:var(--gold-light); font-size:12px; letter-spacing:0.08em; text-transform:uppercase; padding:4px; }
+.story-preview{ position:fixed; inset:0; z-index:80; background:rgba(0,0,0,0.88); display:none; align-items:center; justify-content:center; padding:20px; }
+.story-preview.is-open{ display:flex; }
+.story-preview__inner{ max-width:340px; width:100%; text-align:center; }
+.story-preview__inner img{ width:100%; border:1px solid var(--line); margin-bottom:14px; box-shadow:0 0 40px rgba(201,162,74,0.3); }
+.story-preview__inner p{ font-size:13px; color:var(--muted); margin-bottom:14px; line-height:1.5; }
+.story-preview__inner .btn{ width:100%; }
+.story-preview__close{ margin-top:12px; background:none; border:none; color:var(--muted); text-decoration:underline; font-size:12px; }
+.tonight{ position:fixed; inset:0; z-index:90; background:#030303; display:none; overflow-y:auto; padding:calc(24px + env(safe-area-inset-top)) 22px calc(28px + env(safe-area-inset-bottom)); }
+.tonight.is-open{ display:block; animation:glive-in 0.45s var(--ease); }
+.tonight__glow{ position:fixed; inset:-20%; background:radial-gradient(circle at 25% 20%, rgba(230,180,70,0.45), transparent 45%), radial-gradient(circle at 85% 55%, rgba(210,20,60,0.45), transparent 45%), radial-gradient(circle at 30% 95%, rgba(120,50,230,0.4), transparent 45%); filter:blur(30px); animation:club-drift-a 10s ease-in-out infinite alternate; pointer-events:none; }
+.tonight__close{ position:fixed; top:calc(16px + env(safe-area-inset-top)); right:16px; z-index:2; width:40px; height:40px; border-radius:50%; background:rgba(0,0,0,0.5); border:1px solid var(--line); color:var(--white); font-size:15px; }
+.tonight__inner{ position:relative; z-index:1; max-width:440px; margin:0 auto; text-align:center; padding-top:30px; }
+.tonight__eyebrow{ display:inline-flex; align-items:center; gap:10px; font-size:10.5px; letter-spacing:0.28em; text-transform:uppercase; color:var(--gold-light); margin-bottom:18px; }
+.tonight__dot{ width:9px; height:9px; border-radius:50%; background:#ff3b5c; animation:live-pulse 1.8s ease-out infinite; }
+.tonight__name{ font-family:var(--serif); font-size:clamp(44px, 13vw, 64px); line-height:1; font-weight:600; background:linear-gradient(180deg, #fff3cf, #e6c875 50%, #b88a2e); -webkit-background-clip:text; background-clip:text; color:transparent; margin-bottom:12px; }
+.tonight__venue{ font-size:13px; letter-spacing:0.18em; text-transform:uppercase; color:var(--white); }
+.tonight__count{ margin:22px 0 24px; font-size:15px; color:var(--muted); }
+.tonight__count strong{ color:var(--white); font-size:22px; font-weight:600; margin-left:4px; }
+.tonight__pass{ border:1px solid rgba(201,162,74,0.6); background:rgba(10,10,10,0.6); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); padding:22px 18px; margin-bottom:22px; box-shadow:0 0 40px -10px rgba(201,162,74,0.6); }
+.tonight__label{ font-size:10px; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); }
+.tonight__guest{ font-family:var(--serif); font-size:34px; color:var(--white); margin:8px 0 10px; }
+.tonight__rules{ list-style:none; text-align:left; margin:0 auto 24px; max-width:340px; }
+.tonight__rules li{ font-size:13.5px; color:var(--white); padding:9px 0 9px 26px; position:relative; border-bottom:1px solid rgba(255,255,255,0.06); }
+.tonight__rules li::before{ content:'\2713'; position:absolute; left:2px; color:var(--gold-light); }
+.tonight__btns{ display:flex; flex-direction:column; gap:10px; }
+.tonight__btns .btn{ width:100%; }
+.points-strip{ margin:0 18px 16px; padding:13px 16px 12px; border:1px solid var(--line); background:rgba(12,12,12,0.62); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); cursor:pointer; }
+.points-strip__top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:9px; }
+.points-strip__tier{ font-size:10.5px; font-weight:700; letter-spacing:0.22em; text-transform:uppercase; color:#d9a46a; }
+.points-strip__tier.is-silver{ color:#d8d8d8; } .points-strip__tier.is-gold{ color:var(--gold-light); } .points-strip__tier.is-vip{ color:#fff; text-shadow:0 0 10px rgba(230,200,117,0.8); }
+.points-strip__pts{ font-size:12px; color:var(--muted); } .points-strip__pts strong{ color:var(--white); font-size:16px; }
+.points-strip__bar{ height:4px; background:rgba(255,255,255,0.08); overflow:hidden; }
+.points-strip__bar div{ height:100%; background:linear-gradient(90deg, #b88a2e, #e6c875); box-shadow:0 0 10px rgba(230,200,117,0.7); }
+.points-strip__next{ font-size:11px; color:var(--muted); margin-top:8px; }
+.points-toast{ position:fixed; left:50%; top:30%; z-index:95; transform:translate(-50%, 20px) scale(0.9); opacity:0; pointer-events:none; text-align:center; font-size:14px; letter-spacing:0.2em; text-transform:uppercase; color:var(--gold-light); transition:all 0.5s var(--ease); text-shadow:0 0 20px rgba(230,200,117,0.7); }
+.points-toast span{ display:block; font-family:var(--serif); font-size:84px; letter-spacing:0; font-weight:600; background:linear-gradient(180deg, #fff3cf, #e6c875 50%, #b88a2e); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.points-toast.is-in{ opacity:1; transform:translate(-50%, 0) scale(1); }
+@media (prefers-reduced-motion: reduce){ .tonight__glow, .tonight__dot{ animation:none !important; } }
 </style>
 </head>
 <body class="is-gated">
@@ -1026,6 +1072,7 @@ body{ background:#020202; }
       <h1 id="eventsHeadline">Upcoming Events</h1>
       <p>Amsterdam nightlife, curated.</p>
     </div>
+    <div class="points-strip" id="pointsStrip" hidden><!-- rendered by JS --></div>
     <div class="next-night" id="nextNight" hidden><!-- rendered by JS --></div>
     <div class="venue-filter" id="venueFilter"><!-- rendered by JS --></div>
     <div class="event-list" id="eventList"><!-- rendered by JS --></div>
@@ -1139,7 +1186,8 @@ body{ background:#020202; }
         <div class="gl-success__mark">✓</div>
         <h2>Request Submitted</h2>
         <p id="glSuccessMsg">Your request is ready. We'll review it and update the status in your account.</p>
-        <button type="button" class="btn" id="glAnotherBtn" style="width:100%;margin-top:18px;">Request another night</button>
+        <button type="button" class="btn btn--solid" id="glShareBtn" style="width:100%;margin-top:18px;">Share to your story</button>
+        <button type="button" class="btn" id="glAnotherBtn" style="width:100%;margin-top:10px;">Request another night</button>
       </div>
     </div>
   </section>

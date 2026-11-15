@@ -56,6 +56,20 @@ function venueParts(venue) {
 }
 
 const VARIANTS = {
+  waitlist: {
+    subject: function (r) { return 'A spot just opened \u2014 ' + (r.event_name || 'your night'); },
+    preheader: function (r) { return 'A guestlist spot for ' + (r.event_name || 'your night') + ' is free. First to claim it gets it.'; },
+    eyebrow: 'Waitlist',
+    heading: 'A spot just opened up',
+    status: { label: 'Claim now', filled: true },
+    intro: function (name) {
+      return 'Good news, ' + name + '. A guestlist spot for this night just became available. Spots go to whoever claims first, so be quick.';
+    },
+    noteTitle: 'How to claim',
+    note: 'Open the app, find the night and tap \u201cClaim your spot\u201d. If someone beats you to it, you stay on the waitlist.',
+    cta: 'Claim my spot',
+    hideGuestRows: true
+  },
   received: {
     subject: function (r) { return 'Request received — ' + (r.event_name || 'your event'); },
     preheader: function (r) { return 'Your guestlist request for ' + (r.event_name || 'your event') + ' is in. We\'ll let you know once it\'s approved.'; },
@@ -123,7 +137,7 @@ function renderGuestEmail(type, record, event) {
   const cancelHref = confirmed ? cancelToken.cancelUrl(r.id) : '';
   const firstName = (r.first_name && String(r.first_name).trim()) || 'there';
   const fullName = [r.first_name, r.last_name].filter(Boolean).join(' ').trim() || firstName;
-  const venue = venueParts(r.event_venue);
+  const venue = venueParts(r.event_venue || (event && event.venue));
 
   const pill = v.status.filled
     ? '<span style="display:inline-block;padding:6px 14px;background:' + C.gold + ';color:#000000;font-family:' + SANS + ';font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">' + esc(v.status.label) + '</span>'
@@ -133,8 +147,7 @@ function renderGuestEmail(type, record, event) {
     detailRow('Event', '<strong style="font-family:' + SERIF + ';font-size:17px;font-weight:normal;color:' + C.white + ';">' + esc(r.event_name) + '</strong>') +
     detailRow('Date', esc(prettyDate(r.event_date)) + (ev && ev.time ? '<br><span style="color:' + C.muted + ';font-size:13px;">From ' + esc(ev.time) + '</span>' : '')) +
     detailRow('Venue', esc(venue.name) + '<br><span style="color:' + C.muted + ';font-size:13px;">' + esc(venue.city) + '</span>') +
-    detailRow('Name on the list', esc(fullName)) +
-    detailRow('Guests', esc(partyLabel(r.total_guests)), true);
+    (v.hideGuestRows ? '' : detailRow('Name on the list', esc(fullName)) + detailRow('Guests', esc(partyLabel(r.total_guests)), true));
 
   const html =
 '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
@@ -233,8 +246,7 @@ function renderGuestEmail(type, record, event) {
     'Event: ' + (r.event_name || ''),
     'Date: ' + prettyDate(r.event_date) + (ev && ev.time ? ', from ' + ev.time : ''),
     'Venue: ' + venue.name + ', ' + venue.city,
-    'Name on the list: ' + fullName,
-    'Guests: ' + partyLabel(r.total_guests),
+    (v.hideGuestRows ? '' : 'Name on the list: ' + fullName + '\nGuests: ' + partyLabel(r.total_guests)),
     '',
     v.noteTitle + ': ' + v.note,
     '',

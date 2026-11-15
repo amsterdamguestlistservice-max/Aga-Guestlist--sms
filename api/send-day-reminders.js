@@ -21,6 +21,7 @@
 const webpush = require('web-push');
 const { createClient } = require('@supabase/supabase-js');
 const { sendGuestEmail } = require('./_guest-email');
+const { notifyForEvent } = require('./waitlist-notify');
 
 function isAuthorized(req) {
   const cron = process.env.CRON_SECRET;
@@ -110,7 +111,15 @@ module.exports = async function handler(req, res) {
       await supabase.from('guestlist_requests').update({ reminder_sent_at: new Date().toISOString() }).eq('id', r.id);
     }
 
-    res.status(200).json({ ok: true, date: today, requests: (rows || []).length, pushed, emailed, unreachable });
+    // Safety net: offer any free spots to people on a waitlist.
+    let waitlistNotified = 0;
+    try {
+      const { data: wl } = await supabase.from('guestlist_waitlist').select('event_id').is('notified_at', null);
+      const ids = Array.from(new Set((wl || []).map(function (w) { return w.event_id; })));
+      for (const id of ids) waitlistNotified += await notifyForEvent(supabase, id);
+    } catch (e) { /* ignore */ }
+
+    res.status(200).json({ ok: true, date: today, requests: (rows || []).length, pushed, emailed, unreachable, waitlistNotified });
   } catch (err) {
     res.status(500).json({ ok: false, error: String(err && err.message || err) });
   }

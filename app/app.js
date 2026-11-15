@@ -962,6 +962,7 @@ async function loadLiveGuestlists(){
     if(error || !data) return;
     data.forEach(function(row){ GUESTLIST_STATE[row.event_id] = row; });
     await loadGuestCounts();
+    await loadMyWaitlist();
     renderAllGuestlistPanels();
     startGuestlistTicker();
   } catch(err){
@@ -980,6 +981,16 @@ async function loadGuestCounts(){
     if(error || !data) return;
     data.forEach(function(row){ GUEST_COUNTS[row.event_name + '|' + row.event_date] = Number(row.guests) || 0; });
   } catch(err){ /* social proof is optional */ }
+}
+// Waitlist positions for the logged-in guest (event_id -> position).
+const MY_WAITLIST = {};
+async function loadMyWaitlist(){
+  if(!supabaseClient || !currentUser) return;
+  try{
+    const { data } = await supabaseClient.rpc('my_waitlist');
+    Object.keys(MY_WAITLIST).forEach(function(k){ delete MY_WAITLIST[k]; });
+    (data || []).forEach(function(r){ MY_WAITLIST[r.event_id] = r.pos; });
+  } catch(err){ /* optional */ }
 }
 function guestsOnList(ev){
   return ev ? (GUEST_COUNTS[ev.name + '|' + ev.date] || 0) : 0;
@@ -1019,6 +1030,16 @@ function renderGuestlistPanel(panelEl, eventId){
   if(urgency.locked){
     // Full or closed: no spot counter, bar or countdown — just say it's full.
     const closedText = msLeft <= 0 ? 'Guestlist closed' : 'Guestlist full';
+    const canWait = msLeft > 0 && state.enabled && urgency.spotsLeft <= 0 && !(ev && (ev.guestlistStatus === 'closed' || ev.ticketsSoldOut));
+    if(canWait){
+      const pos = MY_WAITLIST[eventId];
+      panelEl.className = 'glive is-locked is-waitlist';
+      panelEl.innerHTML =
+        '<div class="glive__label">Guestlist full</div>' +
+        '<div class="glive__spots">' + (pos ? 'You\u2019re <strong>#' + pos + '</strong> on the waitlist. We\u2019ll ping you the moment a spot opens.' : 'Spots open up when guests cancel. Join the waitlist and we\u2019ll ping you first.') + '</div>' +
+        '<button type="button" class="glive__wait-btn" data-event-id="' + eventId + '"' + (pos ? ' disabled' : '') + '>' + (pos ? 'On the waitlist ✓' : 'Join the waitlist') + '</button>';
+      return;
+    }
     panelEl.className = 'glive is-locked';
     panelEl.innerHTML =
       '<div class="glive__label">' + closedText + '</div>' +
@@ -1068,7 +1089,11 @@ function refreshCardBadges(){
     else if(ev.guestlistStatus === 'soon'){ text = 'Guestlist soon'; cls = 'is-soon'; }
     else if(state){
       const u = guestlistUrgencyInfo(state);
-      if(u.locked){ text = 'Guestlist full'; cls = 'is-closed'; }
+      if(u.locked){
+        const open = new Date(state.deadline).getTime() > Date.now() && state.enabled;
+        text = open ? (MY_WAITLIST[ev.id] ? 'Waitlist #' + MY_WAITLIST[ev.id] : 'Waitlist open') : 'Guestlist full';
+        cls = open ? 'is-open' : 'is-closed';
+      }
       else if(u.spotsLeft < SCARCITY_SHOW_BELOW){ text = 'Only ' + u.spotsLeft + ' left'; cls = 'is-hot'; }
       else if(onList >= SOCIAL_PROOF_MIN){ text = onList + ' on the list'; cls = 'is-hot'; }
       else { text = 'Guestlist open'; cls = 'is-open'; }
@@ -1474,6 +1499,7 @@ document.getElementById('glConsent').addEventListener('change', function(){ clea
    Only empty fields are filled, so nothing they typed is overwritten.
    --------------------------------------------------------------- */
 let pendingGuestlistEvent = null; // event to return to after logging in
+let lastRequestedEvent = null;   // for 'Share to your story' after a request
 
 function setIfEmpty(id, value){
   const el = document.getElementById(id);
@@ -1585,6 +1611,7 @@ document.getElementById('glForm').addEventListener('submit', async function(e){
   }
 
   const ev = EVENTS[parseInt(eventSelect.value, 10)];
+  lastRequestedEvent = ev;
   const phoneCode = document.getElementById('glPhoneCode').value;
   const fullPhone = phoneCode + ' ' + phone.replace(/^0/, '');
 
@@ -1948,6 +1975,7 @@ async function loadMyPoints(){
     if(error) return;
     const points = (data && typeof data.points === 'number') ? data.points : 0;
     valueEl.textContent = points;
+    if(typeof renderPointsStrip === 'function') renderPointsStrip(points);
 
     const tierInfo = getTierInfo(points);
     document.querySelector('.member-card').className = 'member-card ' + tierInfo.current.className;
@@ -2730,6 +2758,7 @@ async function loadNextNight(){
     });
   } catch(err){ nextNightRows = []; }
   renderNextNight();
+  if(typeof openTonight === 'function') openTonight(false);
 }
 
 function renderNextNight(){
@@ -2750,15 +2779,21 @@ function renderNextNight(){
     '<div class="next-night__name" id="nextNightName">' + escHtml(r.event_name) + '</div>' +
     '<div class="next-night__meta">' + meta + '</div>' +
     (approved ? '' : '<div class="next-night__meta" style="margin-top:-8px;">We’ll notify you as soon as you’re approved.</div>') +
+    (tonight ? '<button type="button" class="btn btn--solid next-night__pass" id="nextNightPass">Open tonight\u2019s pass</button>' : '') +
     '<div class="next-night__actions">' +
       '<a class="btn" href="' + mapsLinkFor(r.event_venue) + '" target="_blank" rel="noopener">Route</a>' +
       (ev ? '<button type="button" class="btn" id="nextNightCal">Calendar</button>' : '') +
       (ev ? '<button type="button" class="btn" id="nextNightDetails">Details</button>' : '') +
     '</div>' +
+    (ev ? '<button type="button" class="next-night__share" id="nextNightShare">Share to your story ↗</button>' : '') +
     '<button type="button" class="next-night__release" id="nextNightRelease">Can’t make it? Release your spot</button>' +
     (nextNightRows.length > 1 ? '<div class="next-night__more">+ ' + (nextNightRows.length - 1) + ' more upcoming request' + (nextNightRows.length > 2 ? 's' : '') + ' in your account</div>' : '');
   box.hidden = false;
 
+  const shareBtn2 = document.getElementById('nextNightShare');
+  if(shareBtn2 && ev) shareBtn2.addEventListener('click', function(){ shareStory(ev, shareBtn2); });
+  const passBtn = document.getElementById('nextNightPass');
+  if(passBtn) passBtn.addEventListener('click', function(){ openTonight(true); });
   if(ev){
     document.getElementById('nextNightCal').addEventListener('click', function(){ addEventToCalendar(ev); });
     document.getElementById('nextNightDetails').addEventListener('click', function(){ openEventSheet(ev); });
@@ -2778,6 +2813,7 @@ function renderNextNight(){
       const { data, error } = await supabaseClient.rpc('cancel_guestlist_request', { p_request_id: r.id, p_event_id: ev ? ev.id : null });
       if(error || !data || !data.success) throw error || new Error((data && data.reason) || 'failed');
       rel.textContent = 'Spot released — thanks for letting us know';
+      if(ev){ try{ fetch('/api/waitlist-notify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event_id: ev.id }) }); } catch(e){} }
       AppSound.play('release');
       setTimeout(function(){ loadNextNight(); if(typeof loadMyRequests === 'function') loadMyRequests(); if(typeof loadLiveGuestlists === 'function') loadLiveGuestlists(); }, 1200);
     } catch(err){
@@ -2899,8 +2935,9 @@ async function tryQuickRequest(ev){
     body.innerHTML = head +
       '<div class="quick-sheet__done"><div class="gl-success__mark">✓</div>' +
       '<p class="quick-sheet__note">Request sent. We’ll review it and let you know as soon as you’re on the list.</p></div>' +
-      '<div class="quick-sheet__btns"><button type="button" class="btn btn--solid" id="quickDone">Done</button></div>';
+      '<div class="quick-sheet__btns"><button type="button" class="btn btn--solid" id="quickShare">Share to your story</button><button type="button" class="btn" id="quickDone">Done</button></div>';
     document.getElementById('quickDone').addEventListener('click', closeQuickSheet);
+    const qs = document.getElementById('quickShare'); qs.addEventListener('click', function(){ shareStory(ev, qs); });
     loadNextNight();
     if(typeof loadMyRequests === 'function') loadMyRequests();
     if(typeof loadGuestCounts === 'function') loadGuestCounts().then(function(){ if(typeof renderAllGuestlistPanels === 'function') renderAllGuestlistPanels(); });
@@ -3000,4 +3037,240 @@ var AppSound = (function(){
   const back = document.getElementById('contactBackBtn');
   if(open) open.addEventListener('click', function(){ switchTab('contact'); });
   if(back) back.addEventListener('click', function(){ switchTab('account'); });
+})();
+
+// Join the waitlist (card panel button).
+document.getElementById('eventList').addEventListener('click', async function(e){
+  const btn = e.target.closest('.glive__wait-btn');
+  if(!btn || btn.disabled) return;
+  e.stopPropagation();
+  const eventId = btn.dataset.eventId;
+  const ev = EVENTS.find(function(x){ return x.id === eventId; });
+  if(!currentUser){ rememberEventAndLogin(ev); return; }
+  btn.disabled = true; btn.textContent = 'Joining…';
+  try{
+    const { data, error } = await supabaseClient.rpc('join_guestlist_waitlist', { p_event_id: eventId, p_event_name: ev ? ev.name : null });
+    if(error) throw error;
+    if(data && data.success){
+      MY_WAITLIST[eventId] = data.position;
+      AppSound.play('success');
+    } else if(data && data.reason === 'not_full'){
+      await loadLiveGuestlists();
+      return;
+    } else if(data && data.reason === 'already_claimed'){
+      btn.textContent = 'You already have a spot';
+      return;
+    } else { throw new Error((data && data.reason) || 'failed'); }
+  } catch(err){
+    btn.disabled = false; btn.textContent = 'Try again';
+    AppSound.play('error');
+    return;
+  }
+  renderAllGuestlistPanels();
+});
+
+/* ================================================================
+   STORY SHARE CARD — a 1080×1920 image for Instagram/Snapchat stories
+   ("I'm on the list"), drawn on a canvas in the AGS look.
+   ================================================================ */
+function loadImg(src){
+  return new Promise(function(resolve){
+    if(!src){ resolve(null); return; }
+    const img = new Image();
+    img.onload = function(){ resolve(img); };
+    img.onerror = function(){ resolve(null); };
+    img.src = src;
+  });
+}
+function wrapLines(ctx, text, maxW){
+  const words = String(text).split(/\s+/); const lines = []; let line = '';
+  words.forEach(function(w){ const t = line ? line + ' ' + w : w; if(ctx.measureText(t).width > maxW && line){ lines.push(line); line = w; } else { line = t; } });
+  if(line) lines.push(line);
+  return lines;
+}
+async function makeStoryImage(ev){
+  const W = 1080, H = 1920;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  try{ await Promise.all([document.fonts.load('600 120px "Cormorant Garamond"'), document.fonts.load('500 italic 60px "Cormorant Garamond"')]); } catch(e){}
+  const serif = '"Cormorant Garamond", Georgia, serif';
+  const sans = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';
+
+  // Club-light background
+  x.fillStyle = '#050505'; x.fillRect(0, 0, W, H);
+  [[180, 320, 700, 'rgba(230,180,70,0.55)'], [980, 980, 760, 'rgba(210,20,60,0.5)'], [300, 1700, 720, 'rgba(120,50,230,0.45)']].forEach(function(b){
+    const g = x.createRadialGradient(b[0], b[1], 0, b[0], b[1], b[2]); g.addColorStop(0, b[3]); g.addColorStop(1, 'rgba(0,0,0,0)');
+    x.globalCompositeOperation = 'screen'; x.fillStyle = g; x.fillRect(0, 0, W, H);
+  });
+  x.globalCompositeOperation = 'source-over';
+
+  const gold = x.createLinearGradient(0, 0, 0, 160); gold.addColorStop(0, '#fff3cf'); gold.addColorStop(0.5, '#e6c875'); gold.addColorStop(1, '#b88a2e');
+
+  // Top: brand
+  const logo = await loadImg('icon-192.png');
+  if(logo){ x.save(); x.beginPath(); x.arc(W / 2, 170, 62, 0, Math.PI * 2); x.clip(); x.drawImage(logo, W / 2 - 66, 104, 132, 132); x.restore(); }
+  x.textAlign = 'center'; x.fillStyle = '#C9A24A'; x.font = '600 26px ' + sans;
+  x.fillText('A M S T E R D A M   G U E S T L I S T   S E R V I C E', W / 2, 290);
+
+  // Middle: flyer (or a designed poster)
+  const flyer = (!ev.flyerPending && ev.image) ? await loadImg(ev.image) : null;
+  const boxTop = 350, boxH = 1000, boxW = 820;
+  if(flyer){
+    const r = Math.min(boxW / flyer.width, boxH / flyer.height);
+    const w = flyer.width * r, h = flyer.height * r, fx = (W - w) / 2, fy = boxTop + (boxH - h) / 2;
+    x.save(); x.shadowColor = 'rgba(201,162,74,0.55)'; x.shadowBlur = 70; x.fillStyle = '#000'; x.fillRect(fx, fy, w, h); x.restore();
+    x.drawImage(flyer, fx, fy, w, h);
+    x.strokeStyle = 'rgba(230,200,117,0.85)'; x.lineWidth = 3; x.strokeRect(fx - 1.5, fy - 1.5, w + 3, h + 3);
+  } else {
+    x.fillStyle = '#C9A24A'; x.font = '600 30px ' + sans; x.fillText('A G S   P R E S E N T S', W / 2, boxTop + 300);
+    x.font = '600 150px ' + serif; x.fillStyle = gold;
+    const lines = wrapLines(x, ev.name, 900);
+    const startY = boxTop + 560 - (lines.length - 1) * 75;
+    lines.forEach(function(l, i){ x.fillText(l, W / 2, startY + i * 150); });
+  }
+
+  // Bottom: "I'm on the list"
+  x.font = '500 italic 60px ' + serif; x.fillStyle = '#F5F5F5';
+  x.fillText('See you there —', W / 2, 1450);
+  x.font = '600 128px ' + serif;
+  const g2 = x.createLinearGradient(0, 1470, 0, 1600); g2.addColorStop(0, '#fff3cf'); g2.addColorStop(0.5, '#e6c875'); g2.addColorStop(1, '#b88a2e');
+  x.fillStyle = g2; x.fillText('I’m on the list', W / 2, 1585);
+  const d = new Date(ev.date + 'T00:00:00');
+  const day = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()] + ' ' + d.getDate() + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()];
+  x.font = '600 34px ' + sans; x.fillStyle = '#F5F5F5';
+  x.fillText((ev.name + '  ·  ' + day + '  ·  ' + eventVenueName(ev)).toUpperCase(), W / 2, 1665, W - 120);
+  x.strokeStyle = '#C9A24A'; x.lineWidth = 2; x.strokeRect(W / 2 - 360, 1712, 720, 128);
+  x.font = '700 34px ' + sans; x.fillStyle = '#E6C875';
+  x.fillText('GET ON THE LIST  →', W / 2, 1763);
+  x.font = '500 28px ' + sans; x.fillStyle = '#F5F5F5';
+  x.fillText('amsterdamguestlistservice.website/app', W / 2, 1810);
+
+  return new Promise(function(resolve){ c.toBlob(function(b){ resolve(b); }, 'image/png'); });
+}
+async function shareStory(ev, btn){
+  if(!ev) return;
+  const label = btn ? btn.textContent : '';
+  if(btn){ btn.disabled = true; btn.textContent = 'Making your story…'; }
+  try{
+    const blob = await makeStoryImage(ev);
+    const file = new File([blob], 'ags-' + ev.id + '.png', { type: 'image/png' });
+    if(navigator.canShare && navigator.canShare({ files: [file] })){
+      await navigator.share({ files: [file], title: ev.name, text: 'I’m on the list for ' + ev.name + ' 🔑 amsterdamguestlistservice.website/app' });
+    } else {
+      showStoryPreview(URL.createObjectURL(blob), file.name);
+    }
+  } catch(err){ /* share sheet closed */ }
+  if(btn){ btn.disabled = false; btn.textContent = label; }
+}
+function showStoryPreview(url, name){
+  let ov = document.getElementById('storyPreview');
+  if(!ov){
+    ov = document.createElement('div'); ov.id = 'storyPreview'; ov.className = 'story-preview';
+    document.body.appendChild(ov);
+    ov.addEventListener('click', function(e){ if(e.target === ov || e.target.closest('.story-preview__close')) ov.classList.remove('is-open'); });
+  }
+  ov.innerHTML = '<div class="story-preview__inner"><img src="' + url + '" alt="Your story">' +
+    '<p>Press and hold the image to save it, then post it to your story.</p>' +
+    '<a class="btn btn--solid" href="' + url + '" download="' + name + '">Save image</a>' +
+    '<button type="button" class="story-preview__close">Close</button></div>';
+  ov.classList.add('is-open');
+}
+
+/* ================================================================
+   TONIGHT MODE — on the night itself, a full-screen pass for guests
+   who are on the list.
+   ================================================================ */
+function tonightRow(){
+  const r = (nextNightRows || [])[0];
+  if(!r) return null;
+  const approved = String(r.status || '').trim().toLowerCase() === 'approved';
+  return approved && String(r.event_date).slice(0, 10) === todayAmsterdam() ? r : null;
+}
+let tonightTimer = null;
+function openTonight(force){
+  const r = tonightRow(); if(!r) return;
+  const key = 'ags_tonight_seen_' + r.id;
+  if(!force){ try{ if(sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch(e){} }
+  const ev = findEventFor(r.event_name, r.event_date);
+  let ov = document.getElementById('tonightOverlay');
+  if(!ov){ ov = document.createElement('div'); ov.id = 'tonightOverlay'; ov.className = 'tonight'; document.body.appendChild(ov); }
+  const meta = currentUser && currentUser.user_metadata || {};
+  const name = ((meta.first_name || '') + ' ' + (meta.last_name || '')).trim() || (currentUser && currentUser.email) || '';
+  ov.innerHTML =
+    '<div class="tonight__glow"></div>' +
+    '<button type="button" class="tonight__close" aria-label="Close">✕</button>' +
+    '<div class="tonight__inner">' +
+      '<div class="tonight__eyebrow"><span class="tonight__dot"></span>Tonight · You’re on the list</div>' +
+      '<div class="tonight__name">' + escHtml(r.event_name) + '</div>' +
+      '<div class="tonight__venue">' + escHtml(String(r.event_venue || '').split('·')[0].trim()) + (ev && ev.time ? ' · from ' + escHtml(ev.time) : '') + '</div>' +
+      '<div class="tonight__count" id="tonightCount"></div>' +
+      '<div class="tonight__pass">' +
+        '<div class="tonight__label">Name on the list</div>' +
+        '<div class="tonight__guest">' + escHtml(name) + '</div>' +
+        '<div class="tonight__label">' + ((r.total_guests || 1) > 1 ? r.total_guests + ' people' : 'Just you') + '</div>' +
+      '</div>' +
+      '<ul class="tonight__rules"><li>Bring a valid photo ID for everyone</li><li>Arrive on time — the list closes when the room is full</li><li>Give the name above at the door</li></ul>' +
+      '<div class="tonight__btns">' +
+        '<a class="btn btn--solid" href="' + mapsLinkFor(r.event_venue) + '" target="_blank" rel="noopener">Route to the club</a>' +
+        (ev ? '<button type="button" class="btn" id="tonightShare">Share to your story</button>' : '') +
+      '</div>' +
+    '</div>';
+  // A points celebration already on screen waits until the pass closes.
+  document.querySelectorAll('.points-toast').forEach(function(t){ pendingPointsToast += Number(t.dataset.n) || 0; t.remove(); });
+  ov.classList.add('is-open'); document.body.style.overflow = 'hidden';
+  AppSound.play('open');
+  ov.querySelector('.tonight__close').addEventListener('click', closeTonight);
+  const sh = document.getElementById('tonightShare'); if(sh) sh.addEventListener('click', function(){ shareStory(ev, sh); });
+  function tick(){
+    const el = document.getElementById('tonightCount'); if(!el) return;
+    const ms = ev ? eventStartTime(ev) - Date.now() : 0;
+    if(ms > 0){ const h = Math.floor(ms / 3600000), m = Math.floor(ms % 3600000 / 60000); el.innerHTML = 'Doors in <strong>' + (h ? h + 'h ' : '') + m + 'm</strong>'; }
+    else el.innerHTML = '<strong>Doors are open</strong> — enjoy your night';
+  }
+  tick(); clearInterval(tonightTimer); tonightTimer = setInterval(tick, 30000);
+}
+function closeTonight(){
+  const ov = document.getElementById('tonightOverlay'); if(ov) ov.classList.remove('is-open');
+  document.body.style.overflow = ''; clearInterval(tonightTimer);
+  if(pendingPointsToast){ const n = pendingPointsToast; pendingPointsToast = 0; setTimeout(function(){ showPointsToast(n); }, 350); }
+}
+
+/* ================================================================
+   POINTS — tier progress on the home screen + "+N points" moment
+   ================================================================ */
+function renderPointsStrip(points){
+  const box = document.getElementById('pointsStrip'); if(!box) return;
+  if(!currentUser){ box.hidden = true; return; }
+  const t = getTierInfo(points);
+  const pct = t.next ? Math.max(4, Math.min(100, Math.round((points - t.current.min) / (t.next.min - t.current.min) * 100))) : 100;
+  box.innerHTML =
+    '<div class="points-strip__top"><span class="points-strip__tier ' + t.current.className + '">' + t.current.name + '</span>' +
+    '<span class="points-strip__pts"><strong>' + points + '</strong> pts</span></div>' +
+    '<div class="points-strip__bar"><div style="width:' + pct + '%"></div></div>' +
+    '<div class="points-strip__next">' + (t.next ? (t.next.min - points) + ' pts to ' + t.next.name + ' · +10 for every night you’re on the list' : 'Top tier reached — VIP treatment') + '</div>';
+  box.hidden = false;
+  box.onclick = function(){ switchTab('account'); };
+  // Celebrate new points since the last visit on this device.
+  let seen = null;
+  try{ seen = localStorage.getItem('ags_points_seen_' + currentUser.id); } catch(e){}
+  if(seen !== null && points > Number(seen)) showPointsToast(points - Number(seen));
+  try{ localStorage.setItem('ags_points_seen_' + currentUser.id, String(points)); } catch(e){}
+}
+let pendingPointsToast = 0;
+function showPointsToast(n){
+  // Never on top of the Tonight pass — show it once that closes.
+  if(document.querySelector('#tonightOverlay.is-open')){ pendingPointsToast += n; return; }
+  const t = document.createElement('div'); t.className = 'points-toast';
+  t.dataset.n = String(n);
+  t.innerHTML = '<span>+' + n + '</span> points';
+  document.body.appendChild(t);
+  AppSound.play('success');
+  requestAnimationFrame(function(){ t.classList.add('is-in'); });
+  setTimeout(function(){ t.classList.remove('is-in'); setTimeout(function(){ t.remove(); }, 600); }, 2600);
+}
+
+// "Share to your story" on the form success screen.
+(function(){
+  const btn = document.getElementById('glShareBtn');
+  if(btn) btn.addEventListener('click', function(){ const ev = selectedGuestlistEvent() || lastRequestedEvent; shareStory(ev, btn); });
 })();

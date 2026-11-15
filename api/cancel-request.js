@@ -11,6 +11,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const token = require('./_cancel-token');
 const events = require('./_events');
+const { notifyForEvent } = require('./waitlist-notify');
 
 const LOGO_URL = require('./_logo');
 
@@ -93,6 +94,9 @@ module.exports = async function handler(req, res) {
     const { data: result, error } = await supabase.rpc('cancel_guestlist_request_by_link', {
       p_request_id: id, p_event_id: ev ? ev.id : null
     });
+    if (!error && result && result.success && result.released && ev) {
+      try { await notifyForEvent(supabase, ev.id); } catch (e) { /* never block the guest */ }
+    }
     if (error || !result || !result.success) {
       send(res, 500, 'Something went wrong', '<div class="eyebrow">Guestlist</div><h1>Something went wrong</h1>' +
         '<p>Your spot could not be cancelled. Please try again, or cancel it in the app.</p>' + appBtn);
