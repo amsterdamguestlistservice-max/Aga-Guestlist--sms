@@ -757,9 +757,83 @@ body{ -webkit-font-smoothing:antialiased; }
 .backroom-home__eyebrow{ font-size:10.5px; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; }
 .backroom-home__title{ font-family:var(--serif); font-style:italic; font-weight:400; font-size:28px; margin-bottom:10px; }
 .backroom-home__copy{ font-size:13.5px; line-height:1.6; color:var(--muted); margin-bottom:16px; }
+
+/* =================================================================
+   NIGHTLIFE VIBE — club lighting, flyer glow, glass, motion.
+   Additive layer on top of the black & gold brand.
+   ================================================================= */
+body{ background:#020202; }
+.club-lights{ position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+.club-lights i{ position:absolute; border-radius:50%; filter:blur(70px); opacity:0.8; mix-blend-mode:screen; will-change:transform; }
+.club-lights i:nth-child(1){ width:70vw; height:70vw; left:-25vw; top:8vh; background:radial-gradient(circle, rgba(201,162,74,0.55), rgba(201,162,74,0) 70%); animation:club-drift-a 22s ease-in-out infinite alternate; }
+.club-lights i:nth-child(2){ width:80vw; height:80vw; right:-35vw; top:38vh; background:radial-gradient(circle, rgba(150,18,40,0.55), rgba(150,18,40,0) 70%); animation:club-drift-b 27s ease-in-out infinite alternate; }
+.club-lights i:nth-child(3){ width:65vw; height:65vw; left:10vw; bottom:-22vh; background:radial-gradient(circle, rgba(88,40,160,0.42), rgba(88,40,160,0) 70%); animation:club-drift-c 31s ease-in-out infinite alternate; }
+.club-lights b{ position:absolute; top:-20vh; left:50%; width:2px; height:140vh; background:linear-gradient(180deg, rgba(230,200,117,0), rgba(230,200,117,0.16), rgba(230,200,117,0)); transform-origin:top center; filter:blur(1px); opacity:0.6; }
+.club-lights b:nth-of-type(1){ animation:club-beam 14s ease-in-out infinite alternate; }
+.club-lights b:nth-of-type(2){ animation:club-beam 18s ease-in-out -6s infinite alternate-reverse; width:3px; opacity:0.4; }
+@keyframes club-drift-a{ to{ transform:translate(30vw, 18vh) scale(1.15); } }
+@keyframes club-drift-b{ to{ transform:translate(-28vw, -20vh) scale(0.9); } }
+@keyframes club-drift-c{ to{ transform:translate(18vw, -26vh) scale(1.2); } }
+@keyframes club-beam{ from{ transform:rotate(-28deg); } to{ transform:rotate(28deg); } }
+.club-grain{ position:fixed; inset:0; z-index:1; pointer-events:none; opacity:0.07; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+.app-main{ position:relative; z-index:2; }
+.app-header{ background:rgba(3,3,3,0.62); backdrop-filter:blur(18px) saturate(1.4); -webkit-backdrop-filter:blur(18px) saturate(1.4); }
+.app-tabbar{ background:rgba(6,6,6,0.66); backdrop-filter:blur(20px) saturate(1.4); -webkit-backdrop-filter:blur(20px) saturate(1.4); }
+.app-tabbar button.is-active svg{ filter:drop-shadow(0 0 6px rgba(230,200,117,0.75)); }
+.app-tabbar button.is-active{ text-shadow:0 0 12px rgba(230,200,117,0.55); }
+
+/* Section heading: neon-gold glow + "after dark" eyebrow */
+.section-eyebrow{ font-size:10px; letter-spacing:0.38em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; display:flex; align-items:center; gap:8px; }
+.section-eyebrow::before{ content:''; width:7px; height:7px; border-radius:50%; background:#ff3b5c; box-shadow:0 0 0 0 rgba(255,59,92,0.7); animation:live-pulse 1.8s ease-out infinite; }
+#tab-events .section-head h1{ text-shadow:0 0 24px rgba(230,200,117,0.28), 0 0 2px rgba(255,255,255,0.15); }
+@keyframes live-pulse{ 0%{ box-shadow:0 0 0 0 rgba(255,59,92,0.7); } 70%{ box-shadow:0 0 0 9px rgba(255,59,92,0); } 100%{ box-shadow:0 0 0 0 rgba(255,59,92,0); } }
+
+/* Cards float over the light: smoked glass + depth */
+.event-card, .next-night{ background:rgba(12,12,12,0.74); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); box-shadow:0 18px 40px -18px rgba(0,0,0,0.9); }
+.event-card:active{ transform:scale(0.985); }
+.event-card.is-featured{ border-color:rgba(201,162,74,0.55); animation:featured-glow 3.6s ease-in-out infinite; }
+@keyframes featured-glow{ 0%,100%{ box-shadow:0 0 0 1px rgba(201,162,74,0.15), 0 0 26px -6px rgba(201,162,74,0.35), 0 18px 40px -18px rgba(0,0,0,0.9); } 50%{ box-shadow:0 0 0 1px rgba(201,162,74,0.35), 0 0 42px -4px rgba(201,162,74,0.55), 0 18px 40px -18px rgba(0,0,0,0.9); } }
+.event-card__next span:first-child{ display:inline-flex; align-items:center; gap:8px; }
+.event-card__next span:first-child::before{ content:''; width:7px; height:7px; border-radius:50%; background:#ff3b5c; animation:live-pulse 1.8s ease-out infinite; }
+
+/* Flyer glow: the flyer's own colours bleed into the empty space around it */
+.event-card__media, .sheet__media{ background:#000; isolation:isolate; }
+.event-card__media::after, .sheet__media::after{
+  content:''; position:absolute; inset:-12%; z-index:-1;
+  background-image:var(--flyer, none); background-size:cover; background-position:center;
+  filter:blur(38px) saturate(1.6) brightness(0.7); transform:scale(1.1); opacity:0.85;
+}
+.event-card__media > img, .sheet__media > img{ filter:drop-shadow(0 12px 30px rgba(0,0,0,0.75)); }
+
+/* Gold actions: soft glow + a light sweep now and then */
+.btn--solid, .event-card.is-featured .event-card__cta, .glive__claim-btn:not([disabled]){
+  position:relative; overflow:hidden; box-shadow:0 0 22px -6px rgba(201,162,74,0.65);
+}
+.btn--solid::after, .event-card.is-featured .event-card__cta::after, .glive__claim-btn:not([disabled])::after{
+  content:''; position:absolute; top:0; bottom:0; left:-60%; width:40%;
+  background:linear-gradient(100deg, rgba(255,255,255,0), rgba(255,255,255,0.45), rgba(255,255,255,0));
+  transform:skewX(-20deg); animation:gold-sweep 4.8s ease-in-out infinite; pointer-events:none;
+}
+@keyframes gold-sweep{ 0%,62%{ left:-60%; } 100%{ left:140%; } }
+
+/* "Your next night" card: Tonight gets a live red pulse */
+.next-night__pill.is-tonight{ box-shadow:0 0 18px rgba(230,200,117,0.6); }
+.next-night{ border-top-color:var(--gold); }
+
+/* Sheets: smoked glass */
+.sheet{ background:rgba(11,11,11,0.94); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); }
+
+@media (prefers-reduced-motion: reduce){
+  .club-lights i, .club-lights b, .section-eyebrow::before, .event-card.is-featured,
+  .event-card__next span:first-child::before, .btn--solid::after,
+  .event-card.is-featured .event-card__cta::after, .glive__claim-btn::after{ animation:none !important; }
+}
 </style>
 </head>
 <body class="is-gated">
+<div class="club-lights" aria-hidden="true"><i></i><i></i><i></i><b></b><b></b></div>
+<div class="club-grain" aria-hidden="true"></div>
 
 <header class="app-header">
   <img src="icon-192.png" alt="Amsterdam Guestlist Service">
@@ -894,6 +968,7 @@ body{ -webkit-font-smoothing:antialiased; }
   <!-- EVENTS TAB -->
   <section class="tab-panel is-active" id="tab-events">
     <div class="section-head">
+      <div class="section-eyebrow">Amsterdam · After Dark</div>
       <h1>Upcoming Events</h1>
       <p>Amsterdam nightlife, curated.</p>
     </div>

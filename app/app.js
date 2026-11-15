@@ -731,6 +731,11 @@ function eventMedia(ev, attrs){
   }
   return ev.image ? '<img src="' + ev.image + '" alt="' + ev.name + '"' + (attrs || '') + '>' : '';
 }
+// Lets the flyer's own colours glow around it (CSS var used by ::after).
+function flyerStyle(ev){
+  if(!ev || !ev.image || (ev.flyerPending && !isPastEvent(ev))) return '';
+  return ' style="--flyer:url(\'' + String(ev.image).replace(/'/g, '%27') + '\')"';
+}
 function guestlistBadge(status, label){
   if(status === 'limited') return '<span class="event-card__badge">Limited Guestlist</span>';
   if(status === 'closed') return '<span class="event-card__badge is-closed">' + (label || 'Guestlist Closed') + '</span>';
@@ -835,7 +840,7 @@ function renderEventList(){
       : '';
     return (
       '<article class="event-card' + (featured ? ' is-featured' : '') + '" data-index="' + i + '" data-event-id="' + (ev.id || '') + '" data-venue="' + eventVenueName(ev) + '">' + nextUp +
-        '<div class="event-card__media">' + mediaContent + '</div>' +
+        '<div class="event-card__media"' + flyerStyle(ev) + '>' + mediaContent + '</div>' +
         '<div class="event-card__body">' +
           '<div class="event-card__meta"><div class="event-card__date">' + formatDate(ev.date) + '</div>' + guestlistBadge(ev.guestlistStatus, ev.badgeLabel) + '</div>' +
           '<h3 class="event-card__name">' + ev.name + '</h3>' +
@@ -1172,6 +1177,7 @@ async function shareEvent(ev){
 
 function openEventSheet(ev){
   document.getElementById('sheetMedia').innerHTML = eventMedia(ev);
+  document.getElementById('sheetMedia').setAttribute('style', flyerStyle(ev).replace(/^ style="|"$/g, ''));
   document.getElementById('sheetDate').textContent = formatDate(ev.date);
   document.getElementById('sheetName').textContent = ev.name;
   document.getElementById('sheetVenue').textContent = ev.venue;
