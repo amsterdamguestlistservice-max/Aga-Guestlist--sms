@@ -20,6 +20,7 @@
 
 const webpush = require('web-push');
 const { createClient } = require('@supabase/supabase-js');
+const { sendGuestEmail } = require('./_guest-email');
 
 function isAuthorized(req) {
   const cron = process.env.CRON_SECRET;
@@ -37,37 +38,6 @@ function reminderText(r) {
     body: who + ' on the guestlist at ' + (r.event_venue || 'the venue').split(' · ')[0] +
       '. Arrive on time and bring your ID — see you tonight!'
   };
-}
-
-function esc(v) {
-  return String(v === null || v === undefined ? '' : v).replace(/[&<>"']/g, function (ch) {
-    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
-  });
-}
-
-async function emailReminder(r, text) {
-  try {
-    const from = process.env.RESEND_GUEST_FROM;
-    if (!from || !process.env.RESEND_API_KEY || !r.email) return false;
-    const html =
-      '<div style="background:#050505;color:#F5F5F5;padding:28px;font-family:Arial,sans-serif;max-width:520px;margin:0 auto;">' +
-      '<p style="color:#C9A24A;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin:0 0 14px;">Amsterdam Guestlist Service</p>' +
-      '<h2 style="font-family:Georgia,serif;font-weight:normal;font-size:22px;margin:0 0 12px;">See you tonight</h2>' +
-      '<p style="color:#cfcfcf;line-height:1.6;margin:0 0 18px;">Hi ' + esc(r.first_name || 'there') + ', ' + esc(text.body) + '</p>' +
-      '<p style="border:1px solid #3a3223;padding:14px;line-height:1.7;margin:0 0 18px;">' +
-      '<strong>' + esc(r.event_name) + '</strong><br>' + esc(r.event_venue) +
-      (r.total_guests > 1 ? '<br>Party size: ' + esc(r.total_guests) : '') + '</p>' +
-      '<p style="color:#8a8a8a;font-size:12px;margin:0;">Can\'t make it anymore? Let us know so your spot can go to someone else.</p>' +
-      '</div>';
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: from, to: r.email, subject: text.title, html: html })
-    });
-    return res.ok;
-  } catch (e) {
-    return false;
-  }
 }
 
 async function pushReminder(supabase, r, text) {
@@ -113,7 +83,7 @@ module.exports = async function handler(req, res) {
 
     const { data: rows, error } = await supabase
       .from('guestlist_requests')
-      .select('id, user_id, first_name, email, event_name, event_venue, event_date, total_guests')
+      .select('id, user_id, first_name, last_name, email, event_name, event_venue, event_date, total_guests')
       .eq('status', 'Approved')
       .eq('event_date', today)
       .is('reminder_sent_at', null);
@@ -132,7 +102,7 @@ module.exports = async function handler(req, res) {
     for (const r of rows || []) {
       const text = reminderText(r);
       const p = await pushReminder(supabase, r, text);
-      const e = await emailReminder(r, text);
+      const e = await sendGuestEmail('reminder', r);
       if (p) pushed++;
       if (e) emailed++;
       if (!p && !e) unreachable++;
