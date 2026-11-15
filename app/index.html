@@ -5,6 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <title>Amsterdam Guestlist Service</title>
 <meta name="description" content="Discover Amsterdam's best nightlife events, request guestlist access, and book tables.">
+<link rel="canonical" href="https://www.amsterdamguestlistservice.website/app/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Amsterdam Guestlist Service">
+<meta property="og:title" content="Amsterdam Guestlist Service">
+<meta property="og:description" content="Guestlists, tickets &amp; tables for the best nights in Amsterdam. Get on the list in one tap.">
+<meta property="og:url" content="https://www.amsterdamguestlistservice.website/app/">
+<meta property="og:image" content="https://www.amsterdamguestlistservice.website/app/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Amsterdam Guestlist Service — Get on the list">
+<meta property="og:locale" content="en_GB">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Amsterdam Guestlist Service">
+<meta name="twitter:description" content="Guestlists, tickets &amp; tables for the best nights in Amsterdam.">
+<meta name="twitter:image" content="https://www.amsterdamguestlistservice.website/app/og-image.jpg">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#050505">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -52,7 +67,7 @@ input,select{ font-family:inherit; }
 .app-header img{ width:36px; height:36px; border-radius:50%; flex-shrink:0; }
 .app-header__brand{ line-height:1.15; }
 .app-header__brand strong{ display:block; font-size:14px; letter-spacing:0.06em; }
-.app-header__brand span{ display:block; font-size:9px; letter-spacing:0.14em; color:var(--gold); text-transform:uppercase; }
+.app-header__brand span{ display:block; font-size:11px; letter-spacing:0.14em; color:var(--gold); text-transform:uppercase; }
 .notify-btn{
   margin-left:auto; flex-shrink:0;
   width:36px; height:36px; border-radius:50%;
@@ -87,7 +102,7 @@ body.is-gated #tab-account{ display:block !important; }
   background:none; border:none; color:var(--muted);
   display:flex; flex-direction:column; align-items:center; gap:4px;
   padding:10px 4px 8px;
-  font-size:10px; letter-spacing:0.06em; text-transform:uppercase;
+  font-size:11px; letter-spacing:0.06em; text-transform:uppercase;
   transition:color 0.25s var(--ease);
 }
 .app-tabbar button svg{ width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.6; }
@@ -113,7 +128,7 @@ body.is-gated #tab-account{ display:block !important; }
 }
 .past-event-card__media{ width:52px; height:52px; flex-shrink:0; overflow:hidden; filter:grayscale(0.6); opacity:0.8; }
 .past-event-card__media img{ width:100%; height:100%; object-fit:cover; }
-.past-event-card__date{ font-size:9.5px; letter-spacing:0.06em; color:var(--muted); text-transform:uppercase; }
+.past-event-card__date{ font-size:11px; letter-spacing:0.06em; color:var(--muted); text-transform:uppercase; }
 .past-event-card__name{ font-family:var(--serif); font-size:14px; margin:2px 0; color:var(--white); }
 .past-event-card__venue{ font-size:11px; color:var(--muted); }
 .sheet__past-note{ font-size:13px; color:var(--muted); line-height:1.6; padding:14px 0 4px; text-align:center; }
@@ -127,12 +142,12 @@ body.is-gated #tab-account{ display:block !important; }
 .event-card__media img{ max-width:80%; max-height:80%; object-fit:contain; }
 .event-card__badge{
   position:absolute; top:12px; left:12px; z-index:2;
-  font-size:9px; letter-spacing:0.1em; text-transform:uppercase;
+  font-size:11px; letter-spacing:0.1em; text-transform:uppercase;
   padding:6px 10px; background:rgba(5,5,5,0.75); border:1px solid var(--gold); color:var(--gold-light);
 }
 .event-card__badge.is-closed{ border-color:rgba(245,245,245,0.3); color:var(--muted); }
 .event-card__body{ padding:16px 16px 18px; }
-.event-card__date{ font-size:10.5px; letter-spacing:0.1em; color:var(--gold); text-transform:uppercase; }
+.event-card__date{ font-size:11px; letter-spacing:0.1em; color:var(--gold); text-transform:uppercase; }
 .event-card__name{ font-family:var(--serif); font-size:19px; margin:5px 0 4px; line-height:1.25; }
 .event-card__venue{ font-size:12px; color:var(--muted); margin-bottom:10px; }
 .event-card__cta{
@@ -209,21 +224,21 @@ body.is-gated #tab-account{ display:block !important; }
 
 /* ===== Your next night ===== */
 .next-night{ margin:0 18px 22px; border:1px solid var(--line); border-top:2px solid var(--gold); background:var(--charcoal); padding:18px 18px 16px; animation:glive-in 0.4s var(--ease); }
-.next-night__eyebrow{ font-size:10.5px; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:10px; }
-.next-night__pill{ font-size:9.5px; font-weight:700; letter-spacing:0.16em; padding:5px 10px; border:1px solid var(--gold); color:var(--gold-light); white-space:nowrap; }
+.next-night__eyebrow{ font-size:11px; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.next-night__pill{ font-size:11px; font-weight:700; letter-spacing:0.16em; padding:5px 10px; border:1px solid var(--gold); color:var(--gold-light); white-space:nowrap; }
 .next-night__pill.is-confirmed{ background:var(--gold); color:var(--black); }
 .next-night__pill.is-tonight{ background:var(--gold-light); color:var(--black); border-color:var(--gold-light); }
 .next-night__name{ font-family:var(--serif); font-size:26px; line-height:1.15; color:var(--white); margin-bottom:4px; cursor:pointer; }
 .next-night__meta{ font-size:13px; color:var(--muted); margin-bottom:14px; }
 .next-night__actions{ display:flex; gap:8px; }
-.next-night__actions .btn{ flex:1; padding:11px 6px; font-size:10.5px; }
+.next-night__actions .btn{ flex:1; padding:11px 6px; font-size:11px; }
 .next-night__release{ display:block; margin:12px auto 0; background:none; border:none; color:var(--muted); font-size:12px; text-decoration:underline; cursor:pointer; padding:4px; }
 .next-night__release.is-armed{ color:#e57373; }
 .next-night__more{ font-size:12px; color:var(--muted); margin-top:10px; text-align:center; }
 
 /* ===== One-tap request sheet ===== */
 .quick-sheet__body{ padding:14px 22px 6px; }
-.quick-sheet__eyebrow{ font-size:10.5px; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; }
+.quick-sheet__eyebrow{ font-size:11px; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; }
 .quick-sheet__title{ font-family:var(--serif); font-size:28px; line-height:1.15; color:var(--white); margin-bottom:4px; }
 .quick-sheet__meta{ font-size:13px; color:var(--muted); margin-bottom:18px; }
 .quick-sheet__details{ border:1px solid var(--line); background:var(--charcoal-2); padding:4px 14px; margin-bottom:16px; }
@@ -344,7 +359,7 @@ body.is-gated #tab-account{ display:block !important; }
 /* ===== Guestlist tab ===== */
 .form-wrap{ padding:4px 18px 18px; }
 .field{ margin-bottom:16px; }
-.field label{ display:block; font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:7px; }
+.field label{ display:block; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:7px; }
 .field input, .field select{
   width:100%; padding:13px 14px; background:var(--charcoal); border:1px solid var(--line); color:var(--white); font-size:14px;
 }
@@ -417,7 +432,7 @@ body.is-gated #tab-account{ display:block !important; }
   width:30px; height:30px; border-radius:50%; flex-shrink:0;
   border:1px solid var(--tier-accent, var(--gold));
 }
-.member-card__eyebrow{ font-size:9px; letter-spacing:0.16em; text-transform:uppercase; color:var(--tier-accent, var(--gold)); }
+.member-card__eyebrow{ font-size:11px; letter-spacing:0.16em; text-transform:uppercase; color:var(--tier-accent, var(--gold)); }
 .member-card__name{ font-family:var(--serif); font-size:23px; margin-top:3px; line-height:1.2; }
 .member-card__since{ font-size:11px; color:var(--muted); margin-top:5px; }
 .member-card__divider{
@@ -427,10 +442,10 @@ body.is-gated #tab-account{ display:block !important; }
 }
 .member-card__row{ position:relative; display:flex; align-items:flex-end; justify-content:space-between; }
 .member-card__tier{ font-size:11.5px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--tier-accent, var(--gold-light)); }
-.member-card__progress{ font-size:10.5px; color:var(--muted); margin-top:6px; }
+.member-card__progress{ font-size:11px; color:var(--muted); margin-top:6px; }
 .member-card__points{ font-family:var(--serif); font-size:24px; color:var(--tier-accent, var(--white)); text-align:right; }
-.member-card__points-label{ display:block; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); text-align:right; margin-top:3px; }
-.member-card__id{ position:relative; margin-top:16px; font-size:9.5px; letter-spacing:0.1em; color:var(--muted); text-align:right; }
+.member-card__points-label{ display:block; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); text-align:right; margin-top:3px; }
+.member-card__id{ position:relative; margin-top:16px; font-size:11px; letter-spacing:0.1em; color:var(--muted); text-align:right; }
 .account-signout{
   width:100%; margin-top:2px; padding:12px; background:none; border:1px solid var(--line); color:var(--muted);
   font-size:11px; letter-spacing:0.08em; text-transform:uppercase;
@@ -447,14 +462,14 @@ body.is-gated #tab-account{ display:block !important; }
 .tier-perk__name.is-silver{ color:#C7CBD1; }
 .tier-perk__name.is-gold{ color:var(--gold-light); }
 .tier-perk__name.is-vip{ color:#D9A6F5; }
-.tier-perk__range{ font-size:10.5px; color:var(--muted); }
+.tier-perk__range{ font-size:11px; color:var(--muted); }
 .tier-perk__list{ margin:0; padding-left:18px; font-size:12.5px; color:var(--white); line-height:1.7; }
 .tier-perk.is-current-tier{ border-color:var(--gold); box-shadow:0 0 0 1px var(--gold); }
-.tier-perk__footnote{ font-size:10.5px; color:var(--muted); margin-top:16px; text-align:center; }
+.tier-perk__footnote{ font-size:11px; color:var(--muted); margin-top:16px; text-align:center; }
 .referral-card{
   border:1px solid var(--line); background:var(--charcoal); padding:16px; margin-bottom:14px;
 }
-.referral-card__label{ font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; }
+.referral-card__label{ font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; }
 .referral-card__copy{ font-size:12px; color:var(--muted); line-height:1.55; margin-bottom:12px; }
 .referral-card__link-row{ display:flex; gap:8px; align-items:center; }
 .referral-card__link{
@@ -463,7 +478,7 @@ body.is-gated #tab-account{ display:block !important; }
 }
 .referral-card__copy-btn{
   flex-shrink:0; padding:9px 14px; background:var(--gold); color:var(--black); border:none;
-  font-size:10.5px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase;
+  font-size:11px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase;
 }
 .referral-card__copy-btn.is-copied{ background:var(--gold-light); }
 .my-requests{ display:flex; flex-direction:column; gap:12px; }
@@ -471,7 +486,7 @@ body.is-gated #tab-account{ display:block !important; }
 .request-card__event{ font-family:var(--serif); font-size:16px; margin-bottom:4px; }
 .request-card__meta{ font-size:11.5px; color:var(--muted); margin-bottom:8px; }
 .request-card__status{
-  display:inline-block; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase;
+  display:inline-block; font-size:11px; letter-spacing:0.08em; text-transform:uppercase;
   padding:4px 9px; border:1px solid var(--gold); color:var(--gold-light);
 }
 .request-card__status.is-approved{ border-color:#5FBF7A; color:#8FE0A6; }
@@ -486,7 +501,7 @@ body.is-gated #tab-account{ display:block !important; }
 .contact-card p{ font-size:12.5px; color:var(--muted); line-height:1.6; margin-bottom:16px; }
 
 .ambassador-card{ border:1px solid var(--gold); }
-.ambassador-card__label{ display:block; font-size:10.5px; letter-spacing:0.12em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; }
+.ambassador-card__label{ display:block; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; }
 .ambassador-steps{ list-style:none; margin:0 0 16px; padding:0; counter-reset:amb; }
 .ambassador-steps li{ counter-increment:amb; position:relative; padding:0 0 10px 30px; font-size:12.5px; color:var(--muted); line-height:1.5; }
 .ambassador-steps li::before{ content:counter(amb); position:absolute; left:0; top:0; width:20px; height:20px; border:1px solid var(--gold); color:var(--gold-light); font-size:11px; display:flex; align-items:center; justify-content:center; border-radius:50%; }
@@ -517,7 +532,7 @@ body.is-gated #tab-account{ display:block !important; }
   padding:0 18px; margin-bottom:10px;
 }
 .this-week__label{
-  font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--gold);
+  font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--gold);
 }
 .this-week__list{
   display:flex; gap:10px; overflow-x:auto; padding:0 18px 2px;
@@ -530,10 +545,10 @@ body.is-gated #tab-account{ display:block !important; }
   padding:12px 14px; text-align:left;
   display:flex; flex-direction:column; gap:4px;
 }
-.this-week__date{ font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--gold-light); }
+.this-week__date{ font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--gold-light); }
 .this-week__name{ font-family:var(--serif); font-size:16px; line-height:1.2; color:var(--white); }
 .this-week__venue{ font-size:11px; color:var(--muted); }
-.this-week__badge{ margin-top:2px; font-size:9px; letter-spacing:0.06em; text-transform:uppercase; color:var(--gold); }
+.this-week__badge{ margin-top:2px; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:var(--gold); }
 
 /* ===== Venue filter pills — above the full event list ===== */
 .venue-filter{
@@ -552,7 +567,7 @@ body.is-gated #tab-account{ display:block !important; }
 
 /* ===== The Backroom (members-only chat) ===== */
 .salon-card{ border:1px solid var(--line); background:var(--charcoal); padding:16px; margin-bottom:14px; display:none; }
-.salon-card__label{ font-size:10.5px; letter-spacing:0.14em; text-transform:uppercase; color:var(--gold); margin-bottom:6px; }
+.salon-card__label{ font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--gold); margin-bottom:6px; }
 .salon-card__copy{ font-size:13px; line-height:1.5; color:var(--muted); margin-bottom:12px; }
 .salon-card__row{ display:flex; align-items:center; gap:10px; }
 .salon-badge{ display:none; min-width:22px; height:22px; padding:0 6px; border-radius:11px; background:var(--gold); color:var(--black); font-size:12px; font-weight:700; align-items:center; justify-content:center; }
@@ -596,7 +611,7 @@ body.is-gated #tab-account{ display:block !important; }
 .salon-bubble.is-mine{ align-self:flex-end; background:var(--gold); color:var(--black); border-bottom-right-radius:4px; }
 .salon-bubble.is-theirs{ align-self:flex-start; background:#232d3a; border-bottom-left-radius:4px; }
 .salon-bubble__text{ white-space:pre-wrap; }
-.salon-bubble__time{ font-size:10.5px; opacity:0.6; margin-top:3px; text-align:right; }
+.salon-bubble__time{ font-size:11px; opacity:0.6; margin-top:3px; text-align:right; }
 .salon-compose{ display:flex; gap:10px; padding:10px 14px calc(12px + env(safe-area-inset-bottom)); border-top:1px solid rgba(255,255,255,0.08); }
 .salon-compose input{ flex:1; padding:12px 14px; border-radius:22px; border:1px solid rgba(255,255,255,0.14); background:rgba(255,255,255,0.05); color:var(--white); font-size:16px; }
 .salon-compose button{ padding:0 18px; border-radius:22px; border:none; background:var(--gold); color:var(--black); font-weight:700; font-size:13px; }
@@ -638,7 +653,7 @@ body{ -webkit-font-smoothing:antialiased; }
 .event-card__meta{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .event-card__date{ font-size:11px; font-weight:600; letter-spacing:0.08em; color:var(--gold-light); }
 .event-card__badge,
-.event-card__badge.is-closed{ position:static; flex-shrink:1; padding:0; background:none; border:none; font-size:10px; letter-spacing:0.08em; text-align:right; color:var(--muted); }
+.event-card__badge.is-closed{ position:static; flex-shrink:1; padding:0; background:none; border:none; font-size:11px; letter-spacing:0.08em; text-align:right; color:var(--muted); }
 .event-card__venue{ font-size:13px; margin-bottom:14px; }
 .event-card__cta{ padding:13px; background:transparent; color:var(--white); border:1px solid rgba(255,255,255,0.22); font-weight:600; }
 .event-card__cta:active{ background:rgba(255,255,255,0.08); }
@@ -732,7 +747,7 @@ body{ -webkit-font-smoothing:antialiased; }
 .member-card::after{ right:-46px; bottom:-52px; width:210px; height:210px; opacity:0.07; }
 .member-card__top{ margin-bottom:0; align-items:flex-start; gap:14px; }
 .member-card__mark{ width:48px; height:48px; border:none; clip-path:circle(48%); filter:brightness(1.25); }
-.member-card__eyebrow{ font-size:9.5px; }
+.member-card__eyebrow{ font-size:11px; }
 .member-card__name{ font-size:30px; line-height:1.05; margin-top:5px; }
 .member-card__divider{ display:none; }
 .member-card__row{ margin-top:30px; align-items:flex-end; }
@@ -755,11 +770,11 @@ body{ -webkit-font-smoothing:antialiased; }
 .salon-roominfo{ text-align:center; font-size:12px; line-height:1.5; color:var(--muted); padding:2px 14px 10px; }
 .salon-bubble__who{ font-size:11px; letter-spacing:0.04em; color:var(--gold-light); margin-bottom:3px; font-weight:600; }
 .salon-bubble__acts{ display:flex; gap:12px; justify-content:flex-end; margin-top:4px; }
-.salon-bubble__acts button{ background:none; border:none; color:inherit; opacity:0.5; font-size:10.5px; text-decoration:underline; padding:0; }
+.salon-bubble__acts button{ background:none; border:none; color:inherit; opacity:0.5; font-size:11px; text-decoration:underline; padding:0; }
 .salon-tabs{ overflow-x:auto; }
 .salon-tab{ white-space:nowrap; }
 .backroom-home{ margin:28px 18px 8px; padding:22px 20px; text-align:center; border:1px solid var(--line); background:linear-gradient(180deg,#0f1319,#0a0c10); }
-.backroom-home__eyebrow{ font-size:10.5px; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; }
+.backroom-home__eyebrow{ font-size:11px; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; }
 .backroom-home__title{ font-family:var(--serif); font-style:italic; font-weight:400; font-size:28px; margin-bottom:10px; }
 .backroom-home__copy{ font-size:13.5px; line-height:1.6; color:var(--muted); margin-bottom:16px; }
 
@@ -793,7 +808,7 @@ body{ background:#020202; }
 .app-tabbar button.is-active{ text-shadow:0 0 12px rgba(230,200,117,0.55); }
 
 /* Section heading: neon-gold glow + "after dark" eyebrow */
-.section-eyebrow{ font-size:10px; letter-spacing:0.38em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; display:flex; align-items:center; gap:8px; }
+.section-eyebrow{ font-size:11px; letter-spacing:0.38em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; display:flex; align-items:center; gap:8px; }
 .section-eyebrow::before{ content:''; width:7px; height:7px; border-radius:50%; background:#ff3b5c; box-shadow:0 0 0 0 rgba(255,59,92,0.7); animation:live-pulse 1.8s ease-out infinite; }
 #tab-events .section-head h1{ text-shadow:0 0 24px rgba(230,200,117,0.28), 0 0 2px rgba(255,255,255,0.15); }
 @keyframes live-pulse{ 0%{ box-shadow:0 0 0 0 rgba(255,59,92,0.7); } 70%{ box-shadow:0 0 0 9px rgba(255,59,92,0); } 100%{ box-shadow:0 0 0 0 rgba(255,59,92,0); } }
@@ -848,23 +863,23 @@ body{ background:#020202; }
 .auto-poster__beam{ position:absolute; top:-20%; left:50%; width:3px; height:140%; background:linear-gradient(180deg, transparent, rgba(230,200,117,0.45), transparent); transform-origin:top center; animation:club-beam 6s ease-in-out infinite alternate; filter:blur(1px); }
 .auto-poster__inner{ position:relative; z-index:1; padding:28px 22px; display:flex; flex-direction:column; align-items:center; }
 .auto-poster__logo{ width:58px; height:58px; clip-path:circle(47%); margin-bottom:16px; filter:drop-shadow(0 0 14px rgba(201,162,74,0.6)); }
-.auto-poster__presents{ font-size:10px; letter-spacing:0.42em; text-transform:uppercase; color:var(--gold); margin-bottom:12px; }
+.auto-poster__presents{ font-size:11px; letter-spacing:0.42em; text-transform:uppercase; color:var(--gold); margin-bottom:12px; }
 .auto-poster__name{ font-family:var(--serif); font-size:clamp(34px, 11vw, 54px); line-height:1.02; font-weight:600;
   background:linear-gradient(180deg, #fff3cf 0%, #e6c875 45%, #b88a2e 100%); -webkit-background-clip:text; background-clip:text; color:transparent;
   text-shadow:0 0 30px rgba(230,200,117,0.25); max-width:12ch; }
 .auto-poster__rule{ width:56px; height:1px; background:linear-gradient(90deg, transparent, var(--gold), transparent); margin:16px 0 14px; }
 .auto-poster__date{ font-size:12px; letter-spacing:0.22em; text-transform:uppercase; color:var(--white); }
 .auto-poster__venue{ font-size:11px; letter-spacing:0.28em; text-transform:uppercase; color:var(--gold-light); margin-top:6px; }
-.auto-poster__soon{ margin-top:18px; font-size:9.5px; letter-spacing:0.3em; text-transform:uppercase; color:var(--muted); border:1px solid rgba(201,162,74,0.35); padding:6px 12px; }
+.auto-poster__soon{ margin-top:18px; font-size:11px; letter-spacing:0.3em; text-transform:uppercase; color:var(--muted); border:1px solid rgba(201,162,74,0.35); padding:6px 12px; }
 .sheet__media .auto-poster__name{ font-size:clamp(40px, 13vw, 64px); }
 
 .night-head{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin:14px 2px -4px; }
 .night-head:first-child{ margin-top:4px; }
 .night-head span{ font-family:var(--serif); font-size:24px; color:var(--white); text-shadow:0 0 18px rgba(230,200,117,0.25); }
-.night-head em{ font-style:normal; font-size:10.5px; letter-spacing:0.18em; text-transform:uppercase; color:var(--gold); }
+.night-head em{ font-style:normal; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:var(--gold); }
 .night-head[data-group="Tonight"] span::after{ content:''; display:inline-block; width:8px; height:8px; margin-left:10px; border-radius:50%; background:#ff3b5c; vertical-align:middle; animation:live-pulse 1.8s ease-out infinite; }
 
-.event-card__badge, .event-card__badge.is-closed{ position:static; flex-shrink:0; font-size:9.5px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; padding:6px 10px; border:1px solid rgba(201,162,74,0.55); color:var(--gold-light); background:rgba(201,162,74,0.08); text-align:center; }
+.event-card__badge, .event-card__badge.is-closed{ position:static; flex-shrink:0; font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; padding:6px 10px; border:1px solid rgba(201,162,74,0.55); color:var(--gold-light); background:rgba(201,162,74,0.08); text-align:center; }
 .event-card__badge.is-hot{ background:var(--gold); color:var(--black); border-color:var(--gold); box-shadow:0 0 16px -4px rgba(201,162,74,0.8); }
 .event-card__badge.is-closed{ border-color:rgba(245,245,245,0.25); color:var(--muted); background:transparent; }
 .event-card__badge.is-tickets{ border-color:rgba(255,59,92,0.6); color:#ff8aa0; background:rgba(255,59,92,0.08); }
@@ -873,11 +888,11 @@ body{ background:#020202; }
 .install-bar{ display:flex; align-items:center; gap:10px; padding:9px 10px 9px 14px; }
 .install-bar__icon{ color:var(--gold-light); font-size:15px; }
 .install-bar__text{ flex:1; font-size:12px; color:var(--white); letter-spacing:0.02em; }
-.install-banner .install-bar__how{ background:none; border:1px solid var(--gold); color:var(--gold-light); font-size:10px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; padding:6px 10px; margin:0; }
+.install-banner .install-bar__how{ background:none; border:1px solid var(--gold); color:var(--gold-light); font-size:11px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; padding:6px 10px; margin:0; }
 .install-banner .install-bar__close{ background:none; border:none; color:var(--muted); font-size:14px; padding:4px 6px; margin:0; }
 .install-bar__steps{ padding:0 14px 12px; font-size:12px; color:var(--muted); line-height:1.6; }
 
-.app-tabbar button{ font-size:10.5px; padding:11px 4px 9px; }
+.app-tabbar button{ font-size:11px; padding:11px 4px 9px; }
 .app-tabbar button svg{ width:24px; height:24px; }
 .account-link{ display:flex; align-items:center; justify-content:space-between; width:100%; margin:16px 0 0; padding:14px 16px; background:rgba(201,162,74,0.06); border:1px solid var(--line); color:var(--white); font-size:12px; letter-spacing:0.1em; text-transform:uppercase; }
 .account-link span:last-child{ color:var(--gold-light); font-size:16px; }
@@ -903,14 +918,14 @@ body{ background:#020202; }
 .tonight__glow{ position:fixed; inset:-20%; background:radial-gradient(circle at 25% 20%, rgba(230,180,70,0.45), transparent 45%), radial-gradient(circle at 85% 55%, rgba(210,20,60,0.45), transparent 45%), radial-gradient(circle at 30% 95%, rgba(120,50,230,0.4), transparent 45%); filter:blur(30px); animation:club-drift-a 10s ease-in-out infinite alternate; pointer-events:none; }
 .tonight__close{ position:fixed; top:calc(16px + env(safe-area-inset-top)); right:16px; z-index:2; width:40px; height:40px; border-radius:50%; background:rgba(0,0,0,0.5); border:1px solid var(--line); color:var(--white); font-size:15px; }
 .tonight__inner{ position:relative; z-index:1; max-width:440px; margin:0 auto; text-align:center; padding-top:30px; }
-.tonight__eyebrow{ display:inline-flex; align-items:center; gap:10px; font-size:10.5px; letter-spacing:0.28em; text-transform:uppercase; color:var(--gold-light); margin-bottom:18px; }
+.tonight__eyebrow{ display:inline-flex; align-items:center; gap:10px; font-size:11px; letter-spacing:0.28em; text-transform:uppercase; color:var(--gold-light); margin-bottom:18px; }
 .tonight__dot{ width:9px; height:9px; border-radius:50%; background:#ff3b5c; animation:live-pulse 1.8s ease-out infinite; }
 .tonight__name{ font-family:var(--serif); font-size:clamp(44px, 13vw, 64px); line-height:1; font-weight:600; background:linear-gradient(180deg, #fff3cf, #e6c875 50%, #b88a2e); -webkit-background-clip:text; background-clip:text; color:transparent; margin-bottom:12px; }
 .tonight__venue{ font-size:13px; letter-spacing:0.18em; text-transform:uppercase; color:var(--white); }
 .tonight__count{ margin:22px 0 24px; font-size:15px; color:var(--muted); }
 .tonight__count strong{ color:var(--white); font-size:22px; font-weight:600; margin-left:4px; }
 .tonight__pass{ border:1px solid rgba(201,162,74,0.6); background:rgba(10,10,10,0.6); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); padding:22px 18px; margin-bottom:22px; box-shadow:0 0 40px -10px rgba(201,162,74,0.6); }
-.tonight__label{ font-size:10px; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); }
+.tonight__label{ font-size:11px; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); }
 .tonight__guest{ font-family:var(--serif); font-size:34px; color:var(--white); margin:8px 0 10px; }
 .tonight__rules{ list-style:none; text-align:left; margin:0 auto 24px; max-width:340px; }
 .tonight__rules li{ font-size:13.5px; color:var(--white); padding:9px 0 9px 26px; position:relative; border-bottom:1px solid rgba(255,255,255,0.06); }
@@ -919,7 +934,7 @@ body{ background:#020202; }
 .tonight__btns .btn{ width:100%; }
 .points-strip{ margin:0 18px 16px; padding:13px 16px 12px; border:1px solid var(--line); background:rgba(12,12,12,0.62); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); cursor:pointer; }
 .points-strip__top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:9px; }
-.points-strip__tier{ font-size:10.5px; font-weight:700; letter-spacing:0.22em; text-transform:uppercase; color:#d9a46a; }
+.points-strip__tier{ font-size:11px; font-weight:700; letter-spacing:0.22em; text-transform:uppercase; color:#d9a46a; }
 .points-strip__tier.is-silver{ color:#d8d8d8; } .points-strip__tier.is-gold{ color:var(--gold-light); } .points-strip__tier.is-vip{ color:#fff; text-shadow:0 0 10px rgba(230,200,117,0.8); }
 .points-strip__pts{ font-size:12px; color:var(--muted); } .points-strip__pts strong{ color:var(--white); font-size:16px; }
 .points-strip__bar{ height:4px; background:rgba(255,255,255,0.08); overflow:hidden; }
@@ -936,6 +951,10 @@ body{ background:#020202; }
 .push-ask__text{ font-size:12.5px; color:var(--muted); line-height:1.55; margin-bottom:12px; }
 .push-ask .btn{ width:100%; }
 .push-ask.is-done .push-ask__title{ color:var(--gold-light); font-size:17px; margin:0; }
+
+/* polish pass: comfortable tap targets */
+#forgotPasswordLink{ min-height:44px; padding:10px 6px; display:inline-flex; align-items:center; }
+#contactBackBtn{ min-height:44px; padding:10px 12px 10px 0; display:inline-flex; align-items:center; }
 </style>
 </head>
 <body class="is-gated">
@@ -976,7 +995,7 @@ body{ background:#020202; }
       </div>
       <div class="sheet__body" style="text-align:center;">
         <h2 class="welcome-sheet__title">See What's On</h2>
-        <p class="welcome-sheet__sub">The next party is always at the top. Filter by club to find your night.</p>
+        <p class="welcome-sheet__sub">Tonight, this week and what’s coming next. Your confirmed night and points sit right at the top.</p>
       </div>
     </div>
 
@@ -985,18 +1004,18 @@ body{ background:#020202; }
         <img src="tour-sheet.jpg" alt="Event details">
       </div>
       <div class="sheet__body" style="text-align:center;">
-        <h2 class="welcome-sheet__title">Everything in One Tap</h2>
-        <p class="welcome-sheet__sub">Open any event to request the guestlist, buy tickets, book a table, add it to your calendar or share it with friends.</p>
+        <h2 class="welcome-sheet__title">Every Night, One Place</h2>
+        <p class="welcome-sheet__sub">Open any event for the guestlist, tickets, tables, your calendar or a story to share with friends.</p>
       </div>
     </div>
 
     <div class="tour-slide">
       <div class="tour-screenshot">
-        <img src="tour-guestlist.jpg" alt="Guestlist request form">
+        <img src="tour-guestlist.jpg" alt="One-tap guestlist request">
       </div>
       <div class="sheet__body" style="text-align:center;">
-        <h2 class="welcome-sheet__title">Get On the List</h2>
-        <p class="welcome-sheet__sub">Pick your event, add your friends and send your request. We'll notify you the moment you're approved.</p>
+        <h2 class="welcome-sheet__title">On the List in One Tap</h2>
+        <p class="welcome-sheet__sub">Fill in your details once. After that, one tap sends your request — bringing friends takes one more.</p>
       </div>
     </div>
 
@@ -1006,17 +1025,17 @@ body{ background:#020202; }
       </div>
       <div class="sheet__body" style="text-align:center;">
         <h2 class="welcome-sheet__title">Earn as You Go</h2>
-        <p class="welcome-sheet__sub">Every approved night earns you points. Track your requests and climb from Bronze to VIP to unlock more perks.</p>
+        <p class="welcome-sheet__sub">Every night on the list earns points. Invite friends, climb from Bronze to VIP and unlock more perks.</p>
       </div>
     </div>
 
     <div class="tour-slide">
       <div class="tour-screenshot">
-        <img src="tour-ambassadors.jpg" alt="Contact tab">
+        <img src="tour-innercircle.jpg" alt="Inner Circle">
       </div>
       <div class="sheet__body" style="text-align:center;">
         <h2 class="welcome-sheet__title">Join the Inner Circle</h2>
-        <p class="welcome-sheet__sub">Get into our private WhatsApp group and see every new party first.</p>
+        <p class="welcome-sheet__sub">Our private WhatsApp group sees every new party first. Find it under Account.</p>
       </div>
     </div>
 
