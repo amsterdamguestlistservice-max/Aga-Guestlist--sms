@@ -1,8 +1,34 @@
 {
   "redirects": [
-    { "source": "/", "destination": "/app/", "permanent": false },
-    { "source": "/index.html", "destination": "/app/", "permanent": false },
-    { "source": "/about", "destination": "/app/", "permanent": false },
-    { "source": "/about.html", "destination": "/app/", "permanent": false }
+    {
+      "source": "/",
+      "destination": "/app/",
+      "permanent": false
+    },
+    {
+      "source": "/index.html",
+      "destination": "/app/",
+      "permanent": false
+    },
+    {
+      "source": "/about",
+      "destination": "/app/",
+      "permanent": false
+    },
+    {
+      "source": "/about.html",
+      "destination": "/app/",
+      "permanent": false
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/send-day-reminders",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/send-day-reminders",
+      "schedule": "0 20 * * *"
+    }
   ]
 }

@@ -899,11 +899,28 @@ async function loadLiveGuestlists(){
     const { data, error } = await supabaseClient.from('event_guestlists').select('*');
     if(error || !data) return;
     data.forEach(function(row){ GUESTLIST_STATE[row.event_id] = row; });
+    await loadGuestCounts();
     renderAllGuestlistPanels();
     startGuestlistTicker();
   } catch(err){
     console.warn('Could not load live guestlists.', err);
   }
+}
+
+// Real number of people already on the list per event (name|date -> guests),
+// from an aggregate-only RPC — never any personal data.
+const GUEST_COUNTS = {};
+const SOCIAL_PROOF_MIN = 10;   // only show "X people on the list" from this many
+const SCARCITY_SHOW_BELOW = 15; // only show "Only X spots left" below this many
+async function loadGuestCounts(){
+  try{
+    const { data, error } = await supabaseClient.rpc('event_guest_counts');
+    if(error || !data) return;
+    data.forEach(function(row){ GUEST_COUNTS[row.event_name + '|' + row.event_date] = Number(row.guests) || 0; });
+  } catch(err){ /* social proof is optional */ }
+}
+function guestsOnList(ev){
+  return ev ? (GUEST_COUNTS[ev.name + '|' + ev.date] || 0) : 0;
 }
 
 function guestlistUrgencyInfo(state){
@@ -949,11 +966,23 @@ function renderGuestlistPanel(panelEl, eventId){
       '<button type="button" class="glive__claim-btn" data-event-id="' + eventId + '" disabled>' + closedText + '</button>';
     return;
   }
+  // Scarcity only when it's real (few spots left); otherwise show how many
+  // people are already on the list — "47 of 50 available" reads as empty.
+  const scarce = urgency.spotsLeft < SCARCITY_SHOW_BELOW;
+  const onList = guestsOnList(ev);
+  let spotsLine = '';
+  if(scarce){
+    spotsLine = '<div class="glive__spots">Only ' + urgency.spotsLeft + ' spot' + (urgency.spotsLeft === 1 ? '' : 's') + ' left</div>' +
+      '<div class="glive__bar"><div class="glive__bar-fill" style="width:' + pct + '%;"></div></div>';
+  } else if(onList >= SOCIAL_PROOF_MIN){
+    spotsLine = '<div class="glive__spots"><strong>' + onList + ' people</strong> already on the list</div>';
+  } else {
+    spotsLine = '<div class="glive__spots">Spots are limited — request yours early</div>';
+  }
   panelEl.className = 'glive' + (urgency.label ? ' is-urgent' : '');
   panelEl.innerHTML =
     '<div class="glive__label">Guestlist live' + (urgency.label ? ' · ' + urgency.label : '') + '</div>' +
-    '<div class="glive__spots">' + urgency.spotsLeft + ' of ' + state.capacity + ' spots available</div>' +
-    '<div class="glive__bar"><div class="glive__bar-fill" style="width:' + pct + '%;"></div></div>' +
+    spotsLine +
     '<div class="glive__countdown">Closes in <span class="glive__timer">' + formatCountdown(msLeft) + '</span></div>' +
     '<button type="button" class="glive__claim-btn" data-event-id="' + eventId + '"' + (urgency.locked ? ' disabled' : '') + '>' +
       (urgency.locked ? (msLeft <= 0 ? 'Guestlist closed' : 'Guestlist full') : 'Claim your spot') +
@@ -1151,6 +1180,10 @@ function openEventSheet(ev){
   if(past){
     actions += '<div class="sheet__past-note">This event has already taken place — thanks to everyone who was on the list.</div>';
   } else {
+    const sheetOnList = guestsOnList(ev);
+    if(!noGuestlist && !soon && !closed && sheetOnList >= SOCIAL_PROOF_MIN){
+      actions += '<div class="sheet__social-proof"><strong>' + sheetOnList + ' people</strong> already on the list</div>';
+    }
     if(!noGuestlist){
       actions += soon
         ? '<button type="button" class="btn" disabled>Guestlist Coming Soon</button>'
