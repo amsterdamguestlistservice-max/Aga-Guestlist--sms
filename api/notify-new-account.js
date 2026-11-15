@@ -37,8 +37,8 @@ module.exports = async function handler(req, res) {
     const record = body.record || {};
     const email = record.email || 'unknown';
     const meta = record.raw_user_meta_data || {};
-    const firstName = meta.first_name || '';
-    const lastName = meta.last_name || '';
+    const firstName = meta.first_name || meta.given_name || meta.full_name || meta.name || '';
+    const lastName = meta.last_name || meta.family_name || '';
     const fullName = (firstName + ' ' + lastName).trim() || 'A new guest';
 
     const { RESEND_API_KEY, NOTIFY_EMAIL_TO } = process.env;

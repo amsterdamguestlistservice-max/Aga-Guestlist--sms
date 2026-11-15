@@ -2310,9 +2310,61 @@ document.getElementById('newPasswordForm').addEventListener('submit', async func
   checkNotificationGate();
 });
 if(supabaseClient){
-  supabaseClient.auth.onAuthStateChange(function(event){
+  supabaseClient.auth.onAuthStateChange(function(event, session){
     if(event === 'PASSWORD_RECOVERY') enterPasswordRecovery();
+    if(event === 'SIGNED_IN' && session && session.user) fillNamesFromProvider(session.user);
   });
+}
+
+/* ---------- Sign in with Apple / Google ----------
+   The buttons only appear once the provider is switched on in Supabase
+   (Authentication → Providers), so nothing breaks before that. Not shown in
+   the App Store build yet: native OAuth needs its own redirect setup. */
+(function(){
+  const wrap = document.getElementById('socialAuth');
+  if(!wrap || !supabaseClient || IS_NATIVE) return;
+  const buttons = { apple: document.getElementById('appleLoginBtn'), google: document.getElementById('googleLoginBtn') };
+  fetch(SUPABASE_URL + '/auth/v1/settings', { headers: { apikey: SUPABASE_ANON_KEY } })
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(cfg){
+      const ext = (cfg && cfg.external) || {};
+      let any = false;
+      Object.keys(buttons).forEach(function(p){ if(ext[p] && buttons[p]){ buttons[p].hidden = false; any = true; } });
+      wrap.hidden = !any;
+    }).catch(function(){});
+  Object.keys(buttons).forEach(function(provider){
+    const btn = buttons[provider];
+    if(!btn) return;
+    btn.addEventListener('click', async function(){
+      btn.disabled = true;
+      const { error } = await supabaseClient.auth.signInWithOAuth({
+        provider: provider,
+        options: { redirectTo: window.location.origin + '/app/' }
+      });
+      if(error){
+        btn.disabled = false;
+        showAuthError('socialError', 'Could not sign in with ' + (provider === 'apple' ? 'Apple' : 'Google') + '. Please try again or use email.');
+      }
+    });
+  });
+})();
+
+// Apple/Google accounts carry the name differently; store it the way the
+// rest of the app (and the admin emails) expect: first_name / last_name.
+async function fillNamesFromProvider(user){
+  const m = user.user_metadata || {};
+  if(m.first_name) return;
+  const full = String(m.full_name || m.name || '').trim();
+  const first = m.given_name || full.split(' ')[0] || '';
+  const last = m.family_name || full.split(' ').slice(1).join(' ') || '';
+  if(!first) return;
+  try{
+    const { data } = await supabaseClient.auth.updateUser({ data: { first_name: first, last_name: last } });
+    if(data && data.user && typeof currentUser !== 'undefined' && currentUser && currentUser.id === data.user.id){
+      currentUser = data.user;
+      if(typeof showAccountPanel === 'function' && document.body.classList.contains('is-gated') === false) showAccountPanel(currentUser);
+    }
+  } catch(e){}
 }
 
 function showAuthError(id, message){
