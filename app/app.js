@@ -2331,6 +2331,7 @@ if(supabaseClient){
       let any = false;
       Object.keys(buttons).forEach(function(p){ if(ext[p] && buttons[p]){ buttons[p].hidden = false; any = true; } });
       wrap.hidden = !any;
+      if(ext.google) setupGoogleOneTap(buttons.google);
     }).catch(function(){});
   Object.keys(buttons).forEach(function(provider){
     const btn = buttons[provider];
@@ -2348,6 +2349,54 @@ if(supabaseClient){
     });
   });
 })();
+
+/* Google's own sign-in button (Google Identity Services). Google then shows
+   "Sign in to amsterdamguestlistservice.website" instead of the Supabase
+   address that the redirect flow shows. If Google's script can't load, the
+   plain redirect button above stays as a fallback. */
+const GOOGLE_CLIENT_ID = '278817499077-ovuca4sqrsoe4nrt0dl1nhckjmm4352d.apps.googleusercontent.com';
+function setupGoogleOneTap(fallbackBtn){
+  const slot = document.getElementById('googleGisSlot');
+  if(!slot || !window.crypto || !crypto.subtle) return;
+  const s = document.createElement('script');
+  s.src = 'https://accounts.google.com/gsi/client'; s.async = true; s.defer = true;
+  s.onload = async function(){
+    try{
+      const raw = Array.from(crypto.getRandomValues(new Uint8Array(16)), function(b){ return b.toString(16).padStart(2, '0'); }).join('');
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
+      const hashed = Array.from(new Uint8Array(digest), function(b){ return b.toString(16).padStart(2, '0'); }).join('');
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        nonce: hashed,
+        itp_support: true,
+        use_fedcm_for_button: true,
+        callback: async function(resp){
+          clearAuthError('socialError');
+          const { data, error } = await supabaseClient.auth.signInWithIdToken({ provider: 'google', token: resp.credential, nonce: raw });
+          if(error || !data || !data.user){
+            showAuthError('socialError', 'Could not sign in with Google. Please try again or use email.');
+            return;
+          }
+          currentUser = data.user;
+          await fillNamesFromProvider(currentUser);
+          if(typeof AppSound !== 'undefined') AppSound.play('success');
+          showAccountPanel(currentUser);
+          unlockAppFromGate();
+          checkNotificationGate();
+        }
+      });
+      slot.hidden = false;
+      google.accounts.id.renderButton(slot, {
+        type: 'standard', theme: 'outline', size: 'large', text: 'continue_with',
+        shape: 'rectangular', logo_alignment: 'center',
+        width: Math.min(400, Math.max(240, (slot.parentElement.clientWidth || 320)))
+      });
+      if(fallbackBtn) fallbackBtn.hidden = true;
+    } catch(e){ slot.hidden = true; if(fallbackBtn) fallbackBtn.hidden = false; }
+  };
+  s.onerror = function(){ slot.hidden = true; };
+  document.head.appendChild(s);
+}
 
 // Apple/Google accounts carry the name differently; store it the way the
 // rest of the app (and the admin emails) expect: first_name / last_name.
