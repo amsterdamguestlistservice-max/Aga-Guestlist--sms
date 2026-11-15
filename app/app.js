@@ -610,6 +610,20 @@ const EVENTS = [
     countdownEnabled: false
   },
   {
+    id: "shift-amsterdam-2026-12-10",
+    name: "Shift Amsterdam",
+    date: "2026-12-10",
+    time: "23:00",
+    venue: "Oliva · Amsterdam",
+    description: "Shift Amsterdam at Oliva. Line-up coming soon.",
+    guestlistStatus: "limited",
+    ticketUrl: "#",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // show the "line-up coming soon" card until the flyer is in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
     id: "nema-2026-12-05",
     name: "NEMA",
     date: "2026-12-05",
