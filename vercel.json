@@ -22,12 +22,46 @@
     }
   ],
   "rewrites": [
-    { "source": "/privacy", "destination": "/api/legal?p=privacy" },
-    { "source": "/privacy.html", "destination": "/api/legal?p=privacy" },
-    { "source": "/terms", "destination": "/api/legal?p=terms" },
-    { "source": "/terms.html", "destination": "/api/legal?p=terms" },
-    { "source": "/support", "destination": "/api/legal?p=support" },
-    { "source": "/support.html", "destination": "/api/legal?p=support" }
+    {
+      "source": "/api/calendar",
+      "destination": "/api/ags?fn=calendar"
+    },
+    {
+      "source": "/api/delete-account",
+      "destination": "/api/ags?fn=delete-account"
+    },
+    {
+      "source": "/api/notify-report",
+      "destination": "/api/ags?fn=notify-report"
+    },
+    {
+      "source": "/api/report-action",
+      "destination": "/api/ags?fn=report-action"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/api/ags?fn=legal&p=privacy"
+    },
+    {
+      "source": "/privacy.html",
+      "destination": "/api/ags?fn=legal&p=privacy"
+    },
+    {
+      "source": "/terms",
+      "destination": "/api/ags?fn=legal&p=terms"
+    },
+    {
+      "source": "/terms.html",
+      "destination": "/api/ags?fn=legal&p=terms"
+    },
+    {
+      "source": "/support",
+      "destination": "/api/ags?fn=legal&p=support"
+    },
+    {
+      "source": "/support.html",
+      "destination": "/api/ags?fn=legal&p=support"
+    }
   ],
   "crons": [
     {
