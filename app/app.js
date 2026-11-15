@@ -610,6 +610,24 @@ const EVENTS = [
     countdownEnabled: false
   },
   {
+    id: "nema-2026-12-05",
+    name: "NEMA",
+    date: "2026-12-05",
+    time: "23:00",
+    venue: "MEWE · Amsterdam",
+    image: "events/nema-2026-12-05.jpg",
+    description: "NEMA at MEWE Amsterdam (Korte Leidsedwarsstraat 14). Afro House / Afro Tech with Bastik, Deuces, Azaro, Rezaie and Noah Staal. 23:00 till 04:00. Men 21+, women 18+.",
+    guestlistStatus: "limited",
+    minAge: 18,
+    minAgeMen: 21,
+    minAgeWomen: 18,
+    guestGenderRequired: true,
+    ticketUrl: "#",
+    guestlistUrl: "#guestlist",
+    featured: false,
+    countdownEnabled: false
+  },
+  {
     id: "amajoyo-2026-11-27",
     name: "Amajoyo",
     date: "2026-11-27",
@@ -1594,8 +1612,11 @@ document.getElementById('glForm').addEventListener('submit', async function(e){
 
   if(!firstName){ showErr('errFirstName'); valid = false; } else { clearErr('errFirstName'); }
   if(!lastName){ showErr('errLastName'); valid = false; } else { clearErr('errLastName'); }
-  const minAgeMain = eventMinAge(EVENTS[parseInt(eventSelect.value, 10)]);
-  document.getElementById('errAge').textContent = 'Must be ' + minAgeMain + ' or older' + (minAgeMain > 18 ? ' for this event.' : '.');
+  const evMain = EVENTS[parseInt(eventSelect.value, 10)];
+  const minAgeMain = eventMinAge(evMain, document.getElementById('glGender').value);
+  document.getElementById('errAge').textContent = (eventAgeRule(evMain).indexOf('men') === 0)
+    ? 'Age limit for this event: ' + eventAgeRule(evMain) + '.'
+    : 'Must be ' + minAgeMain + ' or older' + (minAgeMain > 18 ? ' for this event.' : '.');
   if(!age || parseInt(age, 10) < minAgeMain){ showErr('errAge'); valid = false; } else { clearErr('errAge'); }
   if(!phone){ showErr('errPhone'); valid = false; } else { clearErr('errPhone'); }
   if(!email || email.indexOf('@') === -1){ showErr('errEmail'); valid = false; } else { clearErr('errEmail'); }
@@ -1629,15 +1650,18 @@ document.getElementById('glForm').addEventListener('submit', async function(e){
     const gGender = gGenderInput ? gGenderInput.value : '';
     if(needGuestEmails){
       // Every chosen guest must be complete: their ticket is emailed to them.
-      const ok = gFirst && gLast && gAge && parseInt(gAge, 10) >= eventMinAge(ev) && gEmail.indexOf('@') > 0 && (!eventNeedsGender(ev) || gGender);
+      const ok = gFirst && gLast && gAge && parseInt(gAge, 10) >= eventMinAge(ev, gGender) && gEmail.indexOf('@') > 0 && (!eventNeedsGender(ev) || gGender);
       if(!ok){ showErr('errGuest' + i); guestsValid = false; } else { clearErr('errGuest' + i); }
       const gObj = { firstName: gFirst, lastName: gLast, age: gAge, email: gEmail };
       if(gGender) gObj.gender = gGender;
       additionalGuests.push(gObj);
     } else if(gFirst || gLast){
-      if(eventMinAge(ev) > 18 && (!gAge || parseInt(gAge, 10) < eventMinAge(ev))){
+      const gMin = eventMinAge(ev, gGender);
+      if((eventNeedsGender(ev) && !gGender) || (gMin > 18 && (!gAge || parseInt(gAge, 10) < gMin))){
         const eg = document.getElementById('errGuest' + i);
-        if(eg) eg.textContent = 'Guest ' + i + ' must be ' + eventMinAge(ev) + ' or older for this event.';
+        if(eg) eg.textContent = (eventNeedsGender(ev) && !gGender)
+          ? 'Guest ' + i + ': please select man or woman.'
+          : 'Guest ' + i + ' must be ' + gMin + ' or older for this event' + (eventAgeRule(ev).indexOf('men') === 0 ? ' (' + eventAgeRule(ev) + ').' : '.');
         showErr('errGuest' + i); guestsValid = false;
       } else { clearErr('errGuest' + i); }
       const g = { firstName: gFirst, lastName: gLast, age: gAge };
@@ -2368,7 +2392,22 @@ async function loadMyRequests(){
 let editingRequest = null;
 let editGuests = [];
 
-function eventMinAge(ev){ return (ev && ev.minAge) || 18; }
+// Some nights have a different minimum age for men and women
+// (minAgeMen / minAgeWomen). Without a gender, the lowest one applies.
+function eventMinAge(ev, gender){
+  const base = (ev && ev.minAge) || 18;
+  if(!ev || (!ev.minAgeMen && !ev.minAgeWomen)) return base;
+  const men = ev.minAgeMen || base, women = ev.minAgeWomen || base;
+  if(gender === 'man') return men;
+  if(gender === 'woman') return women;
+  return Math.min(men, women);
+}
+function eventAgeRule(ev){
+  if(ev && (ev.minAgeMen || ev.minAgeWomen) && eventMinAge(ev, 'man') !== eventMinAge(ev, 'woman')){
+    return 'men ' + eventMinAge(ev, 'man') + '+, women ' + eventMinAge(ev, 'woman') + '+';
+  }
+  return eventMinAge(ev) + '+';
+}
 function editEventFor(r){
   for(let i = 0; i < EVENTS.length; i++){
     if(EVENTS[i].name === r.event_name && EVENTS[i].date === r.event_date) return EVENTS[i];
@@ -2468,7 +2507,7 @@ async function saveEditRequest(){
   const gender = document.getElementById('erGender').value;
   const insta = document.getElementById('erInstagram').value.trim();
   if(!first || !last){ editError('Please fill in your first and last name.'); return; }
-  const editMin = eventMinAge(editEventFor(editingRequest));
+  const editMin = eventMinAge(editEventFor(editingRequest), gender || editingRequest.gender);
   if(!age || parseInt(age, 10) < editMin){ editError('You must be ' + editMin + ' or older for this event.'); return; }
   if(!phone){ editError('Please fill in your phone number.'); return; }
   if(!email || email.indexOf('@') < 1){ editError('Please enter a valid email address.'); return; }
@@ -2477,7 +2516,8 @@ async function saveEditRequest(){
   for(let i = 0; i < editGuests.length; i++){
     const g = editGuests[i];
     const gf = (g.firstName || '').trim(), gl = (g.lastName || '').trim(), ga = String(g.age || '').trim();
-    if(!gf || !gl || !ga || parseInt(ga, 10) < editMin){ editError('Guest ' + (i + 1) + ': first name, last name and age (' + editMin + '+) are required.'); return; }
+    const gMinE = eventMinAge(editEventFor(editingRequest), g.gender);
+    if(!gf || !gl || !ga || parseInt(ga, 10) < gMinE){ editError('Guest ' + (i + 1) + ': first name, last name and age (' + gMinE + '+) are required.'); return; }
     const out = { firstName: gf, lastName: gl, age: ga };
     if(flags.email || g.email){
       const ge = (g.email || '').trim();
@@ -2871,7 +2911,7 @@ async function tryQuickRequest(ev){
   if(!currentUser || !ev || eventNeedsGuestEmails(ev)) return false;
   const d = await savedGuestDetails();
   if(!d) return false;
-  if(parseInt(d.age, 10) < eventMinAge(ev)) return false;
+  if(parseInt(d.age, 10) < eventMinAge(ev, d.gender)) return false;
   if(eventNeedsGender(ev) && !d.gender) return false;
 
   // Already requested this night? Show that instead of a duplicate.
@@ -2898,7 +2938,7 @@ async function tryQuickRequest(ev){
       '<div class="quick-sheet__row"><span>Phone</span><span>' + escHtml(d.phone) + '</span></div>' +
       '<div class="quick-sheet__row"><span>Guests</span><span>Just you</span></div>' +
     '</div>' +
-    '<p class="quick-sheet__note">By confirming you confirm you are ' + eventMinAge(ev) + '+ and agree to be contacted about this request.</p>' +
+    '<p class="quick-sheet__note">By confirming you confirm you are ' + eventMinAge(ev, d.gender) + '+ and agree to be contacted about this request.</p>' +
     '<div class="err" id="quickErr" style="margin-bottom:12px;"></div>' +
     '<div class="quick-sheet__btns">' +
       '<button type="button" class="btn btn--solid" id="quickConfirm">Confirm request</button>' +
