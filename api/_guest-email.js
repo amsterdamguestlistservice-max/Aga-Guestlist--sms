@@ -42,8 +42,8 @@ function prettyDate(iso) {
 
 function partyLabel(total) {
   const n = Number(total) || 1;
-  if (n <= 1) return 'Just you';
-  return 'You + ' + (n - 1) + (n - 1 === 1 ? ' guest' : ' guests');
+  if (n <= 1) return '1 person';
+  return n + ' people';
 }
 
 function venueParts(venue) {
@@ -76,7 +76,7 @@ const VARIANTS = {
       return 'Good news, ' + name + '. Your request has been approved and your name is on the guestlist. We look forward to welcoming you.';
     },
     noteTitle: 'At the door',
-    note: 'Arrive on time, bring a valid photo ID for everyone in your party and give the name above at the door. ' +
+    note: 'Arrive on time, bring a valid photo ID for everyone in your group and give the name above at the door. ' +
       'Can’t make it anymore? Let us know, so your spot can go to someone else — no-shows lose points.',
     cta: 'Open the app'
   },
@@ -90,7 +90,7 @@ const VARIANTS = {
       return 'Hi ' + name + ', a quick reminder that you’re on the guestlist tonight. Everything is ready for your arrival.';
     },
     noteTitle: 'Before you go',
-    note: 'Arrive on time, bring a valid photo ID for everyone in your party and give the name above at the door. ' +
+    note: 'Arrive on time, bring a valid photo ID for everyone in your group and give the name above at the door. ' +
       'Plans changed? Let us know, so your spot can go to someone else.',
     cta: 'Open the app'
   }
@@ -119,7 +119,7 @@ function renderGuestEmail(type, record) {
     detailRow('Date', esc(prettyDate(r.event_date))) +
     detailRow('Venue', esc(venue.name) + '<br><span style="color:' + C.muted + ';font-size:13px;">' + esc(venue.city) + '</span>') +
     detailRow('Name on the list', esc(fullName)) +
-    detailRow('Party', esc(partyLabel(r.total_guests)), true);
+    detailRow('Guests', esc(partyLabel(r.total_guests)), true);
 
   const html =
 '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
@@ -195,7 +195,7 @@ function renderGuestEmail(type, record) {
     'Date: ' + prettyDate(r.event_date),
     'Venue: ' + venue.name + ', ' + venue.city,
     'Name on the list: ' + fullName,
-    'Party: ' + partyLabel(r.total_guests),
+    'Guests: ' + partyLabel(r.total_guests),
     '',
     v.noteTitle + ': ' + v.note,
     '',
