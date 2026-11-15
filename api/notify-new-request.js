@@ -19,6 +19,7 @@
 // Uses Resend's plain HTTP API directly (no extra npm package needed —
 // Vercel's Node runtime has fetch built in).
 
+const reviewToken = require('./_review-token');
 const webpush = require('web-push');
 const { createClient } = require('@supabase/supabase-js');
 
@@ -92,6 +93,7 @@ module.exports = async function handler(req, res) {
       (record.phone ? '<strong>Phone:</strong> ' + escapeHtml(record.phone) + '<br>' : '') +
       (record.email ? '<strong>Email:</strong> ' + escapeHtml(record.email) + '<br>' : '') +
       '<strong>Party size:</strong> ' + partySize + '</p>' +
+      reviewButtons(record.id) +
       '<p><a href="https://amsterdamguestlistservice.website/admin/requests.html">Review it in the admin dashboard →</a></p>';
 
     // Confirmation push to the guest runs alongside the admin email and can
@@ -127,6 +129,20 @@ module.exports = async function handler(req, res) {
     res.status(200).json({ warning: 'Email failed to send', detail: err.message || 'Unknown error' });
   }
 };
+
+// One-tap Approve / Decline buttons (signed, expiring links to /api/quick-review).
+function reviewButtons(id){
+  if(!id) return '';
+  const approve = reviewToken.makeUrl(id, 'approve');
+  const decline = reviewToken.makeUrl(id, 'decline');
+  if(!approve || !decline) return '';
+  const btn = function(href, label, bg, color){
+    return '<td style="padding:0 6px 0 0;"><a href="' + href + '" style="display:inline-block;padding:13px 26px;background:' + bg + ';color:' + color + ';font-family:Arial,sans-serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;text-decoration:none;">' + label + '</a></td>';
+  };
+  return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:18px 0 10px;"><tr>' +
+    btn(approve, 'Approve', '#C9A24A', '#000000') + btn(decline, 'Decline', '#3a1218', '#ff9aa8') +
+    '</tr></table>';
+}
 
 function escapeHtml(str){
   if(str === null || str === undefined) return '';
