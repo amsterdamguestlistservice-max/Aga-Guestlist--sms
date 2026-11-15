@@ -57,6 +57,8 @@ The official Amsterdam Guestlist Service app: one-tap guestlist requests, instan
 ## Age rating
 Answer honestly: frequent/intense **alcohol, tobacco or drug use or references** → mostly "Infrequent/Mild" references to alcohol (nightlife). User-generated content: **Yes** (Backroom chat, with moderation). Expected rating: **18+**.
 
+The app only signs in with email (password or one-time code) on iOS, so Sign in with Apple is not required (guideline 4.8).
+
 ## App Privacy ("nutrition label")
 Tracking: **No** — the app does not track users across other companies' apps or websites.
 
@@ -72,12 +74,19 @@ Data linked to the user, purpose **App Functionality** only:
 Not collected: location, financial info, health, contacts, browsing history, purchases, diagnostics, advertising data.
 
 ## App Review Information
-- Sign-in required: **Yes** — demo account: `review@…` / password (create a real test account first and approve one request for it, so the reviewer sees an approved night and points).
-- Notes for the reviewer:
+- Sign-in required: **Yes**. Create a dedicated reviewer account in the app (Sign Up with a separate email, e.g. a new Gmail address), then approve one guestlist request for it in the admin dashboard so the reviewer sees an approved night, points and the Backroom. Fill in that email + password here.
+- Contact: Keurten Martha, phone + email of the account owner.
+- Notes for the reviewer (paste as-is):
 
-> AGS is a nightlife guestlist service in Amsterdam. Guests request a spot on a club's guestlist; the AGS team approves it and the guest receives a push notification and email. Tickets and tables are sold by the venues' own ticket shops (physical events, opened in Safari). There are no in-app purchases.
-> The Backroom is a members-only chat. Members must accept the rules, can block and report others from every chat (tap ⋯), reports are emailed to AGS and handled within 24 hours, and removed members can no longer post.
-> Accounts can be deleted in Account → "Delete my account".
+> Amsterdam Guestlist Service (AGS) is a nightlife guestlist service in Amsterdam. Guests browse upcoming club nights and request a spot on the venue's guestlist; the AGS team approves the request and the guest receives a push notification and an email, plus a reminder on the night. Guests earn points for every night they are on the list.
+>
+> Tickets and table bookings are sold by the venues' own ticket shops (physical events); these links open in Safari. There are no in-app purchases or digital goods.
+>
+> The Backroom (Account → Enter the Backroom) is a members-only chat. Members must accept the rules before joining, can block or report any member from every chat (tap ⋯ or the message), reports are emailed to AGS with one-tap removal and are handled within 24 hours, and removed members can no longer post.
+>
+> Accounts can be deleted in the app: Account → "Delete my account".
+>
+> The demo account above has an approved request so you can see the confirmed-night card, points and the Backroom.
 
 ## Screenshots needed
 - 6.9" iPhone: 1320 × 2868 (3–10 screenshots)

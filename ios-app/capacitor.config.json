@@ -28,6 +28,7 @@
   },
   "server": {
     "url": "https://www.amsterdamguestlistservice.website/app/",
-    "cleartext": false
+    "cleartext": false,
+    "errorPath": "offline.html"
   }
 }
