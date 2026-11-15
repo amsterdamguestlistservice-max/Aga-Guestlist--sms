@@ -2661,10 +2661,12 @@ async function saveRequestToAccount(payload){
     }
   });
 
-  // Log in automatically as soon as the full code is in.
+  // Log in automatically as soon as the full code is in (Supabase sends
+  // 8-digit codes for this project; CODE_LENGTH must match its setting).
+  const CODE_LENGTH = 8;
   function maybeAutoSubmit(){
     const digits = tokenEl.value.replace(/\D/g, '');
-    if(codeSentTo && digits.length === 6 && !btn.disabled){
+    if(codeSentTo && digits.length === CODE_LENGTH && !btn.disabled){
       if(form.requestSubmit) form.requestSubmit(); else btn.click();
     }
   }
