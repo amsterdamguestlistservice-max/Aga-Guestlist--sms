@@ -2862,11 +2862,6 @@ var AppSound = (function(){
   };
 })();
 
-// Soft tick on buttons and tabs (one listener for the whole app).
-document.addEventListener('click', function(e){
-  const el = e.target.closest('.btn, .app-tabbar button, .glive__claim-btn, .event-card__cta, .venue-filter button, .auth-switch__btn');
-  if(el && !el.disabled) AppSound.play('tap');
-}, true);
 
 // Error messages appearing anywhere -> soft low double note.
 (function(){
