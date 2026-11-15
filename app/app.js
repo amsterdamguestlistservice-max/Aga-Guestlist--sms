@@ -726,10 +726,31 @@ function revealCardsOnScroll(){
 }
 
 function eventMedia(ev, attrs){
-  if(ev.flyerPending && !isPastEvent(ev)){
-    return '<div class="flyer-placeholder"><img src="icon-192.png" alt=""><span>Line-up coming soon</span></div>';
+  if((ev.flyerPending && !isPastEvent(ev)) || !ev.image){
+    return autoPoster(ev);
   }
-  return ev.image ? '<img src="' + ev.image + '" alt="' + ev.name + '"' + (attrs || '') + '>' : '';
+  return '<img src="' + ev.image + '" alt="' + ev.name + '"' + (attrs || '') + '>';
+}
+// A designed AGS poster for nights whose flyer isn't in yet, so the
+// app never shows an empty block.
+function autoPoster(ev){
+  const d = new Date(ev.date + 'T00:00:00');
+  const day = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()];
+  const month = ['January','February','March','April','May','June','July','August','September','October','November','December'][d.getMonth()];
+  const esc = function(v){ return String(v || '').replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
+  return '<div class="auto-poster" role="img" aria-label="' + esc(ev.name) + '">' +
+    '<span class="auto-poster__light auto-poster__light--a"></span><span class="auto-poster__light auto-poster__light--b"></span>' +
+    '<span class="auto-poster__beam"></span>' +
+    '<div class="auto-poster__inner">' +
+      '<img class="auto-poster__logo" src="icon-192.png" alt="">' +
+      '<div class="auto-poster__presents">AGS presents</div>' +
+      '<div class="auto-poster__name">' + esc(ev.name) + '</div>' +
+      '<div class="auto-poster__rule"></div>' +
+      '<div class="auto-poster__date">' + day + ' ' + d.getDate() + ' ' + month + (ev.time ? ' · ' + esc(ev.time) : '') + '</div>' +
+      '<div class="auto-poster__venue">' + esc(eventVenueName(ev)) + '</div>' +
+      '<div class="auto-poster__soon">Line-up dropping soon</div>' +
+    '</div>' +
+  '</div>';
 }
 // Lets the flyer's own colours glow around it (CSS var used by ::after).
 function flyerStyle(ev){
@@ -775,8 +796,9 @@ function switchTab(name){
   document.querySelectorAll('.tab-panel').forEach(function(el){
     el.classList.toggle('is-active', el.id === 'tab-' + name);
   });
+  const tabName = name === 'contact' ? 'account' : name; // Contact lives under Account
   document.querySelectorAll('.app-tabbar button').forEach(function(btn){
-    btn.classList.toggle('is-active', btn.dataset.tab === name);
+    btn.classList.toggle('is-active', btn.dataset.tab === tabName);
   });
   window.scrollTo(0, 0);
   // Keep "My Requests" fresh whenever the Account tab is opened while
@@ -828,17 +850,48 @@ function filterEventsByVenue(venueName){
     const matches = venueName === 'All' || card.dataset.venue === venueName;
     card.classList.toggle('is-filtered-out', !matches);
   });
+  document.querySelectorAll('#eventList .night-head').forEach(function(head){
+    let el = head.nextElementSibling, any = false;
+    while(el && !el.classList.contains('night-head')){
+      if(el.classList.contains('event-card') && !el.classList.contains('is-filtered-out')){ any = true; break; }
+      el = el.nextElementSibling;
+    }
+    head.style.display = any ? '' : 'none';
+  });
 }
 
+// "Tonight" / "Tomorrow" / "This Friday" / "Coming up" for an event date.
+function nightGroupLabel(dateStr){
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const d = new Date(dateStr + 'T00:00:00');
+  const diff = Math.round((d - today) / 86400000);
+  if(diff <= 0) return 'Tonight';
+  if(diff === 1) return 'Tomorrow';
+  if(diff <= 6) return 'This ' + ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()];
+  return 'Coming up';
+}
+function updateEventsHeadline(){
+  const h = document.getElementById('eventsHeadline');
+  const first = getSortedEvents()[0];
+  if(!h || !first) return;
+  const label = nightGroupLabel(first.date);
+  h.textContent = label === 'Tonight' ? 'Tonight in Amsterdam'
+    : label === 'Coming up' ? 'Upcoming in Amsterdam' : 'This week in Amsterdam';
+}
 function renderEventList(){
   const list = document.getElementById('eventList');
+  let lastGroup = '';
+  updateEventsHeadline();
   list.innerHTML = getSortedEvents().map(function(ev, i){
     const featured = i === 0;
     const mediaContent = eventMedia(ev, featured ? ' decoding="async"' : ' loading="lazy" decoding="async"');
     const nextUp = featured
       ? '<div class="event-card__next"><span>Next up</span><span class="js-starts-in" data-start="' + eventStartTime(ev) + '">' + formatStartsIn(eventStartTime(ev) - Date.now()) + '</span></div>'
       : '';
-    return (
+    const group = nightGroupLabel(ev.date);
+    const groupHead = group !== lastGroup ? '<div class="night-head" data-group="' + group + '"><span>' + group + '</span>' + (group === 'Coming up' ? '' : '<em>' + formatDate(ev.date) + '</em>') + '</div>' : '';
+    lastGroup = group;
+    return groupHead + (
       '<article class="event-card' + (featured ? ' is-featured' : '') + '" data-index="' + i + '" data-event-id="' + (ev.id || '') + '" data-venue="' + eventVenueName(ev) + '">' + nextUp +
         '<div class="event-card__media"' + flyerStyle(ev) + '>' + mediaContent + '</div>' +
         '<div class="event-card__body">' +
@@ -862,6 +915,7 @@ function renderEventList(){
   });
 
   revealCardsOnScroll();
+  setTimeout(refreshCardBadges, 0);
   loadLiveGuestlists();
 }
 
@@ -997,7 +1051,37 @@ function renderGuestlistPanel(panelEl, eventId){
     '</button>';
 }
 
+// Upgrade each card's small grey status into a gold label with real
+// numbers once live counts are in ("23 on the list", "Only 9 left").
+function refreshCardBadges(){
+  document.querySelectorAll('#eventList .event-card').forEach(function(card){
+    const ev = EVENTS.find(function(x){ return x.id === card.dataset.eventId; });
+    const meta = card.querySelector('.event-card__meta');
+    if(!ev || !meta) return;
+    let badge = meta.querySelector('.event-card__badge');
+    if(!badge){ badge = document.createElement('span'); badge.className = 'event-card__badge'; meta.appendChild(badge); }
+    const state = GUESTLIST_STATE[ev.id];
+    const onList = guestsOnList(ev);
+    let text = '', cls = '';
+    if(ev.guestlistStatus === 'closed' || ev.ticketsSoldOut){ text = ev.badgeLabel || ev.closedLabel || 'Guestlist full'; cls = 'is-closed'; }
+    else if(ev.guestlistStatus === 'none'){ text = ev.badgeLabel === '' ? '' : (ev.badgeLabel || 'Tickets only'); cls = 'is-tickets'; }
+    else if(ev.guestlistStatus === 'soon'){ text = 'Guestlist soon'; cls = 'is-soon'; }
+    else if(state){
+      const u = guestlistUrgencyInfo(state);
+      if(u.locked){ text = 'Guestlist full'; cls = 'is-closed'; }
+      else if(u.spotsLeft < SCARCITY_SHOW_BELOW){ text = 'Only ' + u.spotsLeft + ' left'; cls = 'is-hot'; }
+      else if(onList >= SOCIAL_PROOF_MIN){ text = onList + ' on the list'; cls = 'is-hot'; }
+      else { text = 'Guestlist open'; cls = 'is-open'; }
+    } else if(onList >= SOCIAL_PROOF_MIN){ text = onList + ' on the list'; cls = 'is-hot'; }
+    else if(ev.guestlistStatus === 'limited' || ev.guestlistStatus === 'open'){ text = 'Guestlist open'; cls = 'is-open'; }
+    badge.className = 'event-card__badge' + (cls ? ' ' + cls : '');
+    badge.textContent = text;
+    badge.style.display = text ? '' : 'none';
+  });
+}
+
 function renderAllGuestlistPanels(){
+  refreshCardBadges();
   document.querySelectorAll('#eventList .event-card').forEach(function(card){
     const eventId = card.dataset.eventId;
     const panel = card.querySelector('.glive');
@@ -1709,14 +1793,34 @@ const isIos = /iphone|ipad|ipod/.test(ua);
 const isAndroid = /android/.test(ua);
 const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
 
-if(!isStandalone){
+// Slim, dismissible "Add to Home Screen" bar: one line, steps on tap,
+// and once closed it stays closed on this device.
+function installDismissed(){ try{ return localStorage.getItem('ags_install_dismissed') === '1'; } catch(e){ return false; } }
+function showSlimInstallBar(steps){
   const banner = document.getElementById('installBanner');
+  if(!banner || installDismissed()) return;
+  banner.innerHTML =
+    '<div class="install-bar">' +
+      '<span class="install-bar__icon" aria-hidden="true">＋</span>' +
+      '<span class="install-bar__text">Add AGS to your Home Screen</span>' +
+      '<button type="button" class="install-bar__how">How?</button>' +
+      '<button type="button" class="install-bar__close" aria-label="Close">✕</button>' +
+    '</div>' +
+    '<div class="install-bar__steps" hidden>' + steps + '</div>';
+  banner.classList.add('is-visible', 'is-slim');
+  banner.querySelector('.install-bar__how').addEventListener('click', function(){
+    const st = banner.querySelector('.install-bar__steps'); st.hidden = !st.hidden;
+  });
+  banner.querySelector('.install-bar__close').addEventListener('click', function(){
+    try{ localStorage.setItem('ags_install_dismissed', '1'); } catch(e){}
+    banner.classList.remove('is-visible');
+  });
+}
+if(!isStandalone){
   if(isInAppBrowser){
-    banner.innerHTML = '<strong>Add to Home Screen</strong> — tap the ••• menu above, choose "Open in Safari" (or "Open in Browser"), then tap the Share icon and choose "Add to Home Screen".';
-    banner.classList.add('is-visible');
+    showSlimInstallBar('Tap the ••• menu, choose "Open in Safari" (or "Open in Browser"), then tap the Share icon and choose "Add to Home Screen".');
   } else if(isIos){
-    banner.innerHTML = '<strong>Add to Home Screen</strong> — tap the Share icon, then "Add to Home Screen".';
-    banner.classList.add('is-visible');
+    showSlimInstallBar('Tap the Share icon at the bottom of Safari, then choose "Add to Home Screen".');
   } else if(isAndroid){
     // Android Chrome shows its own install banner via beforeinstallprompt
     // above — nothing extra needed here.
@@ -2888,4 +2992,12 @@ var AppSound = (function(){
   }
   btn.addEventListener('click', function(){ AppSound.set(!AppSound.isOn()); paint(); if(AppSound.isOn()) AppSound.play('success'); });
   paint();
+})();
+
+// Contact now lives under Account (four tabs instead of five).
+(function(){
+  const open = document.getElementById('openContactBtn');
+  const back = document.getElementById('contactBackBtn');
+  if(open) open.addEventListener('click', function(){ switchTab('contact'); });
+  if(back) back.addEventListener('click', function(){ switchTab('account'); });
 })();

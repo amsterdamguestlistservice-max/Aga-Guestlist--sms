@@ -838,6 +838,51 @@ body{ background:#020202; }
   .event-card__next span:first-child::before, .btn--solid::after,
   .event-card.is-featured .event-card__cta::after, .glive__claim-btn::after{ animation:none !important; }
 }
+
+/* ===== Design pass: auto-poster, night groups, labels, slim install bar, 4 tabs ===== */
+.auto-poster{ position:relative; width:100%; height:100%; overflow:hidden; display:flex; align-items:center; justify-content:center; text-align:center;
+  background:radial-gradient(ellipse at 50% 30%, #2a1d08 0%, #0b0705 55%, #030303 100%); }
+.auto-poster__light{ position:absolute; border-radius:50%; filter:blur(40px); mix-blend-mode:screen; opacity:0.9; }
+.auto-poster__light--a{ width:70%; height:60%; left:-15%; top:-10%; background:radial-gradient(circle, rgba(230,180,70,0.6), transparent 70%); animation:club-drift-a 9s ease-in-out infinite alternate; }
+.auto-poster__light--b{ width:80%; height:70%; right:-25%; bottom:-20%; background:radial-gradient(circle, rgba(200,20,60,0.55), transparent 70%); animation:club-drift-b 11s ease-in-out infinite alternate; }
+.auto-poster__beam{ position:absolute; top:-20%; left:50%; width:3px; height:140%; background:linear-gradient(180deg, transparent, rgba(230,200,117,0.45), transparent); transform-origin:top center; animation:club-beam 6s ease-in-out infinite alternate; filter:blur(1px); }
+.auto-poster__inner{ position:relative; z-index:1; padding:28px 22px; display:flex; flex-direction:column; align-items:center; }
+.auto-poster__logo{ width:58px; height:58px; clip-path:circle(47%); margin-bottom:16px; filter:drop-shadow(0 0 14px rgba(201,162,74,0.6)); }
+.auto-poster__presents{ font-size:10px; letter-spacing:0.42em; text-transform:uppercase; color:var(--gold); margin-bottom:12px; }
+.auto-poster__name{ font-family:var(--serif); font-size:clamp(34px, 11vw, 54px); line-height:1.02; font-weight:600;
+  background:linear-gradient(180deg, #fff3cf 0%, #e6c875 45%, #b88a2e 100%); -webkit-background-clip:text; background-clip:text; color:transparent;
+  text-shadow:0 0 30px rgba(230,200,117,0.25); max-width:12ch; }
+.auto-poster__rule{ width:56px; height:1px; background:linear-gradient(90deg, transparent, var(--gold), transparent); margin:16px 0 14px; }
+.auto-poster__date{ font-size:12px; letter-spacing:0.22em; text-transform:uppercase; color:var(--white); }
+.auto-poster__venue{ font-size:11px; letter-spacing:0.28em; text-transform:uppercase; color:var(--gold-light); margin-top:6px; }
+.auto-poster__soon{ margin-top:18px; font-size:9.5px; letter-spacing:0.3em; text-transform:uppercase; color:var(--muted); border:1px solid rgba(201,162,74,0.35); padding:6px 12px; }
+.sheet__media .auto-poster__name{ font-size:clamp(40px, 13vw, 64px); }
+
+.night-head{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin:14px 2px -4px; }
+.night-head:first-child{ margin-top:4px; }
+.night-head span{ font-family:var(--serif); font-size:24px; color:var(--white); text-shadow:0 0 18px rgba(230,200,117,0.25); }
+.night-head em{ font-style:normal; font-size:10.5px; letter-spacing:0.18em; text-transform:uppercase; color:var(--gold); }
+.night-head[data-group="Tonight"] span::after{ content:''; display:inline-block; width:8px; height:8px; margin-left:10px; border-radius:50%; background:#ff3b5c; vertical-align:middle; animation:live-pulse 1.8s ease-out infinite; }
+
+.event-card__badge, .event-card__badge.is-closed{ position:static; flex-shrink:0; font-size:9.5px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; padding:6px 10px; border:1px solid rgba(201,162,74,0.55); color:var(--gold-light); background:rgba(201,162,74,0.08); text-align:center; }
+.event-card__badge.is-hot{ background:var(--gold); color:var(--black); border-color:var(--gold); box-shadow:0 0 16px -4px rgba(201,162,74,0.8); }
+.event-card__badge.is-closed{ border-color:rgba(245,245,245,0.25); color:var(--muted); background:transparent; }
+.event-card__badge.is-tickets{ border-color:rgba(255,59,92,0.6); color:#ff8aa0; background:rgba(255,59,92,0.08); }
+
+.install-banner.is-slim{ padding:0; border:1px solid var(--line); background:rgba(12,12,12,0.7); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
+.install-bar{ display:flex; align-items:center; gap:10px; padding:9px 10px 9px 14px; }
+.install-bar__icon{ color:var(--gold-light); font-size:15px; }
+.install-bar__text{ flex:1; font-size:12px; color:var(--white); letter-spacing:0.02em; }
+.install-banner .install-bar__how{ background:none; border:1px solid var(--gold); color:var(--gold-light); font-size:10px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; padding:6px 10px; margin:0; }
+.install-banner .install-bar__close{ background:none; border:none; color:var(--muted); font-size:14px; padding:4px 6px; margin:0; }
+.install-bar__steps{ padding:0 14px 12px; font-size:12px; color:var(--muted); line-height:1.6; }
+
+.app-tabbar button{ font-size:10.5px; padding:11px 4px 9px; }
+.app-tabbar button svg{ width:24px; height:24px; }
+.account-link{ display:flex; align-items:center; justify-content:space-between; width:100%; margin:16px 0 0; padding:14px 16px; background:rgba(201,162,74,0.06); border:1px solid var(--line); color:var(--white); font-size:12px; letter-spacing:0.1em; text-transform:uppercase; }
+.account-link span:last-child{ color:var(--gold-light); font-size:16px; }
+.back-link{ background:none; border:none; color:var(--gold-light); font-size:11px; letter-spacing:0.14em; text-transform:uppercase; padding:0 0 10px; }
+@media (prefers-reduced-motion: reduce){ .auto-poster__light, .auto-poster__beam, .night-head span::after{ animation:none !important; } }
 </style>
 </head>
 <body class="is-gated">
@@ -978,7 +1023,7 @@ body{ background:#020202; }
   <section class="tab-panel is-active" id="tab-events">
     <div class="section-head">
       <div class="section-eyebrow">Amsterdam · After Dark</div>
-      <h1>Upcoming Events</h1>
+      <h1 id="eventsHeadline">Upcoming Events</h1>
       <p>Amsterdam nightlife, curated.</p>
     </div>
     <div class="next-night" id="nextNight" hidden><!-- rendered by JS --></div>
@@ -1245,6 +1290,7 @@ body{ background:#020202; }
         </div>
       </div>
 
+      <button type="button" class="account-link" id="openContactBtn"><span>Tables, Inner Circle &amp; contact</span><span aria-hidden="true">→</span></button>
       <button type="button" class="sound-toggle" id="soundToggle" aria-pressed="true"><span class="sound-toggle__icon" aria-hidden="true">♪</span><span id="soundToggleLabel">App sounds: On</span></button>
       <button type="button" class="account-signout" id="signOutBtn">Sign Out</button>
 
@@ -1274,6 +1320,7 @@ body{ background:#020202; }
   <!-- CONTACT TAB -->
   <section class="tab-panel" id="tab-contact">
     <div class="section-head">
+      <button type="button" class="back-link" id="contactBackBtn">← Account</button>
       <h1>Contact</h1>
       <p>Tables, partnerships, and everything else.</p>
     </div>
@@ -1325,10 +1372,6 @@ body{ background:#020202; }
   <button type="button" data-tab="backroom">
     <svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-12.2 7.5L3 21l2-5.6A8.5 8.5 0 1 1 21 11.5z"/><path d="M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01"/></svg>
     Backroom
-  </button>
-  <button type="button" data-tab="contact">
-    <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-    Contact
   </button>
 </nav>
 
