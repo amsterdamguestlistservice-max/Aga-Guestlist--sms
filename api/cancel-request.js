@@ -12,7 +12,7 @@ const { createClient } = require('@supabase/supabase-js');
 const token = require('./_cancel-token');
 const events = require('./_events');
 
-const LOGO_URL = 'https://www.amsterdamguestlistservice.website/app/icon-192.png';
+const LOGO_URL = require('./_logo');
 
 function esc(v) {
   return String(v === null || v === undefined ? '' : v).replace(/[&<>"']/g, function (ch) {
@@ -31,7 +31,7 @@ function page(title, bodyHtml) {
     '<style>' +
     'body{margin:0;background:#000;color:#F5F5F5;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px 16px;box-sizing:border-box}' +
     '.card{max-width:440px;width:100%;background:#0B0B0B;border:1px solid #2A2418;border-top:2px solid #C9A24A;padding:36px 28px;text-align:center}' +
-    'img{width:64px;height:64px;border-radius:50%}' +
+    'img{width:72px;height:72px;border-radius:50%;display:block;margin:0 auto}' +
     '.eyebrow{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#C9A24A;margin:22px 0 10px}' +
     'h1{font-family:Georgia,"Times New Roman",serif;font-weight:normal;font-size:27px;line-height:1.25;margin:0 0 14px}' +
     'p{color:#CFCFCF;line-height:1.65;font-size:15px;margin:0 0 22px}' +
