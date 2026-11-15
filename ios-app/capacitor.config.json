@@ -25,5 +25,9 @@
       "backgroundColor": "#050505",
       "overlaysWebView": true
     }
+  },
+  "server": {
+    "url": "https://www.amsterdamguestlistservice.website/app/",
+    "cleartext": false
   }
 }
