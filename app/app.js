@@ -1371,6 +1371,15 @@ function addEventToCalendar(ev){
 
 /* ---- Share an event ---- */
 const APP_SHARE_URL = 'https://www.amsterdamguestlistservice.website/app/';
+// Every share carries the member's referral code, so a friend who signs up
+// from a shared event counts as their invite.
+let MY_REF_CODE = null;
+function shareUrlFor(ev){
+  const q = [];
+  if(ev && ev.id) q.push('event=' + encodeURIComponent(ev.id));
+  if(MY_REF_CODE) q.push('ref=' + encodeURIComponent(MY_REF_CODE));
+  return APP_SHARE_URL + (q.length ? '?' + q.join('&') : '');
+}
 function dataUrlToFile(dataUrl, filename){
   const parts = dataUrl.split(',');
   const mime = (parts[0].match(/:(.*?);/) || [])[1] || 'image/jpeg';
@@ -1395,10 +1404,31 @@ async function eventImageFile(ev){
     return null;
   }
 }
+// Links like /app/?event=<id> (shared events, "last spots" pushes) open
+// that event straight away.
+function openEventFromLink(urlish){
+  try{
+    const q = String(urlish || '');
+    const id = new URLSearchParams(q.indexOf('?') >= 0 ? q.slice(q.indexOf('?')) : q).get('event');
+    if(!id) return;
+    const ev = EVENTS.find(function(x){ return x.id === id; });
+    if(ev && !isPastEvent(ev)) setTimeout(function(){ try{ switchTab('events'); } catch(e){} openEventSheet(ev); }, 400);
+  } catch(e){}
+}
+// Invite a friend to a night you're going to: share link carries your code.
+async function inviteFriendTo(ev){
+  const url = shareUrlFor(ev);
+  const text = 'I’m going to ' + ev.name + ' on ' + formatDateReadable(ev.date) + '. Get on the guestlist with me via AGS — sign up with my link and you get bonus points 🖤';
+  try{
+    if(navigator.share){ await navigator.share({ title: ev.name, text: text, url: url }); return; }
+  } catch(err){ if(err && err.name === 'AbortError') return; }
+  window.open('https://wa.me/?text=' + encodeURIComponent(text + '\n' + url), '_blank', 'noopener');
+}
 async function shareEvent(ev){
   const text = ev.name + ' — ' + formatDateReadable(ev.date) + ' · ' + ev.venue +
     '\nGet on the guestlist via Amsterdam Guestlist Service 🖤';
-  const data = { title: ev.name, text: text, url: APP_SHARE_URL };
+  const shareUrl = shareUrlFor(ev);
+  const data = { title: ev.name, text: text, url: shareUrl };
   try{
     if(navigator.share){
       // Try to include the poster; fall back to text + link if the device
@@ -1406,7 +1436,7 @@ async function shareEvent(ev){
       const file = ev.image && window.File ? await eventImageFile(ev) : null;
       if(file){
         if(navigator.canShare && navigator.canShare({ files: [file] })){
-          await navigator.share({ title: data.title, text: text + '\n' + APP_SHARE_URL, files: [file] });
+          await navigator.share({ title: data.title, text: text + '\n' + shareUrl, files: [file] });
           return;
         }
       }
@@ -1417,7 +1447,7 @@ async function shareEvent(ev){
     if(err && err.name === 'AbortError') return; // user closed the share sheet
   }
   // Desktop / no share support: open WhatsApp with the text + link.
-  window.open('https://wa.me/?text=' + encodeURIComponent(text + '\n' + APP_SHARE_URL), '_blank', 'noopener');
+  window.open('https://wa.me/?text=' + encodeURIComponent(text + '\n' + shareUrl), '_blank', 'noopener');
 }
 
 function openEventSheet(ev){
@@ -1895,7 +1925,14 @@ async function nativePushSubscribe(){
 }
 if(NATIVE_PUSH){
   NATIVE_PUSH.checkPermissions().then(function(p){ if(p.receive === 'granted'){ nativePushSubscribe(); } }).catch(function(){});
-  NATIVE_PUSH.addListener('pushNotificationActionPerformed', function(){ try{ switchTab('events'); } catch(e){} });
+  NATIVE_PUSH.addListener('pushNotificationActionPerformed', function(action){
+    try{ switchTab('events'); } catch(e){}
+    try{
+      const n = action && action.notification; const d = (n && n.data) || {};
+      const url = d.url || (d.aps && d.aps.url) || '';
+      if(url) openEventFromLink(url);
+    } catch(e){}
+  });
 }
 
 async function updateNotifyBtnState(){
@@ -2088,6 +2125,7 @@ renderEventList();
 renderVenueFilter();
 renderPastEventList();
 populateGuestlistSelect();
+openEventFromLink(window.location.search);
 
 /* ================================================================
    ACCOUNT — sign up, log in, sign out, my requests
@@ -2101,7 +2139,21 @@ function showAuthPanel(){
   document.getElementById('accountHeading').textContent = 'Welcome';
   document.getElementById('accountSubhead').textContent = 'Log in or create an account to request guestlist access.';
 }
+// Google sign-ups can't pass the referral code at signup, so attach it
+// right after the first login (the server only accepts it for new accounts).
+async function claimReferralIfAny(){
+  let code = null;
+  try{ code = localStorage.getItem('ags_referral_code'); } catch(e){}
+  if(!code || !supabaseClient) return;
+  try{
+    const { data } = await supabaseClient.rpc('claim_referral', { p_code: code });
+    if(data && (data.success || ['already_referred', 'not_new', 'unknown_code', 'own_code'].indexOf(data.reason) >= 0)){
+      try{ localStorage.removeItem('ags_referral_code'); } catch(e){}
+    }
+  } catch(e){}
+}
 function showAccountPanel(user){
+  claimReferralIfAny();
   document.getElementById('authPanel').style.display = 'none';
   document.getElementById('accountPanel').style.display = 'block';
   document.getElementById('authHero').hidden = true;
@@ -2176,6 +2228,8 @@ async function loadMyPoints(){
       : 'Top tier';
 
     if(data && data.referral_code){
+      MY_REF_CODE = data.referral_code;
+      if(typeof renderNextNight === 'function') try{ renderNextNight(); } catch(e){}
       const referralCard = document.getElementById('referralCard');
       const linkText = document.getElementById('referralLinkText');
       const link = SITE_URL + '/app/?ref=' + data.referral_code;
@@ -3141,10 +3195,13 @@ function renderNextNight(){
       (ev ? '<button type="button" class="btn" id="nextNightDetails">Details</button>' : '') +
     '</div>' +
     (ev ? '<button type="button" class="next-night__share" id="nextNightShare">Share to your story ↗</button>' : '') +
+    (approved && ev && MY_REF_CODE ? '<button type="button" class="next-night__share" id="nextNightInvite">Bring a friend · you both get bonus points ↗</button>' : '') +
     '<button type="button" class="next-night__release" id="nextNightRelease">Can’t make it? Release your spot</button>' +
     (nextNightRows.length > 1 ? '<div class="next-night__more">+ ' + (nextNightRows.length - 1) + ' more upcoming request' + (nextNightRows.length > 2 ? 's' : '') + ' in your account</div>' : '');
   box.hidden = false;
 
+  const inviteBtn = document.getElementById('nextNightInvite');
+  if(inviteBtn && ev) inviteBtn.addEventListener('click', function(){ inviteFriendTo(ev); });
   const shareBtn2 = document.getElementById('nextNightShare');
   if(shareBtn2 && ev) shareBtn2.addEventListener('click', function(){ shareStory(ev, shareBtn2); });
   const passBtn = document.getElementById('nextNightPass');
@@ -3512,7 +3569,7 @@ async function shareStory(ev, btn){
     const blob = await makeStoryImage(ev);
     const file = new File([blob], 'ags-' + ev.id + '.png', { type: 'image/png' });
     if(navigator.canShare && navigator.canShare({ files: [file] })){
-      await navigator.share({ files: [file], title: ev.name, text: 'I’m on the list for ' + ev.name + ' 🔑 amsterdamguestlistservice.website/app' });
+      await navigator.share({ files: [file], title: ev.name, text: 'I’m on the list for ' + ev.name + ' 🔑 ' + shareUrlFor(ev) });
     } else {
       showStoryPreview(URL.createObjectURL(blob), file.name);
     }

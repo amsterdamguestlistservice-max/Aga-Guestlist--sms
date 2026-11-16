@@ -27,6 +27,7 @@ const { createClient } = require('@supabase/supabase-js');
 
 // Guest emails use the shared template in _guest-email.js.
 const { sendGuestEmail } = require('./_guest-email');
+const { maybeSendLastSpots } = require('./_last-spots');
 
 async function pushToGuest(record) {
   if (!record.user_id) return 0;
@@ -101,6 +102,10 @@ module.exports = async function handler(req, res) {
     // never block or break it.
     const guestPush = pushToGuest(record).catch(function () { return 0; });
     const guestMail = sendGuestEmail('received', record);
+    // Almost full? Tell everyone else once (never blocks the rest).
+    const lastSpots = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
+      ? maybeSendLastSpots(createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY), record)
+      : Promise.resolve({ skipped: 'no_supabase' });
 
     const resendRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -118,14 +123,15 @@ module.exports = async function handler(req, res) {
 
     const pushed = await guestPush;
     const guestEmailed = await guestMail;
+    const lastSpotsResult = await lastSpots;
 
     if (!resendRes.ok) {
       const errBody = await resendRes.text();
-      res.status(200).json({ warning: 'Email failed to send', detail: errBody, pushed: pushed, guestEmailed: guestEmailed });
+      res.status(200).json({ warning: 'Email failed to send', detail: errBody, pushed: pushed, guestEmailed: guestEmailed, lastSpots: lastSpotsResult });
       return;
     }
 
-    res.status(200).json({ ok: true, pushed: pushed, guestEmailed: guestEmailed });
+    res.status(200).json({ ok: true, pushed: pushed, guestEmailed: guestEmailed, lastSpots: lastSpotsResult });
   } catch (err) {
     res.status(200).json({ warning: 'Email failed to send', detail: err.message || 'Unknown error' });
   }

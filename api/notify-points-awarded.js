@@ -39,6 +39,7 @@ const { createClient } = require('@supabase/supabase-js');
 
 const POINTS_PER_APPROVAL = 10;
 const REFERRAL_BONUS_POINTS = 20;
+const WELCOME_BONUS_POINTS = 10; // for the invited friend, on their first approval
 const NO_SHOW_PENALTY = 15;
 const PARTIAL_NO_SHOW_PER_PERSON = 2;
 
@@ -228,6 +229,13 @@ module.exports = async function handler(req, res) {
       if (profile && profile.referred_by) {
         await addPoints(supabase, profile.referred_by, REFERRAL_BONUS_POINTS);
         referralBonusGiven = true;
+        const welcomeTotal = await addPoints(supabase, record.user_id, WELCOME_BONUS_POINTS);
+        await sendPush(
+          supabase,
+          record.user_id,
+          'Amsterdam Guestlist Service',
+          'Welcome bonus: +' + WELCOME_BONUS_POINTS + ' extra points for joining through a friend (total: ' + welcomeTotal + ').'
+        );
         await sendPush(
           supabase,
           profile.referred_by,
