@@ -397,7 +397,8 @@ const EVENTS = [
     image: "events/mita-suppers-house-2026-11-21.jpg",
     description: "Roox & Friends: Mannus, Dua Cultura, Kosta, Roox. 23:00 till 04:00. VIP tables: +31 6 53 29 19 95.",
     guestlistStatus: "open",
-    ticketUrl: "https://wearemita.com",
+    ticketUrl: "#",
+    ticketLabel: "Guestlist Only",
     guestlistUrl: "#guestlist",
     // Same as earlier MITA nights: tickets are personalised per guest.
     guestEmailRequired: true,
