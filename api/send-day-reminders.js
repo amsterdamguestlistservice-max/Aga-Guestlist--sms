@@ -9,6 +9,8 @@
 // the second run of the day only catches guests approved after the first.
 //
 // Goal: fewer no-shows. AGS is paid per guestlist check-in.
+// It also sends the "Tonight" push (see _last-spots.js) to members without a
+// spot when tonight's guestlists still have room.
 //
 // Auth: Vercel Cron sends "Authorization: Bearer <CRON_SECRET>". You can
 // also trigger it by hand with ?key=<ADMIN_KEY> (add &dry=1 to only see
@@ -23,6 +25,7 @@ const { sendPush: sendAnyPush } = require('./_push');
 const { createClient } = require('@supabase/supabase-js');
 const { sendGuestEmail } = require('./_guest-email');
 const { notifyForEvent } = require('./waitlist-notify');
+const { sendTonightPush } = require('./_last-spots');
 
 function isAuthorized(req) {
   const cron = process.env.CRON_SECRET;
@@ -95,7 +98,8 @@ module.exports = async function handler(req, res) {
     }
 
     if (dryRun) {
-      res.status(200).json({ ok: true, dryRun: true, date: today, wouldRemind: (rows || []).length,
+      const tonightPush = await sendTonightPush(supabase, { dryRun: true });
+      res.status(200).json({ ok: true, dryRun: true, date: today, tonightPush: tonightPush, wouldRemind: (rows || []).length,
         guests: (rows || []).map(function (r) { return { event: r.event_name, first_name: r.first_name, party: r.total_guests }; }) });
       return;
     }
@@ -120,7 +124,10 @@ module.exports = async function handler(req, res) {
       for (const id of ids) waitlistNotified += await notifyForEvent(supabase, id);
     } catch (e) { /* ignore */ }
 
-    res.status(200).json({ ok: true, date: today, requests: (rows || []).length, pushed, emailed, unreachable, waitlistNotified });
+    // Guestlists still open tonight? One push to members without a spot.
+    const tonightPush = await sendTonightPush(supabase);
+
+    res.status(200).json({ ok: true, date: today, requests: (rows || []).length, pushed, emailed, unreachable, waitlistNotified, tonightPush });
   } catch (err) {
     res.status(500).json({ ok: false, error: String(err && err.message || err) });
   }
