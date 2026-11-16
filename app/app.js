@@ -381,11 +381,10 @@ const EVENTS = [
     time: "23:00",
     venue: "Jimmy Woo · Amsterdam",
     image: "events/behind-closed-doors-2026-11-21.jpg",
-    description: "An intimate late-night set in one of Amsterdam's most exclusive rooms.",
+    description: "BCD x Habits. Club: Salie, Rivaldo, Esma Zavina, hosted by Giac Orpheo. Lounge: Merlu, Devøra.",
     guestlistStatus: "limited",
     ticketUrl: "https://shop.celebratix.io/?t=2trbkg",
     guestlistUrl: "#guestlist",
-    flyerPending: true, // show the "line-up coming soon" card until the flyer is in
     featured: false,
     countdownEnabled: false
   },
