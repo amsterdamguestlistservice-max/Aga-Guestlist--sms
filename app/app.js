@@ -389,6 +389,23 @@ const EVENTS = [
     countdownEnabled: false
   },
   {
+    id: "mita-suppers-house-2026-11-21",
+    name: "MITA x Suppers House",
+    date: "2026-11-21",
+    time: "23:00",
+    venue: "Suppers House · Amsterdam",
+    image: "events/mita-suppers-house-2026-11-21.jpg",
+    description: "Roox & Friends: Mannus, Dua Cultura, Kosta, Roox. 23:00 till 04:00. VIP tables: +31 6 53 29 19 95.",
+    guestlistStatus: "open",
+    ticketUrl: "https://wearemita.com",
+    guestlistUrl: "#guestlist",
+    // Same as earlier MITA nights: tickets are personalised per guest.
+    guestEmailRequired: true,
+    guestGenderRequired: true,
+    featured: false,
+    countdownEnabled: false
+  },
+  {
     id: "behind-closed-doors-2026-11-28",
     name: "Behind Closed Doors",
     date: "2026-11-28",
