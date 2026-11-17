@@ -7,13 +7,15 @@
 //   /api/report-action   -> _report-action.js
 //   /privacy /terms /support -> _legal.js
 //   /api/calendar        -> _calendar.js
+//   /api/admin-stats     -> _admin-stats.js
 
 const ROUTES = {
   'delete-account': require('./_delete-account'),
   'notify-report': require('./_notify-report'),
   'report-action': require('./_report-action'),
   'legal': require('./_legal'),
-  'calendar': require('./_calendar')
+  'calendar': require('./_calendar'),
+  'admin-stats': require('./_admin-stats')
 };
 
 module.exports = function handler(req, res) {

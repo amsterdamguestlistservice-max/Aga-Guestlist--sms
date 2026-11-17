@@ -21,11 +21,10 @@
 // Depends on "@supabase/supabase-js" — already added to package.json.
 
 const { createClient } = require('@supabase/supabase-js');
+const { isAdmin } = require('./_admin-auth');
 
 module.exports = async function handler(req, res) {
-  const secret = (req.headers['x-notify-secret'] || '').trim();
-  const expected = (process.env.NOTIFY_ADMIN_SECRET || '').trim();
-  if (!secret || !expected || secret !== expected) {
+  if (!(await isAdmin(req)).ok) {
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }

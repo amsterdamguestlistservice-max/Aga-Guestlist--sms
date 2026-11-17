@@ -2173,6 +2173,7 @@ openEventFromLink(window.location.search);
 let currentUser = null;
 
 function showAuthPanel(){
+  if(typeof window.agsAdminHide === 'function') window.agsAdminHide();
   document.getElementById('authPanel').style.display = 'block';
   document.getElementById('accountPanel').style.display = 'none';
   document.getElementById('authHero').hidden = false;
@@ -2215,6 +2216,7 @@ function showAccountPanel(user){
   loadMyPoints();
   linkPushSubscriptionToAccount();
   if(typeof salonInit === 'function') salonInit(user);
+  if(typeof window.agsAdminCheck === 'function') window.agsAdminCheck();
   prefillGuestlistForm();
   resumePendingGuestlistEvent();
   loadNextNight();

@@ -13,6 +13,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/admin-stats",
+      "destination": "/api/ags?fn=admin-stats"
+    },
+    {
       "source": "/api/calendar",
       "destination": "/api/ags?fn=calendar"
     },

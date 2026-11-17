@@ -23,6 +23,7 @@
 const webpush = require('web-push');
 const { sendPush: sendAnyPush } = require('./_push');
 const { createClient } = require('@supabase/supabase-js');
+const { isAdmin } = require('./_admin-auth');
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -30,17 +31,8 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  const secret = (req.headers['x-notify-secret'] || '').trim();
-  const expected = (process.env.NOTIFY_ADMIN_SECRET || '').trim();
-  if (!secret || !expected || secret !== expected) {
-    res.status(401).json({
-      error: 'Unauthorized',
-      debug: {
-        receivedLength: secret.length,
-        expectedLength: expected.length,
-        expectedIsSet: !!process.env.NOTIFY_ADMIN_SECRET
-      }
-    });
+  if (!(await isAdmin(req)).ok) {
+    res.status(401).json({ error: 'Unauthorized' });
     return;
   }
 
