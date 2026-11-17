@@ -2061,7 +2061,7 @@ const isAndroid = /android/.test(ua);
 const isStandalone = IS_NATIVE || window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
 // The native iPhone app is live: iPhone visitors get the App Store instead
 // of "Add to Home Screen" (also from Instagram's in-app browser).
-const APP_STORE_URL = 'https://apps.apple.com/app/id6835197252';
+const APP_STORE_URL = 'https://apps.apple.com/app/amsterdam-guestlist-service/id6835197252';
 function appStoreDismissed(){ try{ return localStorage.getItem('ags_appstore_dismissed') === '1'; } catch(e){ return false; } }
 function showAppStoreBar(){
   const banner = document.getElementById('installBanner');
