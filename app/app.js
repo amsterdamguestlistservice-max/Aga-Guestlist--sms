@@ -2059,6 +2059,26 @@ const isInAppBrowser = /instagram|fban|fbav|fb_iab|tiktok|musical_ly|bytedance|s
 const isIos = /iphone|ipad|ipod/.test(ua);
 const isAndroid = /android/.test(ua);
 const isStandalone = IS_NATIVE || window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+// The native iPhone app is live: iPhone visitors get the App Store instead
+// of "Add to Home Screen" (also from Instagram's in-app browser).
+const APP_STORE_URL = 'https://apps.apple.com/app/id6835197252';
+function appStoreDismissed(){ try{ return localStorage.getItem('ags_appstore_dismissed') === '1'; } catch(e){ return false; } }
+function showAppStoreBar(){
+  const banner = document.getElementById('installBanner');
+  if(!banner || appStoreDismissed()) return;
+  banner.innerHTML =
+    '<div class="install-bar">' +
+      '<img src="icon-192.png" alt="" width="28" height="28" style="border-radius:7px;flex:none">' +
+      '<span class="install-bar__text"><strong>AGS is on the App Store</strong><br><span style="color:var(--muted)">Faster, with instant notifications</span></span>' +
+      '<a class="install-bar__how" href="' + APP_STORE_URL + '" rel="noopener" style="text-decoration:none">Get</a>' +
+      '<button type="button" class="install-bar__close" aria-label="Close">✕</button>' +
+    '</div>';
+  banner.classList.add('is-visible', 'is-slim');
+  banner.querySelector('.install-bar__close').addEventListener('click', function(){
+    try{ localStorage.setItem('ags_appstore_dismissed', '1'); } catch(e){}
+    banner.classList.remove('is-visible');
+  });
+}
 
 // Slim, dismissible "Add to Home Screen" bar: one line, steps on tap,
 // and once closed it stays closed on this device.
@@ -2083,7 +2103,9 @@ function showSlimInstallBar(steps){
     banner.classList.remove('is-visible');
   });
 }
-if(!isStandalone){
+if(isIos && !IS_NATIVE){
+  showAppStoreBar();
+} else if(!isStandalone){
   if(isInAppBrowser){
     showSlimInstallBar('Tap the ••• menu, choose "Open in Safari" (or "Open in Browser"), then tap the Share icon and choose "Add to Home Screen".');
   } else if(isIos){
@@ -2525,11 +2547,9 @@ function setNotifyGateMode(mode){
   const enableBtn = document.getElementById('notifyGateEnableBtn');
   const laterBtn = document.getElementById('notifyGateLaterBtn');
   if(mode === 'install'){
-    title.textContent = 'Add the App to Get Notifications';
-    sub.innerHTML = 'On iPhone, notifications only work once the app is on your home screen:<br><br>' +
-      '1. Tap the <strong>Share</strong> button in Safari<br>' +
-      '2. Choose <strong>Add to Home Screen</strong><br>' +
-      '3. Open the app from your home screen and turn on notifications';
+    title.textContent = 'Get the App for Notifications';
+    sub.innerHTML = 'On iPhone, notifications work in the AGS app. Download it free from the App Store, log in with this account and turn on notifications.<br><br>' +
+      '<a class="btn btn--solid" href="' + APP_STORE_URL + '" rel="noopener" style="display:inline-flex;text-decoration:none">Download on the App Store</a>';
     benefits.style.display = 'none';
     enableBtn.style.display = 'none';
     laterBtn.textContent = 'Got it';
@@ -3719,7 +3739,8 @@ function pushAskHtml(){
     }
     if(isIosDevice() && !isStandaloneApp()){
       return '<div class="push-ask"><div class="push-ask__title">Get notified when you’re in</div>' +
-        '<p class="push-ask__text">On iPhone, notifications work from the app on your Home Screen: tap the Share icon in Safari, then “Add to Home Screen”.</p></div>';
+        '<p class="push-ask__text">On iPhone, notifications work in the AGS app. Download it free and log in with this account.</p>' +
+        '<a class="btn btn--solid push-ask__store" href="' + APP_STORE_URL + '" rel="noopener" style="text-decoration:none">Download on the App Store</a></div>';
     }
   } catch(e){}
   return '';

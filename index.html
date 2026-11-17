@@ -6,6 +6,7 @@
 <title>Amsterdam Guestlist Service — Guestlists for Amsterdam's best nights</title>
 <meta name="description" content="Amsterdam Guestlist Service fills Amsterdam's best club nights with the right guests. Guests get on the list in one tap; venues and organisers get a full, checked guestlist.">
 <meta name="theme-color" content="#050505">
+<meta name="apple-itunes-app" content="app-id=6835197252">
 <link rel="canonical" href="https://www.amsterdamguestlistservice.website/">
 <link rel="icon" href="/app/icon-192.png">
 <link rel="apple-touch-icon" href="/app/icon-192.png">
@@ -47,6 +48,13 @@ a{ color:inherit; }
 .btn:active{ transform:scale(.98); }
 .btn--solid{ background:var(--gold); color:#000; box-shadow:0 0 28px -8px rgba(201,162,74,.7); }
 .btn--solid:hover{ background:var(--gold-light); }
+.store-badge{ display:inline-flex; flex-direction:column; justify-content:center; min-height:50px; padding:6px 20px 7px; border:1px solid rgba(255,255,255,.55); border-radius:10px; background:#000; color:#fff; text-decoration:none; line-height:1.1; transition:border-color .2s, transform .15s; }
+.store-badge:hover{ border-color:#fff; }
+.store-badge:active{ transform:scale(.98); }
+.store-badge small{ font-size:10px; letter-spacing:.04em; opacity:.85; }
+.store-badge b{ font-size:19px; font-weight:600; letter-spacing:-.01em; }
+.store-row{ margin-top:16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.store-row span{ font-size:12px; color:var(--muted, #9a9a9a); letter-spacing:.06em; }
 .btn:not(.btn--solid):hover{ background:rgba(201,162,74,.1); }
 .nav .btn{ min-height:38px; padding:0 16px; font-size:11px; }
 
@@ -158,6 +166,7 @@ footer a:hover{ color:var(--text); }
       <a class="btn btn--solid" href="/app/">Get on the list</a>
       <a class="btn" href="#venues">Partner with us</a>
     </div>
+    <div class="store-row"><a class="store-badge" href="https://apps.apple.com/app/id6835197252" rel="noopener"><small>Download on the</small><b>App Store</b></a><span>Now on iPhone</span></div>
   </div>
 </section>
 
@@ -192,7 +201,7 @@ footer a:hover{ color:var(--text); }
       <div class="step"><div class="step__n">02</div><h3>Request in one tap</h3><p>Fill in your details once. After that, one tap — and bring your friends along.</p></div>
       <div class="step"><div class="step__n">03</div><h3>Get the green light</h3><p>A notification and email when you’re approved, plus a reminder on the night.</p></div>
     </div>
-    <p style="margin:34px 0 0"><a class="btn btn--solid" href="/app/">Open the app</a></p>
+    <p style="margin:34px 0 0;display:flex;gap:12px;flex-wrap:wrap;align-items:center"><a class="btn btn--solid" href="/app/">Open the app</a><a class="store-badge" href="https://apps.apple.com/app/id6835197252" rel="noopener"><small>Download on the</small><b>App Store</b></a></p>
   </div>
 </section>
 
