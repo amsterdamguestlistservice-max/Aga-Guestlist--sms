@@ -1915,14 +1915,23 @@ const pushSupported = !!NATIVE_PUSH || (('serviceWorker' in navigator) && ('Push
 /* Native (App Store) notifications via Apple Push. The device token is stored
    in push_subscriptions as endpoint "apns:<token>"; api/_push.js sends it. */
 let nativePushOn = false;
+// The iPhone's own answer ("granted"/"denied"/"default"), read once at start
+// so we never ask someone who already turned notifications on.
+let nativePerm = 'default';
+const nativePermReady = NATIVE_PUSH
+  ? NATIVE_PUSH.checkPermissions().then(function(p){
+      nativePerm = p.receive === 'granted' ? 'granted' : (p.receive === 'denied' ? 'denied' : 'default');
+    }).catch(function(){})
+  : Promise.resolve();
 function pushPermission(){
-  if(NATIVE_PUSH) return nativePushOn ? 'granted' : 'default';
+  if(NATIVE_PUSH) return nativePushOn ? 'granted' : nativePerm;
   return (typeof Notification !== 'undefined') ? Notification.permission : 'denied';
 }
 async function nativePushSubscribe(){
   try{
     let perm = await NATIVE_PUSH.checkPermissions();
     if(perm.receive !== 'granted') perm = await NATIVE_PUSH.requestPermissions();
+    nativePerm = perm.receive === 'granted' ? 'granted' : (perm.receive === 'denied' ? 'denied' : 'default');
     if(perm.receive !== 'granted'){ nativePushOn = false; return false; }
     await new Promise(function(resolve){
       let done = false;
@@ -2570,8 +2579,16 @@ function setNotifyGateMode(mode){
     laterBtn.textContent = 'Maybe later';
   }
 }
-function checkNotificationGate(){
+// "Maybe later" is remembered for 3 days, so the question doesn't come back
+// every time the app opens.
+const NOTIFY_SNOOZE_MS = 3 * 24 * 60 * 60 * 1000;
+function notifyGateSnoozed(){
+  try{ return Date.now() - Number(localStorage.getItem('ags_notify_later') || 0) < NOTIFY_SNOOZE_MS; } catch(e){ return false; }
+}
+async function checkNotificationGate(){
   const overlay = document.getElementById('notifyGateOverlay');
+  await nativePermReady;
+  if(notifyGateSnoozed()){ switchTab('events'); return; }
   // iPhone Safari can't do push until the app is installed to the home
   // screen — explain that instead of silently skipping the prompt.
   if(!pushSupported && isIosDevice() && !isStandaloneApp()){
@@ -2596,7 +2613,10 @@ document.getElementById('notifyGateEnableBtn').addEventListener('click', async f
   await subscribeToPush();
   closeNotifyGate();
 });
-document.getElementById('notifyGateLaterBtn').addEventListener('click', closeNotifyGate);
+document.getElementById('notifyGateLaterBtn').addEventListener('click', function(){
+  try{ localStorage.setItem('ags_notify_later', String(Date.now())); } catch(e){}
+  closeNotifyGate();
+});
 
 document.getElementById('loginForm').addEventListener('submit', async function(e){
   e.preventDefault();
