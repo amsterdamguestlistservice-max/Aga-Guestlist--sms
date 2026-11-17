@@ -161,7 +161,7 @@ async function sendTonightPush(supabase, opts) {
   }
 }
 
-// Weekly push, every Tuesday (from the daily cron, 16:00 Amsterdam): the
+// Weekly push, every Tuesday at 20:00 Amsterdam (evening cron run): the
 // parties from tomorrow until Sunday, to everyone with notifications on.
 // Sent once per Tuesday (app_flags key "weekly_push" = date it went out).
 async function sendWeeklyPush(supabase, opts) {
@@ -172,6 +172,9 @@ async function sendWeeklyPush(supabase, opts) {
     const today = fmt(Date.now());
     const weekday = new Date().toLocaleDateString('en-GB', { timeZone: 'Europe/Amsterdam', weekday: 'long' });
     if (weekday !== 'Tuesday' && !opts.force) return { skipped: 'not_tuesday' };
+    // Only from the evening cron run (20:00 Amsterdam in winter).
+    const hour = Number(new Date().toLocaleString('en-GB', { timeZone: 'Europe/Amsterdam', hour: '2-digit', hour12: false }));
+    if (hour < 19 && !opts.force) return { skipped: 'too_early' };
     const from = fmt(Date.now() + 864e5), to = fmt(Date.now() + 5 * 864e5); // Wed .. Sun
     const events = (await loadEvents()).filter(function (e) { return e.date >= from && e.date <= to; })
       .sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });

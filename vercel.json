@@ -64,7 +64,7 @@
     },
     {
       "path": "/api/send-day-reminders",
-      "schedule": "0 20 * * *"
+      "schedule": "0 19 * * *"
     }
   ]
 }
