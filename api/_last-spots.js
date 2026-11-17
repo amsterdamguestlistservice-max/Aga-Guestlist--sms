@@ -161,4 +161,55 @@ async function sendTonightPush(supabase, opts) {
   }
 }
 
-module.exports = { maybeSendLastSpots, sendTonightPush, spotsThreshold };
+// Weekly push, every Tuesday (from the daily cron, 16:00 Amsterdam): the
+// parties from tomorrow until Sunday, to everyone with notifications on.
+// Sent once per Tuesday (app_flags key "weekly_push" = date it went out).
+async function sendWeeklyPush(supabase, opts) {
+  opts = opts || {};
+  try {
+    if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return { skipped: 'no_vapid' };
+    const fmt = function (ms) { return new Date(ms).toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' }); };
+    const today = fmt(Date.now());
+    const weekday = new Date().toLocaleDateString('en-GB', { timeZone: 'Europe/Amsterdam', weekday: 'long' });
+    if (weekday !== 'Tuesday' && !opts.force) return { skipped: 'not_tuesday' };
+    const from = fmt(Date.now() + 864e5), to = fmt(Date.now() + 5 * 864e5); // Wed .. Sun
+    const events = (await loadEvents()).filter(function (e) { return e.date >= from && e.date <= to; })
+      .sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+    if (!events.length) return { skipped: 'no_events_this_week' };
+
+    const dayName = function (iso) { return new Date(iso + 'T12:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' }); };
+    const byDay = [];
+    events.forEach(function (e) {
+      const d = dayName(e.date); const last = byDay[byDay.length - 1];
+      if (last && last.d === d) last.n.push(e.name); else byDay.push({ d: d, n: [e.name] });
+    });
+    const title = 'This week in Amsterdam 🔑';
+    const body = byDay.map(function (x) { return x.d + ': ' + x.n.join(', '); }).join(' · ') + '. Get on the guestlist in one tap.';
+
+    const { data: subs } = await supabase.from('push_subscriptions').select('endpoint, p256dh, auth, user_id');
+    if (opts.dryRun) return { dryRun: true, title: title, body: body, recipients: (subs || []).length };
+
+    const { data: flag } = await supabase.from('app_flags').select('value').eq('key', 'weekly_push').maybeSingle();
+    if (flag && flag.value === today) return { skipped: 'already_sent' };
+    await supabase.from('app_flags').upsert({ key: 'weekly_push', value: today, updated_at: new Date().toISOString() });
+
+    webpush.setVapidDetails('mailto:amsterdamguestlistservice@outlook.com', process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
+    const payload = JSON.stringify({ title: title, body: body, url: './index.html' });
+    let pushed = 0;
+    await Promise.all((subs || []).map(async function (sub) {
+      try {
+        await sendAnyPush(webpush, { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload);
+        pushed++;
+      } catch (err) {
+        if (err && (err.statusCode === 404 || err.statusCode === 410)) {
+          await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+        }
+      }
+    }));
+    return { sent: true, events: events.length, pushed: pushed };
+  } catch (e) {
+    return { error: e.message || 'failed' };
+  }
+}
+
+module.exports = { maybeSendLastSpots, sendTonightPush, sendWeeklyPush, spotsThreshold };
