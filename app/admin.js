@@ -71,6 +71,32 @@
   .adm-chart .c.today div{background:var(--white)}
   .adm-top{display:flex;justify-content:space-between;gap:10px;padding:12px 14px;border:1px solid var(--line);background:var(--charcoal);margin-bottom:6px;font-size:14px;color:var(--white)}
   .adm-top span{color:var(--gold-light);white-space:nowrap}
+  .adm-req,.adm-ev{cursor:pointer}
+  .adm-ev__more{font-size:11px;color:var(--gold);letter-spacing:.14em;text-transform:uppercase;margin-top:8px}
+  .adm-layer{position:fixed;inset:0;z-index:9100;background:var(--black);overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(env(safe-area-inset-top,0px) + 14px) 16px calc(env(safe-area-inset-bottom,0px) + 40px);display:none}
+  .adm-layer.is-open{display:block}
+  #admDetail{z-index:9200}
+  .adm-pill{display:inline-block;padding:6px 10px;font:700 10px/1 var(--sans);letter-spacing:.18em;text-transform:uppercase;border:1px solid var(--line);color:var(--muted)}
+  .adm-pill.approved{border-color:#3f8f5a;color:#7fd39a}.adm-pill.pending{border-color:var(--gold);color:var(--gold-light)}
+  .adm-pill.declined,.adm-pill.no-show,.adm-pill.cancelled{border-color:#7a3b36;color:#ff9a8f}
+  .adm-dl{border:1px solid var(--line);background:var(--charcoal);margin-top:12px}
+  .adm-dl div{display:flex;justify-content:space-between;gap:14px;padding:12px 14px;border-bottom:1px solid rgba(201,162,74,.12);font-size:14px}
+  .adm-dl div:last-child{border-bottom:0}
+  .adm-dl dt,.adm-dl span.k{color:var(--muted)}
+  .adm-dl b{font-weight:500;color:var(--white);text-align:right;word-break:break-word}
+  .adm-dl a{color:var(--gold-light)}
+  .adm-contact{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+  .adm-contact a{display:flex;align-items:center;justify-content:center;min-height:44px;border:1px solid var(--line);color:var(--white);text-decoration:none;font:600 12px/1 var(--sans);letter-spacing:.06em}
+  .adm-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}
+  .adm-acts button{min-height:50px;border:1px solid var(--line);background:transparent;color:var(--white);font:700 11px/1 var(--sans);letter-spacing:.16em;text-transform:uppercase;cursor:pointer}
+  .adm-acts .ok{background:var(--gold);border-color:var(--gold);color:#000}
+  .adm-acts .bad{border-color:#7a3b36;color:#ff9a8f}
+  .adm-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 14px;border:1px solid var(--line);background:var(--charcoal);margin-bottom:6px;cursor:pointer}
+  .adm-row b{font-weight:500;font-size:15px;color:var(--white)}
+  .adm-row small{display:block;font-size:12px;color:var(--muted);margin-top:3px}
+  .adm-tabs{display:flex;gap:6px;margin:6px 0 12px;flex-wrap:wrap}
+  .adm-tabs button{min-height:36px;padding:0 12px;border:1px solid var(--line);background:transparent;color:var(--muted);font:600 12px/1 var(--sans);cursor:pointer}
+  .adm-tabs button.on{border-color:var(--gold);color:var(--gold-light)}
   .adm-empty{padding:18px;border:1px dashed var(--line);color:var(--muted);font-size:13px;text-align:center}
   .adm-push input,.adm-push textarea{width:100%;background:var(--charcoal);border:1px solid var(--line);color:var(--white);padding:12px;font:15px var(--sans);margin-bottom:8px;border-radius:0}
   .adm-push textarea{min-height:90px;resize:vertical}
@@ -102,6 +128,10 @@
     '<button type="button" id="admPushSend">Send to everyone</button>' +
     '<div class="adm-note" id="admPushNote">Goes to every member who turned on notifications, on iPhone and web.</div></div>';
   document.body.appendChild(sheet);
+  const listLayer = document.createElement('div'); listLayer.id = 'admList'; listLayer.className = 'adm-layer'; document.body.appendChild(listLayer);
+  const detailLayer = document.createElement('div'); detailLayer.id = 'admDetail'; detailLayer.className = 'adm-layer'; document.body.appendChild(detailLayer);
+  let REQS = [];
+  let listCtx = null; // { name, date, filter }
 
   function showErr(msg){ const e = document.getElementById('admErr'); e.textContent = msg || ''; e.hidden = !msg; }
 
@@ -135,15 +165,16 @@
     const evs = s.upcoming || [];
     document.getElementById('admEvents').innerHTML = evs.length ? evs.map(function(e){
       const pct = e.capacity ? Math.min(100, Math.round(e.claimed / e.capacity * 100)) : 0;
-      return '<div class="adm-ev"><div class="adm-ev__top"><span>' + esc(e.name) + '</span><i>' + esc(day(e.date)) + '</i></div>' +
+      return '<div class="adm-ev" data-name="' + esc(e.name) + '" data-date="' + esc(e.date) + '"><div class="adm-ev__top"><span>' + esc(e.name) + '</span><i>' + esc(day(e.date)) + '</i></div>' +
         '<div class="adm-bar"><div style="width:' + pct + '%"></div></div>' +
-        '<div class="adm-ev__meta">' + e.claimed + ' / ' + e.capacity + ' spots claimed · ' + e.approved + ' approved (' + e.guests + ' guests) · ' + e.pending + ' pending' + (e.enabled ? '' : ' · closed') + '</div></div>';
+        '<div class="adm-ev__meta">' + e.claimed + ' / ' + e.capacity + ' spots claimed · ' + e.approved + ' approved (' + e.guests + ' guests) · ' + e.pending + ' pending' + (e.enabled ? '' : ' · closed') + '</div><div class="adm-ev__more">Open guestlist ›</div></div>';
     }).join('') : '<div class="adm-empty">No open guestlists.</div>';
     updateBadge(s.pending);
   }
 
   async function loadReqs(){
     const r = await api('/api/admin-requests');
+    REQS = r.requests || [];
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
     const pending = (r.requests || []).filter(function(x){ return String(x.status || 'pending').trim().toLowerCase() === 'pending' && String(x.event_date) >= today; });
     const box = document.getElementById('admReqs');
@@ -170,6 +201,98 @@
       card.querySelector('.acts').innerHTML = '<div class="adm-note" style="grid-column:1/-1;text-align:center">' + (status === 'Approved' ? 'Approved ✓ guest is notified' : 'Declined') + '</div>';
       loadStats().catch(function(){});
     } catch(e){ btns.forEach(function(b){ b.disabled = false; }); showErr(e.message); }
+  }
+
+  const st = function(x){ return String(x.status || 'pending').trim().toLowerCase(); };
+  const fullName = function(x){ return ((x.first_name || '') + ' ' + (x.last_name || '')).trim() || 'Guest'; };
+  const gName = function(g){ return ((g.firstName || g.first_name || g.name || '') + ' ' + (g.lastName || g.last_name || '')).trim(); };
+  function dl(rows){ return '<dl class="adm-dl">' + rows.filter(function(r){ return r[1] !== '' && r[1] != null; }).map(function(r){ return '<div><span class="k">' + esc(r[0]) + '</span><b>' + r[1] + '</b></div>'; }).join('') + '</dl>'; }
+  function waNumber(p){ let n = String(p || '').replace(/[^0-9+]/g, ''); if(n.indexOf('+') === 0) n = n.slice(1); else if(n.indexOf('00') === 0) n = n.slice(2); else if(n.indexOf('06') === 0) n = '31' + n.slice(1); return n; }
+
+  function openDetail(id){
+    const x = REQS.find(function(r){ return String(r.id) === String(id); });
+    if(!x){ return; }
+    const s = st(x), ig = String(x.instagram || '').replace(/^@/, '');
+    const guests = Array.isArray(x.additional_guests) ? x.additional_guests : [];
+    const created = x.created_at ? new Date(x.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+    let html = '<div class="adm-head"><div class="adm-title"><small>' + esc(x.event_name) + ' · ' + esc(day(x.event_date)) + '</small>' + esc(fullName(x)) + '</div>' +
+      '<button type="button" class="adm-btn" data-close="admDetail">Back</button></div>' +
+      '<span class="adm-pill ' + esc(s) + '">' + esc(x.status || 'Pending') + '</span>' +
+      dl([
+        ['Party', (x.total_guests || 1) + ' person' + ((x.total_guests || 1) > 1 ? 's' : '') + (x.missing_guests ? ' · ' + x.missing_guests + ' missing' : '')],
+        ['Age', x.age ? esc(x.age) : ''],
+        ['Gender', x.gender ? esc(x.gender) : ''],
+        ['Instagram', ig ? '<a href="https://instagram.com/' + encodeURIComponent(ig) + '" target="_blank" rel="noopener">@' + esc(ig) + '</a>' : ''],
+        ['Phone', x.phone ? '<a href="tel:' + esc(x.phone) + '">' + esc(x.phone) + '</a>' : ''],
+        ['Email', x.email ? '<a href="mailto:' + esc(x.email) + '">' + esc(x.email) + '</a>' : ''],
+        ['Requested', esc(created)]
+      ]);
+    const c = [];
+    if(x.phone) c.push('<a href="https://wa.me/' + waNumber(x.phone) + '" target="_blank" rel="noopener">WhatsApp</a>');
+    if(x.phone) c.push('<a href="tel:' + esc(x.phone) + '">Call</a>');
+    if(ig) c.push('<a href="https://ig.me/m/' + encodeURIComponent(ig) + '" target="_blank" rel="noopener">DM</a>');
+    if(c.length) html += '<div class="adm-contact">' + c.join('') + '</div>';
+    if(guests.length){
+      html += '<div class="adm-sec">Guests (' + guests.length + ')</div>' + guests.map(function(g, i){
+        return dl([
+          ['Guest ' + (i + 2), esc(gName(g) || '—')],
+          ['Age', g.age ? esc(g.age) : ''],
+          ['Gender', g.gender ? esc(g.gender) : ''],
+          ['Email', g.email ? '<a href="mailto:' + esc(g.email) + '">' + esc(g.email) + '</a>' : '']
+        ]);
+      }).join('');
+    }
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
+    const past = String(x.event_date) < today;
+    let acts = '';
+    if(s === 'pending') acts = '<button type="button" data-set="Declined" class="bad">Decline</button><button type="button" data-set="Approved" class="ok">Approve</button>';
+    else if(s === 'approved') acts = past ? '<button type="button" data-set="No-Show" class="bad">No-show</button><button type="button" data-set="Approved" disabled>Approved ✓</button>' : '<button type="button" data-set="Declined" class="bad">Remove from list</button><button type="button" data-set="Approved" disabled>Approved ✓</button>';
+    else if(s === 'declined' || s === 'no-show') acts = '<button type="button" data-set="Pending">Back to pending</button><button type="button" data-set="Approved" class="ok">Approve</button>';
+    if(acts) html += '<div class="adm-acts" data-id="' + esc(x.id) + '">' + acts + '</div>';
+    html += '<div class="adm-err" id="admDetailErr" hidden></div>';
+    detailLayer.innerHTML = html;
+    detailLayer.classList.add('is-open'); detailLayer.scrollTop = 0;
+  }
+
+  async function setStatus(id, status, btn){
+    const box = btn.closest('.adm-acts'); box.querySelectorAll('button').forEach(function(b){ b.disabled = true; });
+    try{
+      await api('/api/admin-requests', { method: 'POST', body: { id: id, status: status } });
+      const x = REQS.find(function(r){ return String(r.id) === String(id); }); if(x) x.status = status;
+      openDetail(id);
+      loadReqs().catch(function(){}); loadStats().catch(function(){});
+      if(listCtx) renderList();
+    } catch(e){
+      box.querySelectorAll('button').forEach(function(b){ b.disabled = false; });
+      const er = document.getElementById('admDetailErr'); er.textContent = e.message; er.hidden = false;
+    }
+  }
+
+  function openList(name, date){ listCtx = { name: name, date: date, filter: 'all' }; renderList(); listLayer.classList.add('is-open'); listLayer.scrollTop = 0; }
+  function renderList(){
+    const rows = REQS.filter(function(r){ return r.event_name === listCtx.name && String(r.event_date) === listCtx.date; });
+    const count = function(f){ return rows.filter(function(r){ return f === 'all' ? true : st(r) === f; }).length; };
+    const shown = rows.filter(function(r){ return listCtx.filter === 'all' ? true : st(r) === listCtx.filter; });
+    const approved = rows.filter(function(r){ return st(r) === 'approved'; });
+    const guestTotal = approved.reduce(function(n, r){ return n + (Number(r.total_guests) || 1); }, 0);
+    const tab = function(f, label){ return '<button type="button" data-filter="' + f + '" class="' + (listCtx.filter === f ? 'on' : '') + '">' + label + ' (' + count(f) + ')</button>'; };
+    listLayer.innerHTML =
+      '<div class="adm-head"><div class="adm-title"><small>' + esc(day(listCtx.date)) + ' · ' + guestTotal + ' guests on the list</small>' + esc(listCtx.name) + '</div>' +
+      '<button type="button" class="adm-btn" data-close="admList">Back</button></div>' +
+      '<div class="adm-tabs">' + tab('all', 'All') + tab('approved', 'Approved') + tab('pending', 'Pending') + tab('declined', 'Declined') + '</div>' +
+      (shown.length ? shown.map(function(r){
+        return '<div class="adm-row" data-open="' + esc(r.id) + '"><div><b>' + esc(fullName(r)) + '</b><small>' + (r.total_guests || 1) + ' guest' + ((r.total_guests || 1) > 1 ? 's' : '') + (r.instagram ? ' · @' + esc(String(r.instagram).replace(/^@/, '')) : '') + '</small></div><span class="adm-pill ' + esc(st(r)) + '">' + esc(r.status || 'Pending') + '</span></div>';
+      }).join('') : '<div class="adm-empty">No requests here.</div>') +
+      (approved.length ? '<div class="adm-push" style="margin-top:16px"><button type="button" id="admCopyNames">Copy guestlist names</button><div class="adm-note" id="admCopyNote">Copies every approved name (incl. their guests) to send to the door.</div></div>' : '');
+  }
+  function copyNames(){
+    const rows = REQS.filter(function(r){ return r.event_name === listCtx.name && String(r.event_date) === listCtx.date && st(r) === 'approved'; });
+    const names = [];
+    rows.forEach(function(r){ names.push(fullName(r)); (Array.isArray(r.additional_guests) ? r.additional_guests : []).forEach(function(g){ const n = gName(g); if(n) names.push(n); }); });
+    const text = listCtx.name + ' · ' + day(listCtx.date) + ' (' + names.length + ')\n' + names.map(function(n, i){ return (i + 1) + '. ' + n; }).join('\n');
+    const done = function(){ document.getElementById('admCopyNote').textContent = 'Copied ✓ ' + names.length + ' names'; };
+    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function(){ prompt('Copy the list:', text); });
+    else prompt('Copy the list:', text);
   }
 
   async function refresh(){
@@ -201,14 +324,32 @@
   }
 
   function open(){ sheet.classList.add('is-open'); document.body.style.overflow = 'hidden'; refresh(); }
-  function close(){ sheet.classList.remove('is-open'); document.body.style.overflow = ''; }
+  function close(){ sheet.classList.remove('is-open'); listLayer.classList.remove('is-open'); detailLayer.classList.remove('is-open'); listCtx = null; document.body.style.overflow = ''; }
 
   document.getElementById('admClose').addEventListener('click', close);
   document.getElementById('admRefresh').addEventListener('click', refresh);
   document.getElementById('admPushSend').addEventListener('click', sendPush);
   sheet.addEventListener('click', function(e){
     const b = e.target.closest('.adm-req button[data-act]');
-    if(b) act(b.closest('.adm-req'), b.getAttribute('data-act'));
+    if(b){ act(b.closest('.adm-req'), b.getAttribute('data-act')); return; }
+    if(e.target.closest('a')) return;
+    const card = e.target.closest('.adm-req[data-id]');
+    if(card){ openDetail(card.getAttribute('data-id')); return; }
+    const ev = e.target.closest('.adm-ev[data-name]');
+    if(ev) openList(ev.getAttribute('data-name'), ev.getAttribute('data-date'));
+  });
+  [listLayer, detailLayer].forEach(function(layer){
+    layer.addEventListener('click', function(e){
+      const c = e.target.closest('[data-close]');
+      if(c){ document.getElementById(c.getAttribute('data-close')).classList.remove('is-open'); if(c.getAttribute('data-close') === 'admList') listCtx = null; return; }
+      const f = e.target.closest('[data-filter]');
+      if(f){ listCtx.filter = f.getAttribute('data-filter'); renderList(); return; }
+      const o = e.target.closest('[data-open]');
+      if(o){ openDetail(o.getAttribute('data-open')); return; }
+      if(e.target.closest('#admCopyNames')){ copyNames(); return; }
+      const s2 = e.target.closest('.adm-acts button[data-set]');
+      if(s2 && !s2.disabled) setStatus(s2.closest('.adm-acts').getAttribute('data-id'), s2.getAttribute('data-set'), s2);
+    });
   });
 
   // ---------- entry button in Account ----------
