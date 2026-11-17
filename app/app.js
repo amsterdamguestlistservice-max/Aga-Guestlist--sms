@@ -2202,8 +2202,30 @@ async function claimReferralIfAny(){
     }
   } catch(e){}
 }
+// App Store rating: in the iPhone app, the morning after a night someone was
+// on the list (and showed up), ask Apple's rating sheet. Apple decides whether
+// it really appears (max 3x a year); we ask at most once every 120 days.
+async function maybeAskForReview(){
+  try{
+    const review = IS_NATIVE && window.Capacitor.Plugins && window.Capacitor.Plugins.InAppReview;
+    if(!review || !supabaseClient || !currentUser) return;
+    let last = 0; try{ last = Number(localStorage.getItem('ags_review_asked') || 0); } catch(e){}
+    if(Date.now() - last < 120 * 864e5) return;
+    const fmt = function(ms){ return new Date(ms).toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' }); };
+    const { data } = await supabaseClient.from('guestlist_requests')
+      .select('status, event_date, missing_guests')
+      .gte('event_date', fmt(Date.now() - 14 * 864e5)).lte('event_date', fmt(Date.now() - 864e5));
+    const goodNight = (data || []).some(function(r){
+      return String(r.status || '').trim().toLowerCase() === 'approved' && !(Number(r.missing_guests) > 0);
+    });
+    if(!goodNight) return;
+    try{ localStorage.setItem('ags_review_asked', String(Date.now())); } catch(e){}
+    setTimeout(function(){ try{ review.requestReview(); } catch(e){} }, 4000);
+  } catch(e){}
+}
 function showAccountPanel(user){
   claimReferralIfAny();
+  maybeAskForReview();
   document.getElementById('authPanel').style.display = 'none';
   document.getElementById('accountPanel').style.display = 'block';
   document.getElementById('authHero').hidden = true;
