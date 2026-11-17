@@ -63,6 +63,14 @@
   .adm-req .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
   .adm-req .acts button{min-height:44px;border:1px solid var(--line);background:transparent;color:var(--white);font:700 11px/1 var(--sans);letter-spacing:.16em;text-transform:uppercase;cursor:pointer}
   .adm-req .acts .ok{background:var(--gold);border-color:var(--gold);color:#000}
+  .adm-chart{border:1px solid var(--line);background:var(--charcoal);padding:14px 12px 10px;display:flex;align-items:flex-end;gap:5px;height:150px}
+  .adm-chart .c{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px}
+  .adm-chart .c b{font:600 10px/1 var(--sans);color:var(--muted)}
+  .adm-chart .c div{width:100%;background:linear-gradient(180deg,var(--gold-light),#9c7a2e);min-height:2px;border-radius:2px 2px 0 0}
+  .adm-chart .c i{font-style:normal;font-size:9px;color:var(--muted)}
+  .adm-chart .c.today div{background:var(--white)}
+  .adm-top{display:flex;justify-content:space-between;gap:10px;padding:12px 14px;border:1px solid var(--line);background:var(--charcoal);margin-bottom:6px;font-size:14px;color:var(--white)}
+  .adm-top span{color:var(--gold-light);white-space:nowrap}
   .adm-empty{padding:18px;border:1px dashed var(--line);color:var(--muted);font-size:13px;text-align:center}
   .adm-push input,.adm-push textarea{width:100%;background:var(--charcoal);border:1px solid var(--line);color:var(--white);padding:12px;font:15px var(--sans);margin-bottom:8px;border-radius:0}
   .adm-push textarea{min-height:90px;resize:vertical}
@@ -84,6 +92,9 @@
     '<div id="admErr" class="adm-err" hidden></div>' +
     '<div class="adm-sec">Today</div><div class="adm-grid" id="admStats"></div>' +
     '<div class="adm-sec">Requests to review</div><div id="admReqs"></div>' +
+    '<div class="adm-sec">All time</div><div class="adm-grid" id="admTotals"></div>' +
+    '<div class="adm-sec">New accounts · last 14 days</div><div class="adm-chart" id="admChart"></div>' +
+    '<div class="adm-sec">Most guests</div><div id="admTop"></div>' +
     '<div class="adm-sec">Guestlists</div><div id="admEvents"></div>' +
     '<div class="adm-sec">Send a notification</div>' +
     '<div class="adm-push"><input id="admPushTitle" maxlength="60" placeholder="Title (optional)">' +
@@ -103,6 +114,24 @@
       stat(s.signupsToday, 'new members today · ' + s.signupsWeek + ' this week') +
       stat(s.pushIphoneToday, 'iPhone app installs today · ' + s.pushIphone + ' total') +
       stat(s.members, 'members in total');
+    const pct = s.requestsTotal ? Math.round(s.approvedRequests / s.requestsTotal * 100) : 0;
+    document.getElementById('admTotals').innerHTML =
+      stat(s.accountsTotal, 'accounts created · ' + s.accountsMonth + ' this month', true) +
+      stat(s.requestsTotal, 'guestlist requests · ' + pct + '% approved') +
+      stat(s.approvedGuests, 'guests put on the list') +
+      stat(s.noShows, 'no-shows · ' + s.declined + ' declined') +
+      stat(s.referred, 'joined through a friend') +
+      stat(s.pushIphone + s.pushWeb, 'notifications on · ' + s.pushIphone + ' iPhone, ' + s.pushWeb + ' web');
+    const days = s.signups14 || [];
+    const max = Math.max(1, ...days.map(function(d){ return d.n; }));
+    document.getElementById('admChart').innerHTML = days.map(function(d, i){
+      const dd = new Date(d.date + 'T12:00:00');
+      return '<div class="c' + (i === days.length - 1 ? ' today' : '') + '"><b>' + (d.n || '') + '</b><div style="height:' + Math.round(d.n / max * 100) + '%"></div><i>' + dd.getDate() + '</i></div>';
+    }).join('');
+    const top = s.topEvents || [];
+    document.getElementById('admTop').innerHTML = top.length ? top.map(function(t, i){
+      return '<div class="adm-top">' + (i + 1) + '. ' + esc(t.name) + '<span>' + t.guests + ' guests</span></div>';
+    }).join('') : '<div class="adm-empty">No approved guests yet.</div>';
     const evs = s.upcoming || [];
     document.getElementById('admEvents').innerHTML = evs.length ? evs.map(function(e){
       const pct = e.capacity ? Math.min(100, Math.round(e.claimed / e.capacity * 100)) : 0;

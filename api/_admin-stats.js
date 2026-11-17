@@ -15,23 +15,52 @@ module.exports = async function handler(req, res) {
     const dayStart = new Date(today + 'T00:00:00+01:00').toISOString();
     const weekStart = new Date(Date.now() - 7 * 864e5).toISOString();
 
-    const [members, subs, reqs, lists, events] = await Promise.all([
+    const [members, subs, reqs, lists, events, allReqs, referred] = await Promise.all([
       sb.from('profiles').select('user_id', { count: 'exact', head: true }),
       sb.from('push_subscriptions').select('endpoint, created_at'),
       sb.from('guestlist_requests').select('id, status, event_name, event_date, total_guests, created_at').gte('event_date', today),
       sb.from('event_guestlists').select('event_id, enabled, capacity, claimed_count, deadline').gte('deadline', new Date().toISOString()),
-      loadEvents()
+      loadEvents(),
+      sb.from('guestlist_requests').select('status, total_guests, event_name, event_date').range(0, 19999),
+      sb.from('profiles').select('user_id', { count: 'exact', head: true }).not('referred_by', 'is', null)
     ]);
 
     // New accounts (auth admin API: newest first, enough for "today / 7 days").
-    let signupsToday = 0, signupsWeek = 0;
+    let signupsToday = 0, signupsWeek = 0, accountsTotal = 0, accountsMonth = 0;
+    const ams = function (iso) { return new Date(iso).toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' }); };
+    const days14 = [];
+    for (let i = 13; i >= 0; i--) days14.push({ date: ams(Date.now() - i * 864e5), n: 0 });
+    const monthKey = today.slice(0, 7);
     try {
-      const { data } = await sb.auth.admin.listUsers({ page: 1, perPage: 1000 });
-      (data && data.users || []).forEach(function (u) {
-        if (u.created_at >= dayStart) signupsToday++;
-        if (u.created_at >= weekStart) signupsWeek++;
-      });
+      for (let page = 1; page <= 20; page++) {
+        const { data } = await sb.auth.admin.listUsers({ page: page, perPage: 1000 });
+        const users = (data && data.users) || [];
+        users.forEach(function (u) {
+          accountsTotal++;
+          if (u.created_at >= dayStart) signupsToday++;
+          if (u.created_at >= weekStart) signupsWeek++;
+          const d = ams(u.created_at);
+          if (d.slice(0, 7) === monthKey) accountsMonth++;
+          const slot = days14.find(function (x) { return x.date === d; });
+          if (slot) slot.n++;
+        });
+        if (users.length < 1000) break;
+      }
     } catch (e) {}
+
+    // All-time guestlist numbers
+    const all = allReqs.data || [];
+    const st = function (r) { return String(r.status || 'pending').trim().toLowerCase(); };
+    let approvedReq = 0, approvedGuests = 0, noShows = 0, declined = 0;
+    const topMap = {};
+    all.forEach(function (r) {
+      const x = st(r), g = Number(r.total_guests) || 1;
+      if (x === 'approved') { approvedReq++; approvedGuests += g; topMap[r.event_name] = (topMap[r.event_name] || 0) + g; }
+      else if (x === 'no-show') noShows++;
+      else if (x === 'declined') declined++;
+    });
+    const topEvents = Object.keys(topMap).map(function (k) { return { name: k, guests: topMap[k] }; })
+      .sort(function (a, b) { return b.guests - a.guests; }).slice(0, 5);
 
     const s = subs.data || [];
     const rows = reqs.data || [];
@@ -57,6 +86,16 @@ module.exports = async function handler(req, res) {
       ok: true,
       email: who.email || null,
       members: members.count || 0,
+      accountsTotal: accountsTotal || members.count || 0,
+      accountsMonth: accountsMonth,
+      signups14: days14,
+      requestsTotal: all.length,
+      approvedRequests: approvedReq,
+      approvedGuests: approvedGuests,
+      noShows: noShows,
+      declined: declined,
+      referred: referred.count || 0,
+      topEvents: topEvents,
       signupsToday: signupsToday,
       signupsWeek: signupsWeek,
       pushIphone: s.filter(function (x) { return String(x.endpoint).indexOf('apns:') === 0; }).length,
