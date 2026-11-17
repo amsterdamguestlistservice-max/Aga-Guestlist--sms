@@ -13,6 +13,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/announce-new",
+      "destination": "/api/ags?fn=announce-new"
+    },
+    {
       "source": "/api/admin-stats",
       "destination": "/api/ags?fn=admin-stats"
     },

@@ -8,6 +8,7 @@
 //   /privacy /terms /support -> _legal.js
 //   /api/calendar        -> _calendar.js
 //   /api/admin-stats     -> _admin-stats.js
+//   /api/announce-new    -> _announce-new.js
 
 const ROUTES = {
   'delete-account': require('./_delete-account'),
@@ -15,7 +16,8 @@ const ROUTES = {
   'report-action': require('./_report-action'),
   'legal': require('./_legal'),
   'calendar': require('./_calendar'),
-  'admin-stats': require('./_admin-stats')
+  'admin-stats': require('./_admin-stats'),
+  'announce-new': require('./_announce-new')
 };
 
 module.exports = function handler(req, res) {

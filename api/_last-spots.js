@@ -215,4 +215,70 @@ async function sendWeeklyPush(supabase, opts) {
   }
 }
 
-module.exports = { maybeSendLastSpots, sendTonightPush, sendWeeklyPush, spotsThreshold };
+// "New party" push. Compares the events in the app with the list we've
+// already announced (app_flags "known_events"). New upcoming events get one
+// push to everyone with notifications on. Runs from the daily cron (16:00 and
+// 20:00 Amsterdam) and from the admin dashboard button ("announce now").
+// The very first run only remembers the current events, it sends nothing.
+async function sendNewEventsPush(supabase, opts) {
+  opts = opts || {};
+  try {
+    if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return { skipped: 'no_vapid' };
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
+    const events = await loadEvents();
+    if (!events || !events.length) return { skipped: 'no_events_loaded' };
+    const ids = events.map(function (e) { return e.id; });
+
+    const { data: flag } = await supabase.from('app_flags').select('value').eq('key', 'known_events').maybeSingle();
+    let known = null;
+    try { known = flag && flag.value ? JSON.parse(flag.value) : null; } catch (e) { known = null; }
+    const save = function (list) {
+      return supabase.from('app_flags').upsert({ key: 'known_events', value: JSON.stringify(list), updated_at: new Date().toISOString() });
+    };
+    if (!Array.isArray(known)) { if (!opts.dryRun) await save(ids); return { initialised: ids.length }; }
+
+    const knownSet = new Set(known);
+    const fresh = events.filter(function (e) { return !knownSet.has(e.id) && e.date >= today; })
+      .sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+    if (!fresh.length) { if (!opts.dryRun) await save(Array.from(new Set(known.concat(ids)))); return { skipped: 'nothing_new' }; }
+
+    const venue = function (ev) { return String(ev.venue || '').split(' · ')[0]; };
+    let title, body, url;
+    if (fresh.length === 1) {
+      const ev = fresh[0];
+      title = 'New: ' + ev.name + ' 🔑';
+      body = shortDate(ev.date) + (venue(ev) ? ' at ' + venue(ev) : '') + '. Get on the guestlist in one tap.';
+      url = './index.html?event=' + encodeURIComponent(ev.id);
+    } else {
+      title = fresh.length + ' new parties on AGS 🔑';
+      body = fresh.slice(0, 4).map(function (ev) { return ev.name + ' (' + shortDate(ev.date) + ')'; }).join(' · ') +
+        (fresh.length > 4 ? ' and more' : '') + '. Get on the guestlist in one tap.';
+      url = './index.html';
+    }
+
+    const { data: subs } = await supabase.from('push_subscriptions').select('endpoint, p256dh, auth, user_id');
+    if (opts.dryRun) return { dryRun: true, title: title, body: body, events: fresh.map(function (e) { return e.id; }), recipients: (subs || []).length };
+
+    // Remember first so a parallel run never announces twice.
+    await save(Array.from(new Set(known.concat(ids))));
+
+    webpush.setVapidDetails('mailto:amsterdamguestlistservice@outlook.com', process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
+    const payload = JSON.stringify({ title: title, body: body, url: url });
+    let pushed = 0;
+    await Promise.all((subs || []).map(async function (sub) {
+      try {
+        await sendAnyPush(webpush, { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload);
+        pushed++;
+      } catch (err) {
+        if (err && (err.statusCode === 404 || err.statusCode === 410)) {
+          await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+        }
+      }
+    }));
+    return { sent: true, events: fresh.map(function (e) { return e.id; }), pushed: pushed };
+  } catch (e) {
+    return { error: e.message || 'failed' };
+  }
+}
+
+module.exports = { maybeSendLastSpots, sendTonightPush, sendWeeklyPush, sendNewEventsPush, spotsThreshold };

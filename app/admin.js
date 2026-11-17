@@ -122,6 +122,9 @@
     '<div class="adm-sec">New accounts · last 14 days</div><div class="adm-chart" id="admChart"></div>' +
     '<div class="adm-sec">Most guests</div><div id="admTop"></div>' +
     '<div class="adm-sec">Guestlists</div><div id="admEvents"></div>' +
+    '<div class="adm-sec">New parties</div>' +
+    '<div class="adm-push"><div class="adm-note" id="admNewNote" style="margin:0 0 10px">New parties are announced automatically at 16:00 and 20:00. Just added one? Announce it now.</div>' +
+    '<button type="button" id="admNewBtn">Check for new parties</button></div>' +
     '<div class="adm-sec">Send a notification</div>' +
     '<div class="adm-push"><input id="admPushTitle" maxlength="60" placeholder="Title (optional)">' +
     '<textarea id="admPushBody" maxlength="200" placeholder="Message to all members with notifications on"></textarea>' +
@@ -323,12 +326,38 @@
     btn.disabled = false; btn.classList.remove('arm'); btn.textContent = 'Send to everyone';
   }
 
+  // New parties: first tap = preview, second tap = send.
+  let newArmed = false;
+  async function announceNew(){
+    const btn = document.getElementById('admNewBtn'), note = document.getElementById('admNewNote');
+    btn.disabled = true;
+    try{
+      if(!newArmed){
+        const r = await api('/api/announce-new');
+        if(r.dryRun){
+          note.innerHTML = '<b style="color:var(--white)">' + esc(r.title) + '</b><br>' + esc(r.body) + '<br><span style="color:var(--gold)">Goes to ' + r.recipients + ' devices.</span>';
+          btn.textContent = 'Send this to everyone'; btn.classList.add('arm'); newArmed = true;
+        } else if(r.initialised){
+          note.textContent = 'All current parties are now marked as known. From now on new ones are announced.'; btn.textContent = 'Check for new parties';
+        } else {
+          note.textContent = 'No new parties since the last announcement.'; btn.textContent = 'Check for new parties';
+        }
+      } else {
+        const r = await api('/api/announce-new', { method: 'POST', body: {} });
+        note.textContent = r.sent ? 'Sent ✓ to ' + r.pushed + ' devices' : 'Nothing sent (' + (r.skipped || r.error || 'no new parties') + ').';
+        btn.textContent = 'Check for new parties'; btn.classList.remove('arm'); newArmed = false;
+      }
+    } catch(e){ showErr(e.message); newArmed = false; btn.classList.remove('arm'); btn.textContent = 'Check for new parties'; }
+    btn.disabled = false;
+  }
+
   function open(){ sheet.classList.add('is-open'); document.body.style.overflow = 'hidden'; refresh(); }
   function close(){ sheet.classList.remove('is-open'); listLayer.classList.remove('is-open'); detailLayer.classList.remove('is-open'); listCtx = null; document.body.style.overflow = ''; }
 
   document.getElementById('admClose').addEventListener('click', close);
   document.getElementById('admRefresh').addEventListener('click', refresh);
   document.getElementById('admPushSend').addEventListener('click', sendPush);
+  document.getElementById('admNewBtn').addEventListener('click', announceNew);
   sheet.addEventListener('click', function(e){
     const b = e.target.closest('.adm-req button[data-act]');
     if(b){ act(b.closest('.adm-req'), b.getAttribute('data-act')); return; }

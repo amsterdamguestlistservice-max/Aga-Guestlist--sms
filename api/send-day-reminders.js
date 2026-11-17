@@ -25,7 +25,7 @@ const { sendPush: sendAnyPush } = require('./_push');
 const { createClient } = require('@supabase/supabase-js');
 const { sendGuestEmail } = require('./_guest-email');
 const { notifyForEvent } = require('./waitlist-notify');
-const { sendTonightPush, sendWeeklyPush } = require('./_last-spots');
+const { sendTonightPush, sendWeeklyPush, sendNewEventsPush } = require('./_last-spots');
 
 function isAuthorized(req) {
   const cron = process.env.CRON_SECRET;
@@ -100,7 +100,8 @@ module.exports = async function handler(req, res) {
     if (dryRun) {
       const tonightPush = await sendTonightPush(supabase, { dryRun: true });
       const weeklyPush = await sendWeeklyPush(supabase, { dryRun: true, force: true });
-      res.status(200).json({ ok: true, dryRun: true, date: today, tonightPush: tonightPush, weeklyPush: weeklyPush, wouldRemind: (rows || []).length,
+      const newEventsPush = await sendNewEventsPush(supabase, { dryRun: true });
+      res.status(200).json({ ok: true, dryRun: true, date: today, tonightPush: tonightPush, weeklyPush: weeklyPush, newEventsPush: newEventsPush, wouldRemind: (rows || []).length,
         guests: (rows || []).map(function (r) { return { event: r.event_name, first_name: r.first_name, party: r.total_guests }; }) });
       return;
     }
@@ -129,8 +130,10 @@ module.exports = async function handler(req, res) {
     const tonightPush = await sendTonightPush(supabase);
     // Tuesdays: "this week" push with the parties up to Sunday.
     const weeklyPush = await sendWeeklyPush(supabase);
+    // New parties added since the last run.
+    const newEventsPush = await sendNewEventsPush(supabase);
 
-    res.status(200).json({ ok: true, date: today, requests: (rows || []).length, pushed, emailed, unreachable, waitlistNotified, tonightPush, weeklyPush });
+    res.status(200).json({ ok: true, date: today, requests: (rows || []).length, pushed, emailed, unreachable, waitlistNotified, tonightPush, weeklyPush, newEventsPush });
   } catch (err) {
     res.status(500).json({ ok: false, error: String(err && err.message || err) });
   }
