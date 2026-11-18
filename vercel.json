@@ -17,6 +17,10 @@
       "destination": "/api/ags?fn=announce-new"
     },
     {
+      "source": "/api/broadcast",
+      "destination": "/api/ags?fn=broadcast"
+    },
+    {
       "source": "/api/admin-stats",
       "destination": "/api/ags?fn=admin-stats"
     },

@@ -9,6 +9,7 @@
 //   /api/calendar        -> _calendar.js
 //   /api/admin-stats     -> _admin-stats.js
 //   /api/announce-new    -> _announce-new.js
+//   /api/broadcast       -> _broadcast.js (push_outbox webhook)
 
 const ROUTES = {
   'delete-account': require('./_delete-account'),
@@ -17,7 +18,8 @@ const ROUTES = {
   'legal': require('./_legal'),
   'calendar': require('./_calendar'),
   'admin-stats': require('./_admin-stats'),
-  'announce-new': require('./_announce-new')
+  'announce-new': require('./_announce-new'),
+  'broadcast': require('./_broadcast')
 };
 
 module.exports = function handler(req, res) {

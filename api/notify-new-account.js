@@ -9,10 +9,13 @@
 // Supabase Database Webhook. See README.md for how to wire that up.
 //
 // Accepts: POST from Supabase's Database Webhook (its own payload shape)
-// Sends:   one email to the business, via Resend
+// Sends:   a push to the AGS team (falls back to one email via Resend
+//          only when no admin device has notifications on)
 //
 // Credentials come ONLY from environment variables set in the Vercel
 // dashboard — never from this file.
+
+const { pushToAdmins } = require('./_admin-push');
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -40,6 +43,18 @@ module.exports = async function handler(req, res) {
     const firstName = meta.first_name || meta.given_name || meta.full_name || meta.name || '';
     const lastName = meta.last_name || meta.family_name || '';
     const fullName = (firstName + ' ' + lastName).trim() || 'A new guest';
+
+    // Push to the AGS team first. Only if that reaches nobody do we fall
+    // back to the admin email (which counts against the Resend quota).
+    const pushed = await pushToAdmins({
+      title: '🆕 New account',
+      body: fullName + ' just created an account.',
+      url: '/admin/requests.html'
+    });
+    if (pushed > 0) {
+      res.status(200).json({ ok: true, result: 'pushed', pushed: pushed });
+      return;
+    }
 
     const { RESEND_API_KEY, NOTIFY_EMAIL_TO } = process.env;
 
