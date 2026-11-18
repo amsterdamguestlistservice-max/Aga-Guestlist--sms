@@ -2,8 +2,8 @@
 //
 // Called automatically by a Supabase Database Webhook whenever a new
 // row is inserted into guestlist_requests (i.e. a guest just submitted
-// a request). Emails you the details so you don't have to keep
-// checking admin/requests.html.
+// a request). Sends the AGS team a push (see _admin-push.js); only if no
+// admin device has notifications on does it email the details instead.
 //
 // Required environment variables (same Vercel project as the others):
 //   WEBHOOK_SECRET             — same one already used for the other
@@ -28,6 +28,7 @@ const { createClient } = require('@supabase/supabase-js');
 // Guest emails use the shared template in _guest-email.js.
 const { sendGuestEmail } = require('./_guest-email');
 const { maybeSendLastSpots } = require('./_last-spots');
+const { pushToAdmins } = require('./_admin-push');
 
 async function pushToGuest(record) {
   if (!record.user_id) return 0;
@@ -106,6 +107,22 @@ module.exports = async function handler(req, res) {
     const lastSpots = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
       ? maybeSendLastSpots(createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY), record)
       : Promise.resolve({ skipped: 'no_supabase' });
+
+    // Tell the AGS team by push. Only if that reaches nobody, send the
+    // admin email (it counts against the Resend daily quota).
+    const adminPushed = await pushToAdmins({
+      title: '📋 New request — ' + (record.event_name || 'an event'),
+      body: guestName + (partySize > 1 ? ' +' + (partySize - 1) : '') +
+        (record.event_date ? ' · ' + record.event_date : ''),
+      url: '/admin/requests.html'
+    });
+    if (adminPushed > 0) {
+      const pushedGuest = await guestPush;
+      const guestEmailedOk = await guestMail;
+      const lastSpotsDone = await lastSpots;
+      res.status(200).json({ ok: true, adminPushed: adminPushed, pushed: pushedGuest, guestEmailed: guestEmailedOk, lastSpots: lastSpotsDone });
+      return;
+    }
 
     const resendRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
