@@ -2184,6 +2184,7 @@ let currentUser = null;
 
 function showAuthPanel(){
   if(typeof window.agsAdminHide === 'function') window.agsAdminHide();
+  try{ const n = document.getElementById('pushNudge'); if(n){ n.hidden = true; n.innerHTML = ''; } } catch(e){}
   document.getElementById('authPanel').style.display = 'block';
   document.getElementById('accountPanel').style.display = 'none';
   document.getElementById('authHero').hidden = false;
@@ -2249,6 +2250,7 @@ function showAccountPanel(user){
   linkPushSubscriptionToAccount();
   if(typeof salonInit === 'function') salonInit(user);
   if(typeof window.agsAdminCheck === 'function') window.agsAdminCheck();
+  setTimeout(renderPushNudges, 600);
   prefillGuestlistForm();
   resumePendingGuestlistEvent();
   loadNextNight();
@@ -3790,6 +3792,74 @@ function pushAskHtml(){
   } catch(e){}
   return '';
 }
+// ----------------------------------------------------------------
+// "Notifications are off" nudge: a slim card above the events and in
+// Account for logged-in members who don't get our pushes yet. Dismiss
+// hides the one above the events for 5 days; Account always shows it.
+// ----------------------------------------------------------------
+const PUSH_NUDGE_SNOOZE = 5 * 864e5;
+function pushNudgeState(){
+  try{
+    if(pushSupported){
+      const p = pushPermission();
+      if(p === 'granted') return null;
+      if(p === 'denied') return 'denied';
+      return 'ask';
+    }
+    if(isIosDevice() && !isStandaloneApp()) return 'store';
+  } catch(e){}
+  return null;
+}
+function pushNudgeHtml(state, place){
+  const close = place === 'events' ? '<button type="button" class="push-nudge__x" aria-label="Dismiss">✕</button>' : '';
+  if(state === 'ask') return '<div class="push-nudge__bell">🔔</div><div class="push-nudge__txt"><b>Turn on notifications</b>Hear first about new parties, when you’re on the list and when spots open up.</div><button type="button" class="push-nudge__go" data-push-on>Turn on</button>' + close;
+  if(state === 'store') return '<div class="push-nudge__bell">🔔</div><div class="push-nudge__txt"><b>Get notified on iPhone</b>Notifications work in the free AGS app. Log in with this account.</div><a class="push-nudge__go" href="' + APP_STORE_URL + '" rel="noopener">Get app</a>' + close;
+  if(state === 'denied') return '<div class="push-nudge__bell">🔕</div><div class="push-nudge__txt"><b>Notifications are blocked</b>' +
+    (IS_NATIVE ? 'Open your iPhone <strong>Settings → AGS → Notifications</strong> and turn on Allow Notifications.' : 'Allow notifications for this site in your browser settings, then reload.') + '</div>' + close;
+  return '';
+}
+async function renderPushNudges(){
+  try{ await nativePermReady; } catch(e){}
+  const state = currentUser ? pushNudgeState() : null;
+  // above the events
+  const ev = document.getElementById('pushNudge');
+  if(ev){
+    let snoozed = false;
+    try{ snoozed = Date.now() - Number(localStorage.getItem('ags_push_nudge_x') || 0) < PUSH_NUDGE_SNOOZE; } catch(e){}
+    if(state && !snoozed){ ev.innerHTML = pushNudgeHtml(state, 'events'); ev.hidden = false; bindPushNudge(ev, 'events'); }
+    else { ev.hidden = true; ev.innerHTML = ''; }
+  }
+  // in Account
+  const panel = document.getElementById('accountPanel');
+  if(panel){
+    let box = document.getElementById('pushNudgeAccount');
+    if(!box){
+      box = document.createElement('div'); box.id = 'pushNudgeAccount'; box.className = 'push-nudge push-nudge--account'; box.hidden = true;
+      const adminBtn = document.getElementById('adminOpenBtn');
+      if(adminBtn && adminBtn.parentNode === panel) panel.insertBefore(box, adminBtn.nextSibling); else panel.insertBefore(box, panel.firstChild);
+    }
+    if(state){ box.innerHTML = pushNudgeHtml(state, 'account'); box.hidden = false; bindPushNudge(box, 'account'); }
+    else { box.hidden = true; box.innerHTML = ''; }
+  }
+}
+function bindPushNudge(root, place){
+  const on = root.querySelector('[data-push-on]');
+  if(on) on.addEventListener('click', async function(){
+    on.disabled = true; on.textContent = '…';
+    await subscribeToPush();
+    if(pushPermission() === 'granted'){
+      root.innerHTML = '<div class="push-nudge__bell">✓</div><div class="push-nudge__txt"><b>Notifications on</b>You’ll hear it first.</div>';
+      AppSound.play('success');
+      setTimeout(renderPushNudges, 2500);
+    } else { renderPushNudges(); }
+  });
+  const x = root.querySelector('.push-nudge__x');
+  if(x) x.addEventListener('click', function(){
+    try{ localStorage.setItem('ags_push_nudge_x', String(Date.now())); } catch(e){}
+    root.hidden = true;
+  });
+}
+
 function bindPushAsk(root){
   const btn = root && root.querySelector('.push-ask__btn');
   if(!btn) return;
@@ -3801,6 +3871,7 @@ function bindPushAsk(root){
       box.classList.add('is-done');
       box.innerHTML = '<div class="push-ask__title">Notifications on ✓</div>';
       AppSound.play('success');
+      if(typeof renderPushNudges === 'function') renderPushNudges();
     } else {
       box.innerHTML = '<p class="push-ask__text">No problem — you can turn them on later with the bell icon at the top.</p>';
     }

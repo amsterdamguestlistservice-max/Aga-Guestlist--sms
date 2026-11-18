@@ -952,6 +952,14 @@ body{ background:#020202; }
 .push-ask__text{ font-size:12.5px; color:var(--muted); line-height:1.55; margin-bottom:12px; }
 .push-ask .btn{ width:100%; }
 .push-ask.is-done .push-ask__title{ color:var(--gold-light); font-size:17px; margin:0; }
+/* notifications-off nudge (events list + account) */
+.push-nudge{ position:relative; display:flex; align-items:center; gap:12px; margin:0 0 16px; padding:12px 40px 12px 14px; border:1px solid rgba(201,162,74,0.55); background:linear-gradient(90deg,rgba(201,162,74,0.14),rgba(201,162,74,0.04)); }
+.push-nudge__bell{ flex:none; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:var(--gold); color:#000; font-size:17px; }
+.push-nudge__txt{ flex:1; font-size:12.5px; line-height:1.45; color:var(--muted); }
+.push-nudge__txt b{ display:block; color:var(--white); font-size:14px; font-weight:600; margin-bottom:2px; }
+.push-nudge__go{ flex:none; min-height:38px; padding:0 14px; border:0; background:var(--gold); color:#000; font:700 11px/1 var(--sans); letter-spacing:.12em; text-transform:uppercase; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; }
+.push-nudge__x{ position:absolute; top:4px; right:4px; width:32px; height:32px; border:0; background:transparent; color:var(--muted); font-size:15px; cursor:pointer; }
+.push-nudge--account{ margin:0 0 16px; }
 
 /* polish pass: comfortable tap targets */
 #forgotPasswordLink{ min-height:44px; padding:10px 6px; display:inline-flex; align-items:center; }
@@ -1130,6 +1138,7 @@ body{ background:#020202; }
     </div>
     <div class="points-strip" id="pointsStrip" hidden><!-- rendered by JS --></div>
     <div class="next-night" id="nextNight" hidden><!-- rendered by JS --></div>
+    <div class="push-nudge" id="pushNudge" hidden><!-- rendered by JS --></div>
     <div class="venue-filter" id="venueFilter"><!-- rendered by JS --></div>
     <div class="event-list" id="eventList"><!-- rendered by JS --></div>
 
