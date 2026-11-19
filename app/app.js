@@ -382,7 +382,7 @@ const EVENTS = [
     venue: "Jimmy Woo · Amsterdam",
     image: "events/behind-closed-doors-2026-11-21.jpg",
     minAge: 21,
-    description: "BCD x Habits. Club: Salie, Rivaldo, Esma Zavina, hosted by Giac Orpheo. Lounge: Merlu, Devøra.",
+    description: "BCD x Habits. Club: Salie, Rivaldo, Esma Zavina, hosted by Giac Orpheo. Lounge: Merlu, Devøra. The Age OK list (18-20) is full, the guestlist is now 21+ only.",
     guestlistStatus: "limited",
     ticketUrl: "https://shop.celebratix.io/?t=2trbkg",
     guestlistUrl: "#guestlist",
