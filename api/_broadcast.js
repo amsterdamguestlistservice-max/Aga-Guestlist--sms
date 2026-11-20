@@ -8,6 +8,7 @@
 //
 //   audience 'all'    — every device with notifications on (default)
 //   audience 'admins' — only the AGS team (see _admin-push.js)
+//   audience 'not_on:<event_id>' — everyone except guests already on that list
 //
 // Protected by the same WEBHOOK_SECRET as the other Database Webhooks.
 
@@ -54,8 +55,16 @@ module.exports = async function handler(req, res) {
       result = { audience: 'admins', sent: await pushToAdmins(payload) };
     } else {
       webpush.setVapidDetails('mailto:amsterdamguestlistservice@outlook.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
-      const { data: subs, error } = await supabase.from('push_subscriptions').select('endpoint, p256dh, auth');
+      const { data: allSubs, error } = await supabase.from('push_subscriptions').select('endpoint, p256dh, auth, user_id');
       if (error) throw new Error(error.message);
+      // audience 'not_on:<event_id>' skips everyone who already holds a spot on that guestlist.
+      let subs = allSubs || [];
+      const aud = String(record.audience || '');
+      if (aud.indexOf('not_on:') === 0) {
+        const { data: claims } = await supabase.from('guestlist_claims').select('user_id').eq('event_id', aud.slice(7));
+        const skip = new Set((claims || []).map(function (c) { return c.user_id; }));
+        subs = subs.filter(function (s) { return !s.user_id || !skip.has(s.user_id); });
+      }
       const body = JSON.stringify(payload);
       let sent = 0, failed = 0, removed = 0;
       await Promise.all((subs || []).map(async function (sub) {
@@ -70,7 +79,7 @@ module.exports = async function handler(req, res) {
           }
         }
       }));
-      result = { audience: 'all', total: (subs || []).length, sent: sent, failed: failed, removed: removed };
+      result = { audience: aud || 'all', total: (subs || []).length, sent: sent, failed: failed, removed: removed };
     }
   } catch (err) {
     result = { error: (err && err.message) || 'Unknown error' };
