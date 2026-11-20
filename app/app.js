@@ -383,6 +383,7 @@ const EVENTS = [
     image: "events/behind-closed-doors-2026-11-21.jpg",
     minAge: 21,
     description: "BCD x Habits. Club: Salie, Rivaldo, Esma Zavina, hosted by Giac Orpheo. Lounge: Merlu, Devøra. The Age OK list (18-20) is full, the guestlist is now 21+ only.",
+    ageOkWaitlist: true,
     guestlistStatus: "limited",
     ticketUrl: "https://shop.celebratix.io/?t=2trbkg",
     guestlistUrl: "#guestlist",
@@ -1171,6 +1172,21 @@ function formatCountdown(ms){
   return h + ':' + m + ':' + s;
 }
 
+// Separate waitlist for the full Age OK list (18-20) of an event.
+// Stored as its own guestlist row "<event id>-ageok" (capacity 0 = full).
+function ageOkWaitlistHtml(ev){
+  if(!ev || !ev.ageOkWaitlist) return '';
+  const id = ev.id + '-ageok';
+  const pos = MY_WAITLIST[id];
+  return '<div class="glive__ageok">' +
+    '<div class="glive__spots">' + (pos
+      ? 'You\u2019re <strong>#' + pos + '</strong> on the Age OK waitlist. We\u2019ll ping you if a spot opens.'
+      : '<strong>18\u201320?</strong> The Age OK list is full. Join the waitlist and we\u2019ll ping you if a spot opens.') + '</div>' +
+    '<button type="button" class="glive__wait-btn" data-event-id="' + id + '" data-base-id="' + ev.id + '" data-wait-name="' + ev.name + ' \u2013 Age OK (18-20)"' + (pos ? ' disabled' : '') + '>' +
+      (pos ? 'On the Age OK waitlist \u2713' : 'Join Age OK waitlist') + '</button>' +
+  '</div>';
+}
+
 function renderGuestlistPanel(panelEl, eventId){
   const state = GUESTLIST_STATE[eventId];
   if(!state){ panelEl.style.display = 'none'; return; }
@@ -1192,7 +1208,7 @@ function renderGuestlistPanel(panelEl, eventId){
       panelEl.innerHTML =
         '<div class="glive__label">Guestlist full</div>' +
         '<div class="glive__spots">' + (pos ? 'You\u2019re <strong>#' + pos + '</strong> on the waitlist. We\u2019ll ping you the moment a spot opens.' : 'Spots open up when guests cancel. Join the waitlist and we\u2019ll ping you first.') + '</div>' +
-        '<button type="button" class="glive__wait-btn" data-event-id="' + eventId + '"' + (pos ? ' disabled' : '') + '>' + (pos ? 'On the waitlist ✓' : 'Join the waitlist') + '</button>';
+        '<button type="button" class="glive__wait-btn" data-event-id="' + eventId + '"' + (pos ? ' disabled' : '') + '>' + (pos ? 'On the waitlist ✓' : 'Join the waitlist') + '</button>' + ageOkWaitlistHtml(ev);
       return;
     }
     panelEl.className = 'glive is-locked';
@@ -1224,7 +1240,7 @@ function renderGuestlistPanel(panelEl, eventId){
     '<div class="glive__countdown">Closes in <span class="glive__timer">' + formatCountdown(msLeft) + '</span></div>' +
     '<button type="button" class="glive__claim-btn" data-event-id="' + eventId + '"' + (urgency.locked ? ' disabled' : '') + '>' +
       (urgency.locked ? (msLeft <= 0 ? 'Guestlist closed' : 'Guestlist full') : 'Claim your spot') +
-    '</button>';
+    '</button>' + (msLeft > 0 ? ageOkWaitlistHtml(ev) : '');
 }
 
 // Upgrade each card's small grey status into a gold label with real
@@ -3545,11 +3561,11 @@ document.getElementById('eventList').addEventListener('click', async function(e)
   if(!btn || btn.disabled) return;
   e.stopPropagation();
   const eventId = btn.dataset.eventId;
-  const ev = EVENTS.find(function(x){ return x.id === eventId; });
+  const ev = EVENTS.find(function(x){ return x.id === (btn.dataset.baseId || eventId); });
   if(!currentUser){ rememberEventAndLogin(ev); return; }
   btn.disabled = true; btn.textContent = 'Joining…';
   try{
-    const { data, error } = await supabaseClient.rpc('join_guestlist_waitlist', { p_event_id: eventId, p_event_name: ev ? ev.name : null });
+    const { data, error } = await supabaseClient.rpc('join_guestlist_waitlist', { p_event_id: eventId, p_event_name: btn.dataset.waitName || (ev ? ev.name : null) });
     if(error) throw error;
     if(data && data.success){
       MY_WAITLIST[eventId] = data.position;
