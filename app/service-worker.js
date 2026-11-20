@@ -1,7 +1,7 @@
 // Minimal service worker — enables "Add to Home Screen" installability
 // and basic offline support (cache-first for the app shell, since the
 // event data is embedded directly in index.html rather than fetched).
-const CACHE_NAME = 'ags-app-v131';
+const CACHE_NAME = 'ags-app-v132';
 const APP_SHELL = [
   './index.html',
   './manifest.json',
@@ -77,13 +77,28 @@ self.addEventListener('push', function(event){
     body: data.body || '',
     icon: 'icon-192.png',
     badge: 'icon-192.png',
-    data: { url: data.url || './index.html' }
+    data: { url: data.url || './index.html', pid: data.pid || '', title: title, body: data.body || '' }
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
+// Count taps per message (public.push_clicks via the log_push_click RPC).
+const PUSH_LOG_URL = 'https://ogyvzgkykyesjozwmkds.supabase.co/rest/v1/rpc/log_push_click';
+const PUSH_LOG_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9neXZ6Z2t5a3llc2pvendta2RzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzNjQzMTEsImV4cCI6MjEwMzk0MDMxMX0.gdCIAz4ZZNXxzdDA4gYt4R3NoEbkc5pYb_vrvFC7A-c';
+function logPushClick(d){
+  if(!d || !d.pid) return Promise.resolve();
+  return self.registration.pushManager.getSubscription().then(function(sub){
+    return fetch(PUSH_LOG_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': PUSH_LOG_KEY, 'Authorization': 'Bearer ' + PUSH_LOG_KEY },
+      body: JSON.stringify({ p_pid: d.pid, p_title: d.title || null, p_body: d.body || null, p_endpoint: sub ? sub.endpoint : null })
+    });
+  }).catch(function(){});
+}
+
 self.addEventListener('notificationclick', function(event){
   event.notification.close();
+  event.waitUntil(logPushClick(event.notification.data));
   const targetUrl = (event.notification.data && event.notification.data.url) || './index.html';
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList){

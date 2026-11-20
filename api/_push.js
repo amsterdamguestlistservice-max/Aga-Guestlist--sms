@@ -41,7 +41,8 @@ function sendApns(deviceToken, payloadString) {
   const p = JSON.parse(payloadString || '{}');
   const body = JSON.stringify({
     aps: { alert: { title: p.title || 'AGS', body: p.body || '' }, sound: 'default' },
-    url: p.url || ''
+    url: p.url || '',
+    pid: p.pid || ''
   });
   const host = process.env.APNS_SANDBOX === '1' ? 'https://api.sandbox.push.apple.com' : 'https://api.push.apple.com';
   return new Promise(function (resolve, reject) {
@@ -71,7 +72,21 @@ function sendApns(deviceToken, payloadString) {
   });
 }
 
+// Every push gets a "pid" (same for all recipients of one message: title +
+// text + day), so taps can be counted per message in push_clicks.
+function withPid(payloadString) {
+  try {
+    const p = JSON.parse(payloadString || '{}');
+    if (!p.pid) {
+      const day = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
+      p.pid = crypto.createHash('sha1').update((p.title || '') + '|' + (p.body || '') + '|' + day).digest('hex').slice(0, 16);
+    }
+    return JSON.stringify(p);
+  } catch (e) { return payloadString; }
+}
+
 async function sendPush(webpush, sub, payloadString) {
+  payloadString = withPid(payloadString);
   const endpoint = String((sub && sub.endpoint) || '');
   if (endpoint.indexOf('apns:') === 0) {
     if (!apnsConfigured()) { const e = new Error('APNs not configured'); e.statusCode = 0; throw e; }

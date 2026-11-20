@@ -1945,6 +1945,7 @@ function pushPermission(){
   if(NATIVE_PUSH) return nativePushOn ? 'granted' : nativePerm;
   return (typeof Notification !== 'undefined') ? Notification.permission : 'denied';
 }
+let nativePushToken = '';
 async function nativePushSubscribe(){
   try{
     let perm = await NATIVE_PUSH.checkPermissions();
@@ -1954,6 +1955,7 @@ async function nativePushSubscribe(){
     await new Promise(function(resolve){
       let done = false;
       NATIVE_PUSH.addListener('registration', async function(t){
+        if(t && t.value) nativePushToken = t.value;
         if(supabaseClient && t && t.value){
           const row = { endpoint: 'apns:' + t.value, p256dh: 'native', auth: 'ios' };
           if(currentUser) row.user_id = currentUser.id;
@@ -1975,6 +1977,9 @@ if(NATIVE_PUSH){
     try{
       const n = action && action.notification; const d = (n && n.data) || {};
       const url = d.url || (d.aps && d.aps.url) || '';
+      if(d.pid && supabaseClient){
+        supabaseClient.rpc('log_push_click', { p_pid: d.pid, p_title: (n && n.title) || null, p_body: (n && n.body) || null, p_endpoint: nativePushToken ? 'apns:' + nativePushToken : null }).then(function(){}, function(){});
+      }
       if(url) openEventFromLink(url);
     } catch(e){}
   });
