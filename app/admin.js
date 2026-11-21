@@ -182,7 +182,7 @@
 
   // ---------- filter by party (sorted by name) ----------
   let EVS = [], PENDING = [], PARTY = '', WHEN = 'upcoming';
-  try { PARTY = localStorage.getItem('ags_admin_party') || ''; WHEN = localStorage.getItem('ags_admin_when') || 'upcoming'; } catch (e) {}
+  try { localStorage.removeItem('ags_admin_party'); WHEN = localStorage.getItem('ags_admin_when') || 'upcoming'; } catch (e) {}
   // Parties that already happened, built from all requests (also older parties without a guestlist limit).
   function pastEvents(){
     const by = {};
@@ -221,7 +221,7 @@
       return '<button type="button" data-party="' + esc(n) + '" class="' + (PARTY === n ? 'on' : '') + '">' + esc(n) + '</button>';
     })).join('');
   }
-  function setParty(n){ PARTY = n; try { localStorage.setItem('ags_admin_party', n); } catch (e) {} renderFilter(); renderEvents(); renderReqs(); }
+  function setParty(n){ PARTY = n; renderFilter(); renderEvents(); renderReqs(); }
   function renderEvents(){
     const past = pastEvents();
     const upcomingEvs = EVS.filter(function(e){ return !isOver(e.name, e.date); });
@@ -465,7 +465,7 @@
     btn.disabled = false;
   }
 
-  function open(){ sheet.classList.add('is-open'); document.body.style.overflow = 'hidden'; refresh(); }
+  function open(){ PARTY = ''; sheet.classList.add('is-open'); document.body.style.overflow = 'hidden'; refresh(); }
   function close(){ sheet.classList.remove('is-open'); listLayer.classList.remove('is-open'); detailLayer.classList.remove('is-open'); listCtx = null; document.body.style.overflow = ''; }
 
   document.getElementById('admClose').addEventListener('click', close);
