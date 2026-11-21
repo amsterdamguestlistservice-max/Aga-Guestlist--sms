@@ -130,7 +130,7 @@
     '<div class="adm-sec">All time</div><div class="adm-grid" id="admTotals"></div>' +
     '<div class="adm-sec">New accounts · last 14 days</div><div class="adm-chart" id="admChart"></div>' +
     '<div class="adm-sec">Most guests</div><div id="admTop"></div>' +
-    '<div class="adm-sec">Guestlists</div><div id="admEvents"></div>' +
+    '<div class="adm-sec">Guestlists</div><div class="adm-tabs" id="admWhen"></div><div id="admEvents"></div>' +
     '<div class="adm-sec">New parties</div>' +
     '<div class="adm-push"><div class="adm-note" id="admNewNote" style="margin:0 0 10px">New parties are announced automatically at 16:00 and 20:00. Just added one? Announce it now.</div>' +
     '<button type="button" id="admNewBtn">Check for new parties</button></div>' +
@@ -181,12 +181,27 @@
   }
 
   // ---------- filter by party (sorted by name) ----------
-  let EVS = [], PENDING = [], PARTY = '';
-  try { PARTY = localStorage.getItem('ags_admin_party') || ''; } catch (e) {}
+  let EVS = [], PENDING = [], PARTY = '', WHEN = 'upcoming';
+  try { PARTY = localStorage.getItem('ags_admin_party') || ''; WHEN = localStorage.getItem('ags_admin_when') || 'upcoming'; } catch (e) {}
+  // Parties that already happened, built from all requests (also older parties without a guestlist limit).
+  function pastEvents(){
+    const today = todayAms(), by = {};
+    (REQS || []).forEach(function(r){
+      if(!(String(r.event_date) < today)) return;
+      const k = r.event_name + '|' + r.event_date;
+      const o = by[k] || (by[k] = { name: r.event_name, date: String(r.event_date), approved: 0, guests: 0, noshow: 0, missing: 0, declined: 0 });
+      const t = st(r);
+      if(t === 'approved'){ o.approved++; o.guests += Number(r.total_guests) || 1; o.missing += Number(r.missing_guests) || 0; }
+      if(t === 'no-show'){ o.noshow++; }
+      if(t === 'declined') o.declined++;
+    });
+    return Object.keys(by).map(function(k){ return by[k]; });
+  }
+  function setWhen(w){ WHEN = w; try { localStorage.setItem('ags_admin_when', w); } catch (e) {} renderEvents(); }
   function baseName(n){ return String(n || '').replace(/ \(Age OK\)$/, ''); }
   function byName(a, b){ const x = baseName(a.name || a.event_name).toLowerCase(), y = baseName(b.name || b.event_name).toLowerCase(); if(x !== y) return x < y ? -1 : 1; const d1 = String(a.date || a.event_date), d2 = String(b.date || b.event_date); if(d1 !== d2) return d1 < d2 ? -1 : 1; return String(a.name || '').length - String(b.name || '').length; }
   function renderFilter(){
-    const names = Array.from(new Set(EVS.map(function(e){ return baseName(e.name); }).concat(PENDING.map(function(r){ return r.event_name; })))).filter(Boolean)
+    const names = Array.from(new Set(EVS.map(function(e){ return baseName(e.name); }).concat(PENDING.map(function(r){ return r.event_name; })).concat(pastEvents().map(function(e){ return e.name; })))).filter(Boolean)
       .sort(function(a, b){ return a.toLowerCase() < b.toLowerCase() ? -1 : 1; });
     if(PARTY && names.indexOf(PARTY) < 0) PARTY = '';
     const box = document.getElementById('admFilter');
@@ -197,7 +212,23 @@
   }
   function setParty(n){ PARTY = n; try { localStorage.setItem('ags_admin_party', n); } catch (e) {} renderFilter(); renderEvents(); renderReqs(); }
   function renderEvents(){
-    const evs = EVS.filter(function(e){ return !PARTY || baseName(e.name) === PARTY; }).slice().sort(byName);
+    const past = pastEvents();
+    const upcomingEvs = EVS.filter(function(e){ return String(e.date) >= todayAms(); });
+    const wb = document.getElementById('admWhen');
+    if(wb) wb.innerHTML = '<button type="button" data-when="upcoming" class="' + (WHEN === 'upcoming' ? 'on' : '') + '">Upcoming (' + upcomingEvs.filter(function(e){ return !PARTY || baseName(e.name) === PARTY; }).length + ')</button>' +
+      '<button type="button" data-when="past" class="' + (WHEN === 'past' ? 'on' : '') + '">Past (' + past.filter(function(e){ return !PARTY || e.name === PARTY; }).length + ')</button>';
+    if(WHEN === 'past'){
+      const list = past.filter(function(e){ return !PARTY || e.name === PARTY; }).sort(function(a, b){ return a.date > b.date ? -1 : a.date < b.date ? 1 : (a.name < b.name ? -1 : 1); });
+      document.getElementById('admEvents').innerHTML = list.length ? list.map(function(e){
+        const bits = [e.approved + ' approved (' + e.guests + ' guests)'];
+        if(e.noshow) bits.push(e.noshow + ' no-show' + (e.noshow > 1 ? 's' : ''));
+        if(e.missing) bits.push(e.missing + ' missing from groups');
+        return '<div class="adm-ev" data-name="' + esc(e.name) + '" data-date="' + esc(e.date) + '"><div class="adm-ev__top"><span>' + esc(e.name) + '</span><i>' + esc(day(e.date)) + '</i></div>' +
+          '<div class="adm-ev__meta" style="margin-top:6px">' + bits.join(' · ') + '</div><div class="adm-ev__more">Open guestlist · mark no-shows ›</div></div>';
+      }).join('') : '<div class="adm-empty">No past parties' + (PARTY ? ' for ' + esc(PARTY) : '') + '.</div>';
+      return;
+    }
+    const evs = upcomingEvs.filter(function(e){ return !PARTY || baseName(e.name) === PARTY; }).slice().sort(byName);
     document.getElementById('admEvents').innerHTML = evs.length ? evs.map(function(e){
       const pct = e.capacity ? Math.min(100, Math.round(e.claimed / e.capacity * 100)) : 0;
       return '<div class="adm-ev" data-name="' + esc(e.name) + '" data-date="' + esc(e.date) + '"><div class="adm-ev__top"><span>' + esc(e.name) + '</span><i>' + esc(day(e.date)) + '</i></div>' +
@@ -213,6 +244,7 @@
     PENDING = (r.requests || []).filter(function(x){ return String(x.status || 'pending').trim().toLowerCase() === 'pending' && String(x.event_date) >= today; });
     renderFilter();
     renderReqs();
+    renderEvents();
   }
   function renderReqs(){
     const pending = PENDING.filter(function(x){ return !PARTY || x.event_name === PARTY; }).slice().sort(byName);
@@ -253,7 +285,7 @@
     try{
       await api('/api/admin-requests', { method: 'POST', body: { id: id, status: 'No-Show' } });
       const x = REQS.find(function(r){ return String(r.id) === String(id); }); if(x) x.status = 'No-Show';
-      renderList(); loadStats().catch(function(){});
+      renderList(); renderEvents(); loadStats().catch(function(){});
     } catch(e){ btn.disabled = false; btn.classList.remove('sure'); btn.textContent = 'No-show'; showErr(e.message); }
   }
   async function saveMissing(btn){
@@ -264,7 +296,7 @@
       await api('/api/admin-requests', { method: 'POST', body: { id: id, missing_guests: n } });
       const x = REQS.find(function(r){ return String(r.id) === String(id); }); if(x) x.missing_guests = n;
       document.getElementById('admMissingNote').textContent = 'Saved ✓ the guest is notified.';
-      if(listCtx) renderList();
+      if(listCtx) renderList(); renderEvents();
     } catch(e){ document.getElementById('admMissingNote').textContent = e.message; }
     btn.disabled = false;
   }
@@ -430,6 +462,8 @@
   document.getElementById('admPushSend').addEventListener('click', sendPush);
   document.getElementById('admNewBtn').addEventListener('click', announceNew);
   sheet.addEventListener('click', function(e){
+    const wf = e.target.closest('#admWhen button[data-when]');
+    if(wf){ setWhen(wf.getAttribute('data-when')); return; }
     const pf = e.target.closest('#admFilter button[data-party]');
     if(pf){ setParty(pf.getAttribute('data-party')); return; }
     const b = e.target.closest('.adm-req button[data-act]');
