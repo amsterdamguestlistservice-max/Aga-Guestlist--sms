@@ -639,6 +639,7 @@ const EVENTS = [
     name: "Club Fair",
     date: "2026-11-20",
     time: "23:00",
+    endTime: "04:00",
     venue: "Oliva · Amsterdam",
     image: "events/club-fair-2026-11-20.jpg",
     description: "Club Fair — the most special night out. Moulin Rouge, hits & house at Oliva. 23:00 till 05:00.",
