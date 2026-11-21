@@ -72,6 +72,10 @@
   .adm-top{display:flex;justify-content:space-between;gap:10px;padding:12px 14px;border:1px solid var(--line);background:var(--charcoal);margin-bottom:6px;font-size:14px;color:var(--white)}
   .adm-top span{color:var(--gold-light);white-space:nowrap}
   .adm-req,.adm-ev{cursor:pointer}
+  .adm-filter{display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:2px 0 4px;scrollbar-width:none}
+  .adm-filter::-webkit-scrollbar{display:none}
+  .adm-filter button{flex:0 0 auto;min-height:36px;padding:0 14px;border:1px solid var(--line);background:transparent;color:var(--muted);font:600 12px/1 var(--sans);border-radius:999px;cursor:pointer;white-space:nowrap}
+  .adm-filter button.on{border-color:var(--gold);color:#000;background:var(--gold)}
   .adm-ev__more{font-size:11px;color:var(--gold);letter-spacing:.14em;text-transform:uppercase;margin-top:8px}
   .adm-layer{position:fixed;inset:0;z-index:9100;background:var(--black);overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(env(safe-area-inset-top,0px) + 14px) 16px calc(env(safe-area-inset-bottom,0px) + 40px);display:none}
   .adm-layer.is-open{display:block}
@@ -117,6 +121,7 @@
     '<div style="display:flex;gap:8px"><button type="button" class="adm-btn" id="admRefresh">↻</button><button type="button" class="adm-btn" id="admClose">Close</button></div></div>' +
     '<div id="admErr" class="adm-err" hidden></div>' +
     '<div class="adm-sec">Today</div><div class="adm-grid" id="admStats"></div>' +
+    '<div class="adm-sec">Filter by party</div><div class="adm-filter" id="admFilter"></div>' +
     '<div class="adm-sec">Requests to review</div><div id="admReqs"></div>' +
     '<div class="adm-sec">All time</div><div class="adm-grid" id="admTotals"></div>' +
     '<div class="adm-sec">New accounts · last 14 days</div><div class="adm-chart" id="admChart"></div>' +
@@ -165,23 +170,50 @@
     document.getElementById('admTop').innerHTML = top.length ? top.map(function(t, i){
       return '<div class="adm-top">' + (i + 1) + '. ' + esc(t.name) + '<span>' + t.guests + ' guests</span></div>';
     }).join('') : '<div class="adm-empty">No approved guests yet.</div>';
-    const evs = s.upcoming || [];
+    EVS = s.upcoming || [];
+    renderEvents();
+    renderFilter();
+    updateBadge(s.pending);
+  }
+
+  // ---------- filter by party (sorted by name) ----------
+  let EVS = [], PENDING = [], PARTY = '';
+  try { PARTY = localStorage.getItem('ags_admin_party') || ''; } catch (e) {}
+  function baseName(n){ return String(n || '').replace(/ \(Age OK\)$/, ''); }
+  function byName(a, b){ const x = baseName(a.name || a.event_name).toLowerCase(), y = baseName(b.name || b.event_name).toLowerCase(); if(x !== y) return x < y ? -1 : 1; const d1 = String(a.date || a.event_date), d2 = String(b.date || b.event_date); if(d1 !== d2) return d1 < d2 ? -1 : 1; return String(a.name || '').length - String(b.name || '').length; }
+  function renderFilter(){
+    const names = Array.from(new Set(EVS.map(function(e){ return baseName(e.name); }).concat(PENDING.map(function(r){ return r.event_name; })))).filter(Boolean)
+      .sort(function(a, b){ return a.toLowerCase() < b.toLowerCase() ? -1 : 1; });
+    if(PARTY && names.indexOf(PARTY) < 0) PARTY = '';
+    const box = document.getElementById('admFilter');
+    if(!box) return;
+    box.innerHTML = ['<button type="button" data-party="" class="' + (PARTY ? '' : 'on') + '">All parties</button>'].concat(names.map(function(n){
+      return '<button type="button" data-party="' + esc(n) + '" class="' + (PARTY === n ? 'on' : '') + '">' + esc(n) + '</button>';
+    })).join('');
+  }
+  function setParty(n){ PARTY = n; try { localStorage.setItem('ags_admin_party', n); } catch (e) {} renderFilter(); renderEvents(); renderReqs(); }
+  function renderEvents(){
+    const evs = EVS.filter(function(e){ return !PARTY || baseName(e.name) === PARTY; }).slice().sort(byName);
     document.getElementById('admEvents').innerHTML = evs.length ? evs.map(function(e){
       const pct = e.capacity ? Math.min(100, Math.round(e.claimed / e.capacity * 100)) : 0;
       return '<div class="adm-ev" data-name="' + esc(e.name) + '" data-date="' + esc(e.date) + '"><div class="adm-ev__top"><span>' + esc(e.name) + '</span><i>' + esc(day(e.date)) + '</i></div>' +
         '<div class="adm-bar"><div style="width:' + pct + '%"></div></div>' +
         '<div class="adm-ev__meta">' + e.claimed + ' / ' + e.capacity + ' people on the list · ' + e.approved + ' approved (' + e.guests + ' guests) · ' + e.pending + ' pending' + (e.enabled ? '' : ' · closed') + '</div><div class="adm-ev__more">Open guestlist ›</div></div>';
-    }).join('') : '<div class="adm-empty">No open guestlists.</div>';
-    updateBadge(s.pending);
+    }).join('') : '<div class="adm-empty">No open guestlists' + (PARTY ? ' for ' + esc(PARTY) : '') + '.</div>';
   }
 
   async function loadReqs(){
     const r = await api('/api/admin-requests');
     REQS = r.requests || [];
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
-    const pending = (r.requests || []).filter(function(x){ return String(x.status || 'pending').trim().toLowerCase() === 'pending' && String(x.event_date) >= today; });
+    PENDING = (r.requests || []).filter(function(x){ return String(x.status || 'pending').trim().toLowerCase() === 'pending' && String(x.event_date) >= today; });
+    renderFilter();
+    renderReqs();
+  }
+  function renderReqs(){
+    const pending = PENDING.filter(function(x){ return !PARTY || x.event_name === PARTY; }).slice().sort(byName);
     const box = document.getElementById('admReqs');
-    if(!pending.length){ box.innerHTML = '<div class="adm-empty">All caught up. No requests waiting.</div>'; return; }
+    if(!pending.length){ box.innerHTML = '<div class="adm-empty">' + (PARTY ? 'No requests waiting for ' + esc(PARTY) + '.' : 'All caught up. No requests waiting.') + '</div>'; return; }
     box.innerHTML = pending.map(function(x){
       const ig = String(x.instagram || '').replace(/^@/, '');
       const extra = Array.isArray(x.additional_guests) && x.additional_guests.length
@@ -200,6 +232,9 @@
     btns.forEach(function(b){ b.disabled = true; });
     try{
       await api('/api/admin-requests', { method: 'POST', body: { id: card.getAttribute('data-id'), status: status } });
+      const rid = card.getAttribute('data-id');
+      PENDING = PENDING.filter(function(x){ return String(x.id) !== String(rid); });
+      const rx = REQS.find(function(x){ return String(x.id) === String(rid); }); if(rx) rx.status = status;
       card.style.opacity = '.35';
       card.querySelector('.acts').innerHTML = '<div class="adm-note" style="grid-column:1/-1;text-align:center">' + (status === 'Approved' ? 'Approved ✓ guest is notified' : 'Declined') + '</div>';
       loadStats().catch(function(){});
@@ -359,6 +394,8 @@
   document.getElementById('admPushSend').addEventListener('click', sendPush);
   document.getElementById('admNewBtn').addEventListener('click', announceNew);
   sheet.addEventListener('click', function(e){
+    const pf = e.target.closest('#admFilter button[data-party]');
+    if(pf){ setParty(pf.getAttribute('data-party')); return; }
     const b = e.target.closest('.adm-req button[data-act]');
     if(b){ act(b.closest('.adm-req'), b.getAttribute('data-act')); return; }
     if(e.target.closest('a')) return;

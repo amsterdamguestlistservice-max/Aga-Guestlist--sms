@@ -75,12 +75,14 @@ module.exports = async function handler(req, res) {
     const evById = {};
     (events || []).forEach(function (e) { evById[e.id] = e; });
     const upcoming = (lists.data || []).map(function (g) {
-      const ev = evById[g.event_id] || {};
+      const isAgeOk = /-ageok$/.test(g.event_id);
+      const base = evById[isAgeOk ? g.event_id.replace(/-ageok$/, '') : g.event_id] || {};
+      const ev = isAgeOk ? { name: (base.name || g.event_id) + ' (Age OK)', date: base.date, venue: base.venue } : base;
       const k = (ev.name || '') + '|' + (ev.date || '');
       const c = byEvent[k] || { pending: 0, approved: 0, guests: 0 };
       return { event_id: g.event_id, name: ev.name || g.event_id, date: ev.date || String(g.deadline).slice(0, 10), venue: ev.venue || '',
         enabled: g.enabled, capacity: g.capacity, claimed: g.claimed_count, pending: c.pending, approved: c.approved, guests: c.guests };
-    }).sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; }).slice(0, 14);
+    }).sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; }).slice(0, 80);
 
     res.status(200).json({
       ok: true,
