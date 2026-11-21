@@ -9,6 +9,7 @@
 //   audience 'all'    — every device with notifications on (default)
 //   audience 'admins' — only the AGS team (see _admin-push.js)
 //   audience 'not_on:<event_id>' — everyone except guests already on that list
+//   audience 'users:<uuid,uuid>' — only these accounts
 //
 // Protected by the same WEBHOOK_SECRET as the other Database Webhooks.
 
@@ -65,6 +66,10 @@ module.exports = async function handler(req, res) {
         const { data: claims } = await supabase.from('guestlist_claims').select('user_id').in('event_id', evIds);
         const skip = new Set((claims || []).map(function (c) { return c.user_id; }));
         subs = subs.filter(function (s) { return !s.user_id || !skip.has(s.user_id); });
+      } else if (aud.indexOf('users:') === 0) {
+        // audience 'users:<uuid,uuid>' — only these accounts (e.g. guests on tonight's list)
+        const only = new Set(aud.slice(6).split(',').filter(Boolean));
+        subs = subs.filter(function (s) { return s.user_id && only.has(s.user_id); });
       }
       const body = JSON.stringify(payload);
       let sent = 0, failed = 0, removed = 0;
