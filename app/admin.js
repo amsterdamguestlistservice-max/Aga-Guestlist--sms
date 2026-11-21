@@ -185,9 +185,9 @@
   try { PARTY = localStorage.getItem('ags_admin_party') || ''; WHEN = localStorage.getItem('ags_admin_when') || 'upcoming'; } catch (e) {}
   // Parties that already happened, built from all requests (also older parties without a guestlist limit).
   function pastEvents(){
-    const today = todayAms(), by = {};
+    const by = {};
     (REQS || []).forEach(function(r){
-      if(!(String(r.event_date) < today)) return;
+      if(!isOver(r.event_name, r.event_date)) return;
       const k = r.event_name + '|' + r.event_date;
       const o = by[k] || (by[k] = { name: r.event_name, date: String(r.event_date), approved: 0, guests: 0, noshow: 0, missing: 0, declined: 0 });
       const t = st(r);
@@ -196,6 +196,17 @@
       if(t === 'declined') o.declined++;
     });
     return Object.keys(by).map(function(k){ return by[k]; });
+  }
+  // A party moves to Past once it has ended: its endTime (default 05:00 the next morning), Amsterdam time.
+  function nowAms(){ return new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Amsterdam' }).slice(0, 16); }
+  function isOver(name, date){
+    const d = String(date).slice(0, 10);
+    let ev = null;
+    try { if(typeof EVENTS !== 'undefined') ev = EVENTS.find(function(e){ return e.name === baseName(name) && e.date === d; }) || null; } catch (e) {}
+    const start = (ev && ev.time) || '23:00', end = (ev && ev.endTime) || '05:00';
+    let endDay = d;
+    if(end <= start){ const t = new Date(d + 'T12:00:00Z'); t.setUTCDate(t.getUTCDate() + 1); endDay = t.toISOString().slice(0, 10); }
+    return nowAms() >= endDay + ' ' + end;
   }
   function setWhen(w){ WHEN = w; try { localStorage.setItem('ags_admin_when', w); } catch (e) {} renderEvents(); }
   function baseName(n){ return String(n || '').replace(/ \(Age OK\)$/, ''); }
@@ -213,7 +224,7 @@
   function setParty(n){ PARTY = n; try { localStorage.setItem('ags_admin_party', n); } catch (e) {} renderFilter(); renderEvents(); renderReqs(); }
   function renderEvents(){
     const past = pastEvents();
-    const upcomingEvs = EVS.filter(function(e){ return String(e.date) >= todayAms(); });
+    const upcomingEvs = EVS.filter(function(e){ return !isOver(e.name, e.date); });
     const wb = document.getElementById('admWhen');
     if(wb) wb.innerHTML = '<button type="button" data-when="upcoming" class="' + (WHEN === 'upcoming' ? 'on' : '') + '">Upcoming (' + upcomingEvs.filter(function(e){ return !PARTY || baseName(e.name) === PARTY; }).length + ')</button>' +
       '<button type="button" data-when="past" class="' + (WHEN === 'past' ? 'on' : '') + '">Past (' + past.filter(function(e){ return !PARTY || e.name === PARTY; }).length + ')</button>';
