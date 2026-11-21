@@ -80,6 +80,15 @@
   .adm-partial select{flex:1;min-height:44px;background:var(--charcoal);color:var(--white);border:1px solid var(--line);padding:0 10px;font-size:14px}
   .adm-row .adm-ns{min-height:34px;padding:0 10px;margin-left:8px;border:1px solid #7a3b36;background:transparent;color:#ff9a8f;font:700 10px/1 var(--sans);letter-spacing:.14em;text-transform:uppercase;cursor:pointer;white-space:nowrap}
   .adm-row .adm-ns.sure{background:#7a3b36;color:#fff}
+  .adm-ig-search{width:100%;min-height:42px;margin:0 0 10px;padding:0 12px;background:var(--charcoal);color:var(--white);border:1px solid var(--line);font-size:14px;box-sizing:border-box}
+  .adm-ig{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);background:var(--charcoal);margin-bottom:6px}
+  .adm-ig > div{flex:1;min-width:0}
+  .adm-ig a{color:var(--gold-light);font-weight:600;text-decoration:none;word-break:break-all}
+  .adm-ig small{display:block;color:var(--muted);font-size:12px;margin-top:3px}
+  .adm-ig .g{display:flex;gap:4px}
+  .adm-ig .g button{min-width:34px;min-height:32px;border:1px solid var(--line);background:transparent;color:var(--muted);font:700 11px/1 var(--sans);cursor:pointer}
+  .adm-ig .g button.on{border-color:var(--gold);background:var(--gold);color:#000}
+  .adm-ig-more{display:block;width:100%;min-height:40px;margin-top:4px;border:1px solid var(--line);background:transparent;color:var(--white);font:600 12px/1 var(--sans);cursor:pointer}
   .adm-ev__more{font-size:11px;color:var(--gold);letter-spacing:.14em;text-transform:uppercase;margin-top:8px}
   .adm-layer{position:fixed;inset:0;z-index:9100;background:var(--black);overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(env(safe-area-inset-top,0px) + 14px) 16px calc(env(safe-area-inset-bottom,0px) + 40px);display:none}
   .adm-layer.is-open{display:block}
@@ -130,6 +139,9 @@
     '<div class="adm-sec">All time</div><div class="adm-grid" id="admTotals"></div>' +
     '<div class="adm-sec">New accounts · last 14 days</div><div class="adm-chart" id="admChart"></div>' +
     '<div class="adm-sec">Most guests</div><div id="admTop"></div>' +
+    '<div class="adm-sec">Instagram</div><div class="adm-tabs" id="admIgTabs"></div>' +
+    '<input type="search" id="admIgSearch" class="adm-ig-search" placeholder="Search name or @handle" autocomplete="off">' +
+    '<div id="admIg"></div>' +
     '<div class="adm-sec">Guestlists</div><div class="adm-tabs" id="admWhen"></div><div id="admEvents"></div>' +
     '<div class="adm-sec">New parties</div>' +
     '<div class="adm-push"><div class="adm-note" id="admNewNote" style="margin:0 0 10px">New parties are announced automatically at 16:00 and 20:00. Just added one? Announce it now.</div>' +
@@ -248,6 +260,56 @@
     }).join('') : '<div class="adm-empty">No open guestlists' + (PARTY ? ' for ' + esc(PARTY) : '') + '.</div>';
   }
 
+  // ---------- Instagram list (men / women) ----------
+  let IG_TAB = 'all', IG_Q = '', IG_SHOW = 40;
+  function igHandle(v){ return String(v || '').trim().replace(/^@/, '').replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/[\/?#].*$/, '').toLowerCase(); }
+  function igPeople(){
+    const by = {};
+    REQS.slice().sort(function(a, b){ return String(a.created_at) < String(b.created_at) ? -1 : 1; }).forEach(function(r){
+      const h = igHandle(r.instagram); if(!h) return;
+      const o = by[h] || (by[h] = { handle: h, name: '', gender: '', parties: {}, requests: 0, last: '' });
+      o.name = fullName(r); o.requests++;
+      if(r.gender === 'man' || r.gender === 'woman') o.gender = r.gender;
+      o.parties[r.event_name] = 1; if(String(r.event_date) > o.last) o.last = String(r.event_date);
+    });
+    return Object.keys(by).map(function(k){ return by[k]; }).sort(function(a, b){ return a.last < b.last ? 1 : a.last > b.last ? -1 : 0; });
+  }
+  function renderIg(){
+    const box = document.getElementById('admIg'); if(!box) return;
+    const all = igPeople();
+    const n = function(t){ return all.filter(function(p){ return t === 'all' ? true : t === 'unknown' ? !p.gender : p.gender === t; }).length; };
+    const tab = function(t, label){ return '<button type="button" data-igtab="' + t + '" class="' + (IG_TAB === t ? 'on' : '') + '">' + label + ' (' + n(t) + ')</button>'; };
+    document.getElementById('admIgTabs').innerHTML = tab('all', 'All') + tab('man', 'Men') + tab('woman', 'Women') + tab('unknown', 'Unknown');
+    const q = IG_Q.trim().toLowerCase().replace(/^@/, '');
+    const list = all.filter(function(p){ return (IG_TAB === 'all' ? true : IG_TAB === 'unknown' ? !p.gender : p.gender === IG_TAB) && (!q || p.handle.indexOf(q) >= 0 || p.name.toLowerCase().indexOf(q) >= 0); });
+    if(!list.length){ box.innerHTML = '<div class="adm-empty">Nobody here.</div>'; return; }
+    box.innerHTML = list.slice(0, IG_SHOW).map(function(p){
+      const parties = Object.keys(p.parties);
+      return '<div class="adm-ig"><div><a href="https://instagram.com/' + encodeURIComponent(p.handle) + '" target="_blank" rel="noopener">@' + esc(p.handle) + '</a>' +
+        '<small>' + esc(p.name) + ' · ' + p.requests + ' request' + (p.requests > 1 ? 's' : '') + ' · ' + esc(parties.slice(0, 2).join(', ')) + (parties.length > 2 ? ' +' + (parties.length - 2) : '') + '</small></div>' +
+        '<div class="g" data-ig="' + esc(p.handle) + '"><button type="button" data-g="man" class="' + (p.gender === 'man' ? 'on' : '') + '" aria-label="Man">M</button><button type="button" data-g="woman" class="' + (p.gender === 'woman' ? 'on' : '') + '" aria-label="Woman">V</button></div></div>';
+    }).join('') + (list.length > IG_SHOW ? '<button type="button" class="adm-ig-more" id="admIgMore">Show more (' + (list.length - IG_SHOW) + ')</button>' : '') +
+      '<button type="button" class="adm-ig-more" id="admIgCopy">Copy these ' + list.length + ' handles</button><div class="adm-note" id="admIgNote"></div>';
+  }
+  async function setIgGender(btn){
+    const wrap = btn.closest('[data-ig]'); const h = wrap.getAttribute('data-ig');
+    const g = btn.classList.contains('on') ? null : btn.getAttribute('data-g');
+    wrap.querySelectorAll('button').forEach(function(b){ b.disabled = true; });
+    try{
+      await api('/api/admin-requests', { method: 'POST', body: { instagram: h, gender: g } });
+      REQS.forEach(function(r){ if(igHandle(r.instagram) === h) r.gender = g; });
+      renderIg();
+    } catch(e){ wrap.querySelectorAll('button').forEach(function(b){ b.disabled = false; }); showErr(e.message); }
+  }
+  function copyIg(){
+    const all = igPeople(), q = IG_Q.trim().toLowerCase().replace(/^@/, '');
+    const list = all.filter(function(p){ return (IG_TAB === 'all' ? true : IG_TAB === 'unknown' ? !p.gender : p.gender === IG_TAB) && (!q || p.handle.indexOf(q) >= 0 || p.name.toLowerCase().indexOf(q) >= 0); });
+    const text = list.map(function(p){ return '@' + p.handle; }).join('\n');
+    const done = function(){ document.getElementById('admIgNote').textContent = 'Copied ✓ ' + list.length + ' handles'; };
+    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function(){ prompt('Copy:', text); });
+    else prompt('Copy:', text);
+  }
+
   async function loadReqs(){
     const r = await api('/api/admin-requests');
     REQS = r.requests || [];
@@ -256,6 +318,7 @@
     renderFilter();
     renderReqs();
     renderEvents();
+    renderIg();
   }
   function renderReqs(){
     const pending = PENDING.filter(function(x){ return !PARTY || x.event_name === PARTY; }).slice().sort(byName);
@@ -472,7 +535,14 @@
   document.getElementById('admRefresh').addEventListener('click', refresh);
   document.getElementById('admPushSend').addEventListener('click', sendPush);
   document.getElementById('admNewBtn').addEventListener('click', announceNew);
+  sheet.addEventListener('input', function(e){ if(e.target && e.target.id === 'admIgSearch'){ IG_Q = e.target.value; IG_SHOW = 40; renderIg(); } });
   sheet.addEventListener('click', function(e){
+    const it = e.target.closest('#admIgTabs button[data-igtab]');
+    if(it){ IG_TAB = it.getAttribute('data-igtab'); IG_SHOW = 40; renderIg(); return; }
+    const ig = e.target.closest('[data-ig] button[data-g]');
+    if(ig){ if(!ig.disabled) setIgGender(ig); return; }
+    if(e.target.closest('#admIgMore')){ IG_SHOW += 40; renderIg(); return; }
+    if(e.target.closest('#admIgCopy')){ copyIg(); return; }
     const wf = e.target.closest('#admWhen button[data-when]');
     if(wf){ setWhen(wf.getAttribute('data-when')); return; }
     const pf = e.target.closest('#admFilter button[data-party]');

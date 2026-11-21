@@ -57,6 +57,29 @@ module.exports = async function handler(req, res) {
     try {
       const { id, status, missing_guests } = req.body || {};
 
+      // Instagram list: set man / woman for everyone with this Instagram handle.
+      if (req.body && req.body.instagram !== undefined && req.body.gender !== undefined) {
+        const handle = String(req.body.instagram || '').trim().replace(/^@/, '').toLowerCase();
+        const gender = req.body.gender === 'man' || req.body.gender === 'woman' ? req.body.gender : null;
+        if (!handle || !/^[a-z0-9._]{1,40}$/.test(handle)) {
+          res.status(400).json({ error: 'Invalid Instagram handle' });
+          return;
+        }
+        const { data: rows, error: readErr } = await supabase
+          .from('guestlist_requests')
+          .select('id, instagram')
+          .ilike('instagram', '%' + handle + '%');
+        if (readErr) { res.status(500).json({ error: readErr.message }); return; }
+        const ids = (rows || []).filter(function (r) {
+          return String(r.instagram || '').trim().replace(/^@/, '').replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/[\/?#].*$/, '').toLowerCase() === handle;
+        }).map(function (r) { return r.id; });
+        if (!ids.length) { res.status(404).json({ error: 'No requests with @' + handle }); return; }
+        const { error: updErr } = await supabase.from('guestlist_requests').update({ gender: gender }).in('id', ids);
+        if (updErr) { res.status(500).json({ error: updErr.message }); return; }
+        res.status(200).json({ ok: true, updated: ids.length, gender: gender });
+        return;
+      }
+
       // Partial no-show: set how many guests of an approved group did not come.
       if (id && missing_guests !== undefined && status === undefined) {
         const missing = Number(missing_guests);
