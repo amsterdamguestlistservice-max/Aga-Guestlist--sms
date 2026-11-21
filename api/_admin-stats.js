@@ -19,7 +19,7 @@ module.exports = async function handler(req, res) {
       sb.from('profiles').select('user_id', { count: 'exact', head: true }),
       sb.from('push_subscriptions').select('endpoint, created_at'),
       sb.from('guestlist_requests').select('id, status, event_name, event_date, total_guests, created_at').gte('event_date', today),
-      sb.from('event_guestlists').select('event_id, enabled, capacity, claimed_count, deadline').gte('deadline', new Date().toISOString()),
+      sb.from('event_guestlists').select('event_id, enabled, capacity, claimed_count, deadline').gte('deadline', new Date(Date.now() - 3 * 864e5).toISOString()), // last 3 days stay, to mark no-shows
       loadEvents(),
       sb.from('guestlist_requests').select('status, total_guests, event_name, event_date').range(0, 19999),
       sb.from('profiles').select('user_id', { count: 'exact', head: true }).not('referred_by', 'is', null)

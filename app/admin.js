@@ -76,6 +76,10 @@
   .adm-filter::-webkit-scrollbar{display:none}
   .adm-filter button{flex:0 0 auto;min-height:36px;padding:0 14px;border:1px solid var(--line);background:transparent;color:var(--muted);font:600 12px/1 var(--sans);border-radius:999px;cursor:pointer;white-space:nowrap}
   .adm-filter button.on{border-color:var(--gold);color:#000;background:var(--gold)}
+  .adm-partial{display:flex;gap:8px}
+  .adm-partial select{flex:1;min-height:44px;background:var(--charcoal);color:var(--white);border:1px solid var(--line);padding:0 10px;font-size:14px}
+  .adm-row .adm-ns{min-height:34px;padding:0 10px;margin-left:8px;border:1px solid #7a3b36;background:transparent;color:#ff9a8f;font:700 10px/1 var(--sans);letter-spacing:.14em;text-transform:uppercase;cursor:pointer;white-space:nowrap}
+  .adm-row .adm-ns.sure{background:#7a3b36;color:#fff}
   .adm-ev__more{font-size:11px;color:var(--gold);letter-spacing:.14em;text-transform:uppercase;margin-top:8px}
   .adm-layer{position:fixed;inset:0;z-index:9100;background:var(--black);overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(env(safe-area-inset-top,0px) + 14px) 16px calc(env(safe-area-inset-bottom,0px) + 40px);display:none}
   .adm-layer.is-open{display:block}
@@ -198,7 +202,7 @@
       const pct = e.capacity ? Math.min(100, Math.round(e.claimed / e.capacity * 100)) : 0;
       return '<div class="adm-ev" data-name="' + esc(e.name) + '" data-date="' + esc(e.date) + '"><div class="adm-ev__top"><span>' + esc(e.name) + '</span><i>' + esc(day(e.date)) + '</i></div>' +
         '<div class="adm-bar"><div style="width:' + pct + '%"></div></div>' +
-        '<div class="adm-ev__meta">' + e.claimed + ' / ' + e.capacity + ' people on the list · ' + e.approved + ' approved (' + e.guests + ' guests) · ' + e.pending + ' pending' + (e.enabled ? '' : ' · closed') + '</div><div class="adm-ev__more">Open guestlist ›</div></div>';
+        '<div class="adm-ev__meta">' + e.claimed + ' / ' + e.capacity + ' people on the list · ' + e.approved + ' approved (' + e.guests + ' guests) · ' + e.pending + ' pending' + (e.enabled ? '' : ' · closed') + '</div><div class="adm-ev__more">' + (String(e.date) <= todayAms() ? 'Open guestlist · mark no-shows ›' : 'Open guestlist ›') + '</div></div>';
     }).join('') : '<div class="adm-empty">No open guestlists' + (PARTY ? ' for ' + esc(PARTY) : '') + '.</div>';
   }
 
@@ -241,6 +245,29 @@
     } catch(e){ btns.forEach(function(b){ b.disabled = false; }); showErr(e.message); }
   }
 
+  const todayAms = function(){ return new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' }); };
+  async function quickNoShow(btn){
+    if(!btn.classList.contains('sure')){ btn.classList.add('sure'); btn.textContent = 'Sure?'; setTimeout(function(){ if(btn.isConnected && !btn.disabled){ btn.classList.remove('sure'); btn.textContent = 'No-show'; } }, 4000); return; }
+    btn.disabled = true; btn.textContent = '…';
+    const id = btn.getAttribute('data-noshow');
+    try{
+      await api('/api/admin-requests', { method: 'POST', body: { id: id, status: 'No-Show' } });
+      const x = REQS.find(function(r){ return String(r.id) === String(id); }); if(x) x.status = 'No-Show';
+      renderList(); loadStats().catch(function(){});
+    } catch(e){ btn.disabled = false; btn.classList.remove('sure'); btn.textContent = 'No-show'; showErr(e.message); }
+  }
+  async function saveMissing(btn){
+    const box = btn.closest('.adm-partial'); const id = box.getAttribute('data-id');
+    const n = Number(document.getElementById('admMissing').value);
+    btn.disabled = true;
+    try{
+      await api('/api/admin-requests', { method: 'POST', body: { id: id, missing_guests: n } });
+      const x = REQS.find(function(r){ return String(r.id) === String(id); }); if(x) x.missing_guests = n;
+      document.getElementById('admMissingNote').textContent = 'Saved ✓ the guest is notified.';
+      if(listCtx) renderList();
+    } catch(e){ document.getElementById('admMissingNote').textContent = e.message; }
+    btn.disabled = false;
+  }
   const st = function(x){ return String(x.status || 'pending').trim().toLowerCase(); };
   const fullName = function(x){ return ((x.first_name || '') + ' ' + (x.last_name || '')).trim() || 'Guest'; };
   const gName = function(g){ return ((g.firstName || g.first_name || g.name || '') + ' ' + (g.lastName || g.last_name || '')).trim(); };
@@ -281,7 +308,15 @@
       }).join('');
     }
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
-    const past = String(x.event_date) < today;
+    const past = String(x.event_date) <= today; // the party night itself counts too
+    const total = Number(x.total_guests) || 1;
+    if(s === 'approved' && past && total > 1){
+      const miss = Number(x.missing_guests) || 0;
+      let opts = '';
+      for(let i = 0; i < total; i++) opts += '<option value="' + i + '"' + (i === miss ? ' selected' : '') + '>' + (i === 0 ? 'Everyone came' : i + ' of ' + total + ' didn\'t come') + '</option>';
+      html += '<div class="adm-sec">Part of the group didn\'t come?</div><div class="adm-partial" data-id="' + esc(x.id) + '"><select id="admMissing">' + opts + '</select><button type="button" class="adm-btn" id="admMissingSave">Save</button></div>' +
+        '<div class="adm-note" id="admMissingNote">The guest gets a notification. -2 points per missing person.</div>';
+    }
     let acts = '';
     if(s === 'pending') acts = '<button type="button" data-set="Declined" class="bad">Decline</button><button type="button" data-set="Approved" class="ok">Approve</button>';
     else if(s === 'approved') acts = past ? '<button type="button" data-set="No-Show" class="bad">No-show</button><button type="button" data-set="Approved" disabled>Approved ✓</button>' : '<button type="button" data-set="Declined" class="bad">Remove from list</button><button type="button" data-set="Approved" disabled>Approved ✓</button>';
@@ -319,7 +354,8 @@
       '<button type="button" class="adm-btn" data-close="admList">Back</button></div>' +
       '<div class="adm-tabs">' + tab('all', 'All') + tab('approved', 'Approved') + tab('pending', 'Pending') + tab('declined', 'Declined') + '</div>' +
       (shown.length ? shown.map(function(r){
-        return '<div class="adm-row" data-open="' + esc(r.id) + '"><div><b>' + esc(fullName(r)) + '</b><small>' + (r.total_guests || 1) + ' guest' + ((r.total_guests || 1) > 1 ? 's' : '') + (r.instagram ? ' · @' + esc(String(r.instagram).replace(/^@/, '')) : '') + '</small></div><span class="adm-pill ' + esc(st(r)) + '">' + esc(r.status || 'Pending') + '</span></div>';
+        const nsBtn = (st(r) === 'approved' && String(r.event_date) <= todayAms()) ? '<button type="button" class="adm-ns" data-noshow="' + esc(r.id) + '">No-show</button>' : '';
+        return '<div class="adm-row" data-open="' + esc(r.id) + '"><div><b>' + esc(fullName(r)) + '</b><small>' + (r.total_guests || 1) + ' guest' + ((r.total_guests || 1) > 1 ? 's' : '') + (Number(r.missing_guests) ? ' · ' + r.missing_guests + ' didn\'t come' : '') + (r.instagram ? ' · @' + esc(String(r.instagram).replace(/^@/, '')) : '') + '</small></div><div style="display:flex;align-items:center"><span class="adm-pill ' + esc(st(r)) + '">' + esc(r.status || 'Pending') + '</span>' + nsBtn + '</div></div>';
       }).join('') : '<div class="adm-empty">No requests here.</div>') +
       (approved.length ? '<div class="adm-push" style="margin-top:16px"><button type="button" id="admCopyNames">Copy guestlist names</button><div class="adm-note" id="admCopyNote">Copies every approved name (incl. their guests) to send to the door.</div></div>' : '');
   }
@@ -410,6 +446,10 @@
       if(c){ document.getElementById(c.getAttribute('data-close')).classList.remove('is-open'); if(c.getAttribute('data-close') === 'admList') listCtx = null; return; }
       const f = e.target.closest('[data-filter]');
       if(f){ listCtx.filter = f.getAttribute('data-filter'); renderList(); return; }
+      const ns = e.target.closest('button[data-noshow]');
+      if(ns){ if(!ns.disabled) quickNoShow(ns); return; }
+      if(e.target.closest('#admMissingSave')){ saveMissing(e.target.closest('#admMissingSave')); return; }
+      if(e.target.closest('#admMissing')) return;
       const o = e.target.closest('[data-open]');
       if(o){ openDetail(o.getAttribute('data-open')); return; }
       if(e.target.closest('#admCopyNames')){ copyNames(); return; }

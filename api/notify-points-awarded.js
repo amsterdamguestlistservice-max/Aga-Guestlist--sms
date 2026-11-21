@@ -180,7 +180,8 @@ module.exports = async function handler(req, res) {
         'You were marked as a no-show for ' + eventName +
           '. -' + NO_SHOW_PENALTY + ' points (total: ' + newPoints + ').' + policyLine
       );
-      res.status(200).json({ penalty: NO_SHOW_PENALTY, newPoints: newPoints, pushed: pushed });
+      const emailed = await sendGuestEmail('noshow', record);
+      res.status(200).json({ penalty: NO_SHOW_PENALTY, newPoints: newPoints, pushed: pushed, emailed: emailed });
       return;
     }
 

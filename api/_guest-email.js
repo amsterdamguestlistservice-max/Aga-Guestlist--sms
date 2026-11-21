@@ -98,6 +98,21 @@ const VARIANTS = {
       'No-shows lose points, so if your plans change, please release your spot below.',
     cta: 'Open the app'
   },
+  noshow: {
+    subject: function (r) { return 'We missed you at ' + (r.event_name || 'the party'); },
+    preheader: function (r) { return 'You were on the guestlist for ' + (r.event_name || 'the party') + ' but didn\u2019t check in.'; },
+    eyebrow: 'No-show',
+    heading: 'We missed you',
+    status: { label: 'No-show', filled: false },
+    intro: function (name) {
+      return 'Hi ' + name + ', you were on the guestlist for this night, but our door list shows you didn\u2019t check in. ' +
+        'An empty spot on the list is a spot someone else could have had, so 15 points were deducted from your account.';
+    },
+    noteTitle: 'Next time',
+    note: 'Plans change, we get it. If you can\u2019t make it, release your spot in the app before the night. ' +
+      'Releasing on time never costs points. Repeated no-shows can block guestlist requests for that party for 2 weeks.',
+    cta: 'Open the app'
+  },
   reminder: {
     subject: function (r) { return 'Tonight: ' + (r.event_name || 'your event') + ' — you’re on the list'; },
     preheader: function (r) { return 'See you tonight at ' + venueParts(r.event_venue).name + '. Bring your ID.'; },
