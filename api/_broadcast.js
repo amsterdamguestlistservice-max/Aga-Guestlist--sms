@@ -61,7 +61,8 @@ module.exports = async function handler(req, res) {
       let subs = allSubs || [];
       const aud = String(record.audience || '');
       if (aud.indexOf('not_on:') === 0) {
-        const { data: claims } = await supabase.from('guestlist_claims').select('user_id').eq('event_id', aud.slice(7));
+        const evIds = aud.slice(7).split(',').filter(Boolean);
+        const { data: claims } = await supabase.from('guestlist_claims').select('user_id').in('event_id', evIds);
         const skip = new Set((claims || []).map(function (c) { return c.user_id; }));
         subs = subs.filter(function (s) { return !s.user_id || !skip.has(s.user_id); });
       }
