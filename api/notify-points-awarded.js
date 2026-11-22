@@ -46,6 +46,7 @@ const PARTIAL_NO_SHOW_PER_PERSON = 2;
 
 // Guest emails use the shared template in _guest-email.js.
 const { sendGuestEmail } = require('./_guest-email');
+const { notifyRequestChange } = require('./_request-change-push');
 
 function formatDate(isoDate) {
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -138,8 +139,11 @@ module.exports = async function handler(req, res) {
   const missingDelta = newMissing - oldMissing;
   const partialChange = newStatus === 'approved' && oldStatus === 'approved' && missingDelta !== 0;
 
+  // Guest cancelled or edited the request? Tell the AGS team (admin push).
+  const changeNotice = await notifyRequestChange(record, oldRecord);
+
   if (!justApproved && !justMarkedNoShow && !partialChange) {
-    res.status(200).json({ skipped: true });
+    res.status(200).json({ skipped: true, changeNotice: changeNotice });
     return;
   }
 
