@@ -1,7 +1,7 @@
 // Minimal service worker — enables "Add to Home Screen" installability
 // and basic offline support (cache-first for the app shell, since the
 // event data is embedded directly in index.html rather than fetched).
-const CACHE_NAME = 'ags-app-v144';
+const CACHE_NAME = 'ags-app-v145';
 const APP_SHELL = [
   './index.html',
   './manifest.json',
@@ -46,6 +46,9 @@ self.addEventListener('activate', function(event){
 
 self.addEventListener('fetch', function(event){
   if(event.request.method !== 'GET') return;
+  // Videos stream with Range requests (Safari needs 206 responses): let the
+  // browser handle them directly and never cache them.
+  if(event.request.headers.has('range') || /\.(mp4|webm|mov)(\?|$)/i.test(event.request.url)) return;
   // Network-first: always try the latest version (so event changes show up
   // right away), and only fall back to the cache when offline.
   event.respondWith(

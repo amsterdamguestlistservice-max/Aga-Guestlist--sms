@@ -772,6 +772,7 @@ const EVENTS = [
     time: "23:00",
     venue: "Soul Kitchen · Amsterdam",
     image: "events/amajoyo-2026-11-27.jpg",
+    clip: { mp4: "events/amajoyo-2026-11-27.mp4", poster: "events/amajoyo-2026-11-27-poster.jpg" },
     description: "Amajoyo at Soul Kitchen with De La Noise, Terrie T (Afroholic), Pascal Morais, Dems . Rezaie and Noah Staal. 23:00 till 04:00. Normally 23+, but on the AGS guestlist you're in from 20+. Discounted BFF tickets via AGS (23+).",
     guestlistStatus: "limited",
     minAge: 20,
@@ -1530,8 +1531,23 @@ async function shareEvent(ev){
 
 function openEventSheet(ev){
   if(typeof AppSound !== 'undefined') AppSound.play('open');
-  document.getElementById('sheetMedia').innerHTML = eventMedia(ev);
-  document.getElementById('sheetMedia').setAttribute('style', flyerStyle(ev).replace(/^ style="|"$/g, ''));
+  const sheetMedia = document.getElementById('sheetMedia');
+  sheetMedia.classList.remove('has-clip', 'is-loaded');
+  if(ev.clip && ev.clip.mp4){
+    // Promo video in the sheet: autoplays muted in a loop; tap for sound.
+    sheetMedia.classList.add('has-clip', 'is-loaded');
+    sheetMedia.innerHTML = '<video class="sheet__clip" src="' + ev.clip.mp4 + '"' + (ev.clip.poster ? ' poster="' + ev.clip.poster + '"' : '') +
+      ' autoplay muted loop playsinline preload="metadata"></video>' +
+      '<button type="button" class="sheet__sound" aria-label="Sound on">🔇</button>';
+    const v = sheetMedia.querySelector('video'), btn = sheetMedia.querySelector('.sheet__sound');
+    const toggle = function(e){ if(e) e.stopPropagation(); v.muted = !v.muted; btn.textContent = v.muted ? '🔇' : '🔊'; btn.setAttribute('aria-label', v.muted ? 'Sound on' : 'Sound off'); if(v.paused) v.play().catch(function(){}); };
+    btn.addEventListener('click', toggle);
+    v.addEventListener('click', toggle);
+    v.play().catch(function(){});
+  } else {
+    sheetMedia.innerHTML = eventMedia(ev);
+  }
+  sheetMedia.setAttribute('style', flyerStyle(ev).replace(/^ style="|"$/g, ''));
   document.getElementById('sheetDate').textContent = formatDate(ev.date);
   document.getElementById('sheetName').textContent = ev.name;
   document.getElementById('sheetVenue').textContent = ev.venue;
@@ -1598,6 +1614,8 @@ function openEventSheet(ev){
   document.body.style.overflow = 'hidden';
 }
 function closeEventSheet(){
+  const clip = document.querySelector('#sheetMedia video');
+  if(clip){ try{ clip.pause(); clip.muted = true; } catch(e){} }
   document.getElementById('sheetOverlay').classList.remove('is-open');
   document.body.style.overflow = '';
 }
