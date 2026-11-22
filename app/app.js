@@ -627,7 +627,7 @@ const EVENTS = [
     image: "events/house-of-zenda-2026-11-28.jpg",
     description: "House of Zenda at Chin Chin Club. 21+, Age OK list (18-20) open.",
     guestlistStatus: "limited",
-    ticketUrl: "#",
+    ticketUrl: "https://shop.celebratix.io/?c=356ku",
     badgeLabel: "", // empty = no badge on the card
     guestlistUrl: "#guestlist",
     minAge: 18,
