@@ -978,6 +978,62 @@ async function loadMemberAccess(){
   } catch(e){}
 }
 
+/* ---- Music genres per party series (16). Add a name here once and every
+   date of that party gets the genre; ev.genres on one event overrides. ---- */
+const GENRES_BY_NAME = {
+  'Amajoyo': ['Afro house'],
+  'NEMA': ['Afro house'],
+  'Club Fair': ['Hits & house']
+};
+function eventGenres(ev){ return (ev && (ev.genres || GENRES_BY_NAME[ev.name])) || []; }
+
+/* ---- For you (15): parties like the ones you went to, opened or follow ---- */
+let MY_PREFS = null; // { names:{}, venues:{}, genres:{}, follows:Set }
+let MY_FOLLOWS = new Set();
+async function loadMyPrefs(){
+  if(!supabaseClient || !currentUser) return;
+  try{
+    const [reqs, views, follows] = await Promise.all([
+      supabaseClient.from('guestlist_requests').select('event_name, event_venue, status').limit(200),
+      supabaseClient.from('event_views').select('event_name, venue, views').limit(300),
+      supabaseClient.from('venue_follows').select('venue')
+    ]);
+    const prefs = { names:{}, venues:{}, genres:{} };
+    const add = function(map, k, n){ if(k) map[k] = (map[k] || 0) + n; };
+    (reqs.data || []).forEach(function(r){
+      const w = String(r.status || '').toLowerCase() === 'approved' ? 3 : 2;
+      add(prefs.names, r.event_name, w); add(prefs.venues, String(r.event_venue || '').split(' · ')[0], w);
+      (GENRES_BY_NAME[r.event_name] || []).forEach(function(g){ add(prefs.genres, g, w); });
+    });
+    (views.data || []).forEach(function(v){
+      add(prefs.names, v.event_name, 1); add(prefs.venues, String(v.venue || '').split(' · ')[0], 1);
+      (GENRES_BY_NAME[v.event_name] || []).forEach(function(g){ add(prefs.genres, g, 1); });
+    });
+    MY_FOLLOWS = new Set((follows.data || []).map(function(f){ return f.venue; }));
+    MY_PREFS = prefs;
+    renderEventList();
+    try{ renderVenueFilter(); } catch(e){}
+  } catch(e){}
+}
+function forYouScore(ev){
+  if(!MY_PREFS) return 0;
+  const venue = eventVenueName(ev);
+  let score = 0;
+  if(MY_FOLLOWS.has(venue)) score += 4;
+  score += Math.min(4, MY_PREFS.names[ev.name] || 0);
+  score += Math.min(2, MY_PREFS.venues[venue] || 0);
+  eventGenres(ev).forEach(function(g){ score += Math.min(3, MY_PREFS.genres[g] || 0); });
+  return score;
+}
+function isForYou(ev){ return forYouScore(ev) >= 3; }
+function cardTags(ev){
+  const tags = [];
+  if(ev.sponsored) tags.push('<span class="event-card__tag is-sponsored">Sponsored</span>');
+  if(isForYou(ev)) tags.push('<span class="event-card__tag is-foryou">✨ For you</span>');
+  eventGenres(ev).forEach(function(g){ tags.push('<span class="event-card__tag">' + g + '</span>'); });
+  return tags.length ? '<div class="event-card__tags">' + tags.join('') + '</div>' : '';
+}
+
 function getSortedEvents(){
   return EVENTS.filter(function(ev){ return !isPastEvent(ev) && eventVisible(ev); }).sort(function(a, b){
     return new Date(a.date + 'T' + a.time) - new Date(b.date + 'T' + b.time);
@@ -1031,23 +1087,40 @@ function renderVenueFilter(){
   });
   if(venues.length < 2){ wrap.style.display = 'none'; return; }
 
-  const pills = ['All'].concat(venues);
-  wrap.innerHTML = pills.map(function(name, i){
-    return '<button type="button" class="venue-filter__pill' + (i === 0 ? ' is-active' : '') + '" data-venue="' + name + '">' + name + '</button>';
+  const genres = [];
+  getSortedEvents().forEach(function(ev){ eventGenres(ev).forEach(function(g){ if(genres.indexOf(g) === -1) genres.push(g); }); });
+  const anyForYou = getSortedEvents().some(isForYou);
+  const pills = [{ kind:'all', val:'All', label:'All' }]
+    .concat(anyForYou ? [{ kind:'foryou', val:'1', label:'✨ For you' }] : [])
+    .concat(genres.map(function(g){ return { kind:'genre', val:g, label:'♫ ' + g }; }))
+    .concat(venues.map(function(v){ return { kind:'venue', val:v, label:v }; }));
+  const active = wrap.dataset.active || 'all|All';
+  wrap.innerHTML = pills.map(function(p){
+    const key = p.kind + '|' + p.val;
+    return '<button type="button" class="venue-filter__pill' + (p.kind === 'genre' ? ' is-genre' : '') + (p.kind === 'foryou' ? ' is-foryou' : '') +
+      (key === active ? ' is-active' : '') + '" data-kind="' + p.kind + '" data-venue="' + p.val + '">' + p.label + '</button>';
   }).join('');
+  if(!wrap.querySelector('.is-active')){ wrap.dataset.active = 'all|All'; wrap.querySelector('.venue-filter__pill').classList.add('is-active'); }
 
   wrap.querySelectorAll('.venue-filter__pill').forEach(function(btn){
     btn.addEventListener('click', function(){
       wrap.querySelectorAll('.venue-filter__pill').forEach(function(p){ p.classList.remove('is-active'); });
       btn.classList.add('is-active');
-      filterEventsByVenue(btn.dataset.venue);
+      wrap.dataset.active = btn.dataset.kind + '|' + btn.dataset.venue;
+      filterEventsByVenue(btn.dataset.venue, btn.dataset.kind);
     });
   });
+  const parts = (wrap.dataset.active || 'all|All').split('|');
+  if(parts[0] !== 'all') filterEventsByVenue(parts.slice(1).join('|'), parts[0]);
 }
 
-function filterEventsByVenue(venueName){
+function filterEventsByVenue(venueName, kind){
+  kind = kind || (venueName === 'All' ? 'all' : 'venue');
   document.querySelectorAll('#eventList .event-card').forEach(function(card){
-    const matches = venueName === 'All' || card.dataset.venue === venueName;
+    const matches = kind === 'all' ? true
+      : kind === 'foryou' ? card.dataset.foryou === '1'
+      : kind === 'genre' ? (card.dataset.genres || '').split('|').indexOf(venueName) >= 0
+      : card.dataset.venue === venueName;
     card.classList.toggle('is-filtered-out', !matches);
   });
   document.querySelectorAll('#eventList .night-head').forEach(function(head){
@@ -1094,12 +1167,12 @@ function renderEventList(){
     const groupHead = group !== lastGroup ? '<div class="night-head" data-group="' + group + '"><span>' + group + '</span>' + (group === 'Coming up' ? '' : '<em>' + formatDate(ev.date) + '</em>') + '</div>' : '';
     lastGroup = group;
     return groupHead + (
-      '<article class="event-card' + (featured ? ' is-featured' : '') + '" data-index="' + i + '" data-event-id="' + (ev.id || '') + '" data-venue="' + eventVenueName(ev) + '">' + nextUp +
+      '<article class="event-card' + (featured ? ' is-featured' : '') + '" data-index="' + i + '" data-event-id="' + (ev.id || '') + '" data-venue="' + eventVenueName(ev) + '" data-genres="' + eventGenres(ev).join('|') + '" data-foryou="' + (isForYou(ev) ? '1' : '') + '">' + nextUp +
         '<div class="event-card__media"' + flyerStyle(ev) + '>' + mediaContent + '</div>' +
         '<div class="event-card__body">' +
           '<div class="event-card__meta"><div class="event-card__date">' + formatDate(ev.date) + '</div>' + guestlistBadge(ev.guestlistStatus, ev.badgeLabel) + '</div>' +
           '<h3 class="event-card__name">' + ev.name + '</h3>' +
-          '<div class="event-card__venue">' + ev.venue + '</div>' + memberTag(ev) +
+          '<div class="event-card__venue">' + ev.venue + '</div>' + memberTag(ev) + cardTags(ev) +
           '<button type="button" class="event-card__cta">View Details</button>' +
         '</div>' +
         '<div class="glive" style="display:none;"></div>' +
@@ -1119,6 +1192,10 @@ function renderEventList(){
   revealCardsOnScroll();
   setTimeout(refreshCardBadges, 0);
   loadLiveGuestlists();
+  // Keep the chosen filter (club / genre / For you) after a re-render.
+  const vf = document.getElementById('venueFilter');
+  const act = vf && vf.dataset.active;
+  if(act && act !== 'all|All'){ const parts = act.split('|'); filterEventsByVenue(parts.slice(1).join('|'), parts[0]); }
 }
 
 function renderPastEventList(){
@@ -1556,6 +1633,10 @@ function openEventSheet(ev){
   document.getElementById('sheetDate').textContent = formatDate(ev.date);
   document.getElementById('sheetName').textContent = ev.name;
   document.getElementById('sheetVenue').textContent = ev.venue;
+  renderSheetExtras(ev);
+  if(supabaseClient && currentUser && ev.id){
+    supabaseClient.rpc('log_event_view', { p_event_id: ev.id, p_event_name: ev.name, p_event_date: ev.date, p_venue: eventVenueName(ev) }).then(function(){}, function(){});
+  }
   document.getElementById('sheetDesc').textContent = ev.description;
 
   const noGuestlist = ev.guestlistStatus === 'none';
@@ -1623,6 +1704,74 @@ async function startGuestlistFor(ev, fromSheet){
   document.getElementById('glSpotNotice').style.display = 'none';
 }
 
+/* ---- Follow a club (17): heart in the party sheet; push on new parties ---- */
+function renderSheetExtras(ev){
+  const box = document.getElementById('sheetExtras');
+  if(!box) return;
+  const venue = eventVenueName(ev);
+  const on = MY_FOLLOWS.has(venue);
+  box.innerHTML = '<button type="button" class="follow-btn' + (on ? ' is-on' : '') + '" id="followBtn">' +
+    (on ? '♥ Following ' : '♡ Follow ') + venue + '</button>' +
+    eventGenres(ev).map(function(g){ return '<span class="event-card__tag">♫ ' + g + '</span>'; }).join('');
+  document.getElementById('followBtn').addEventListener('click', function(){ toggleFollowVenue(venue, this); });
+}
+async function toggleFollowVenue(venue, btn){
+  if(!supabaseClient || !currentUser){
+    if(typeof lockAppBehindGate === 'function'){ closeEventSheet(); lockAppBehindGate(); }
+    return;
+  }
+  const was = MY_FOLLOWS.has(venue);
+  if(was) MY_FOLLOWS.delete(venue); else MY_FOLLOWS.add(venue);
+  btn.classList.toggle('is-on', !was);
+  btn.textContent = (!was ? '♥ Following ' : '♡ Follow ') + venue;
+  if(typeof AppSound !== 'undefined') try{ AppSound.play(!was ? 'success' : 'tap'); } catch(e){}
+  const res = was
+    ? await supabaseClient.from('venue_follows').delete().eq('user_id', currentUser.id).eq('venue', venue)
+    : await supabaseClient.from('venue_follows').insert({ venue: venue });
+  if(res.error && !/duplicate/i.test(res.error.message || '')){
+    if(was) MY_FOLLOWS.add(venue); else MY_FOLLOWS.delete(venue);
+    btn.classList.toggle('is-on', was);
+    btn.textContent = (was ? '♥ Following ' : '♡ Follow ') + venue;
+    return;
+  }
+  if(!was) showBadgeToast('❤️', 'You\u2019ll hear first when ' + venue + ' adds a party');
+  loadMyBadges();
+}
+
+/* ---- Badges (24) ---- */
+async function loadMyBadges(){
+  const box = document.getElementById('badgeBox');
+  if(!box || !supabaseClient || !currentUser) return;
+  try{
+    const { data, error } = await supabaseClient.rpc('my_badges');
+    if(error || !Array.isArray(data)) return;
+    const earned = data.filter(function(b){ return b.have >= b.need; });
+    document.getElementById('badgeCount').textContent = earned.length + ' of ' + data.length;
+    document.getElementById('badgeGrid').innerHTML = data.map(function(b){
+      const got = b.have >= b.need;
+      return '<div class="badge ' + (got ? 'is-earned' : 'is-locked') + '"><b>' + b.icon + '</b><span>' + b.name + '</span><small>' +
+        (got ? b.desc : (b.need > 1 ? Math.min(b.have, b.need) + '/' + b.need + ' · ' : '') + b.desc) + '</small></div>';
+    }).join('');
+    box.hidden = false;
+    // Celebrate badges earned since the last visit on this device.
+    const k = 'ags_badges_' + currentUser.id;
+    let seen = null; try{ seen = JSON.parse(localStorage.getItem(k) || 'null'); } catch(e){}
+    const ids = earned.map(function(b){ return b.id; });
+    if(Array.isArray(seen)){
+      const fresh = earned.filter(function(b){ return seen.indexOf(b.id) < 0; });
+      if(fresh.length) showBadgeToast(fresh[0].icon, 'New badge: <b>' + fresh[0].name + '</b>');
+    }
+    try{ localStorage.setItem(k, JSON.stringify(ids)); } catch(e){}
+  } catch(e){}
+}
+function showBadgeToast(icon, html){
+  const t = document.createElement('div'); t.className = 'badge-toast';
+  t.innerHTML = icon + ' ' + html;
+  document.body.appendChild(t);
+  requestAnimationFrame(function(){ t.classList.add('is-in'); });
+  setTimeout(function(){ t.classList.remove('is-in'); setTimeout(function(){ t.remove(); }, 500); }, 3200);
+}
+
 /* ---- Stories: a bubble per upcoming party; full-screen viewer ----
    Each party's story = ev.stories ([{video|image}]) if set, else its clip,
    else its flyer. Seen state is per device. */
@@ -1637,7 +1786,7 @@ function storyItems(ev){
 function storySeen(id){ try{ return !!localStorage.getItem('ags_story_' + id); } catch(e){ return false; } }
 function storyEvents(){
   return getSortedEvents().filter(function(ev){ return storyItems(ev).length; }).slice(0, 12)
-    .sort(function(a, b){ return storySeen(a.id) - storySeen(b.id); });
+    .sort(function(a, b){ return (storySeen(a.id) - storySeen(b.id)) || ((b.sponsored ? 1 : 0) - (a.sponsored ? 1 : 0)) || (forYouScore(b) - forYouScore(a)); });
 }
 function renderStoryBar(){
   const bar = document.getElementById('storyBar');
@@ -1739,7 +1888,8 @@ function openStoryViewer(events, startIndex){
 
 /* ---- Featured video at the top of the home screen (ev.featuredHero + ev.clip) ---- */
 function featuredHeroEvent(){
-  return getSortedEvents().find(function(ev){ return ev.featuredHero && ev.clip && ev.clip.mp4; }) || null;
+  const list = getSortedEvents().filter(function(ev){ return ev.clip && ev.clip.mp4; });
+  return list.find(function(ev){ return ev.sponsored && ev.featuredHero; }) || list.find(function(ev){ return ev.featuredHero; }) || null;
 }
 function renderFeaturedHero(){
   const box = document.getElementById('featuredHero');
@@ -2593,6 +2743,8 @@ function showAccountPanel(user){
   loadMyRequests();
   loadMyPoints();
   loadMemberAccess();
+  loadMyPrefs();
+  loadMyBadges();
   linkPushSubscriptionToAccount();
   if(typeof salonInit === 'function') salonInit(user);
   if(typeof window.agsAdminCheck === 'function') window.agsAdminCheck();
@@ -3110,6 +3262,8 @@ document.getElementById('signOutBtn').addEventListener('click', async function()
   if(supabaseClient){ await supabaseClient.auth.signOut(); }
   currentUser = null;
   IS_MEMBER = false;
+  MY_PREFS = null; MY_FOLLOWS = new Set();
+  const bb = document.getElementById('badgeBox'); if(bb) bb.hidden = true;
   for(let i = EVENTS.length - 1; i >= 0; i--){ if(EVENTS[i].secret) EVENTS.splice(i, 1); }
   try{ renderEventList(); } catch(e){}
   if(typeof loadNextNight === 'function') loadNextNight();

@@ -280,10 +280,27 @@ async function sendNewEventsPush(supabase, opts) {
 
     webpush.setVapidDetails('mailto:amsterdamguestlistservice@outlook.com', process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
     const payload = JSON.stringify({ title: title, body: body, url: url });
+    // Guests who follow a club get a personal version for that club's new party.
+    const followPayload = {};
+    try {
+      const venues = Array.from(new Set(fresh.map(venue).filter(Boolean)));
+      if (venues.length) {
+        const { data: follows } = await supabase.from('venue_follows').select('user_id, venue').in('venue', venues);
+        (follows || []).forEach(function (f) {
+          if (followPayload[f.user_id]) return;
+          const ev = fresh.find(function (e) { return venue(e) === f.venue; });
+          followPayload[f.user_id] = JSON.stringify({
+            title: 'New at ' + f.venue + ' ❤️',
+            body: ev.name + ' · ' + shortDate(ev.date) + '. You follow ' + f.venue + ', so you hear it first. Get on the list in one tap.',
+            url: './index.html?event=' + encodeURIComponent(ev.id)
+          });
+        });
+      }
+    } catch (e) { /* follower version is optional */ }
     let pushed = 0;
     await Promise.all((subs || []).map(async function (sub) {
       try {
-        await sendAnyPush(webpush, { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload);
+        await sendAnyPush(webpush, { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, (sub.user_id && followPayload[sub.user_id]) || payload);
         pushed++;
       } catch (err) {
         if (err && (err.statusCode === 404 || err.statusCode === 410)) {

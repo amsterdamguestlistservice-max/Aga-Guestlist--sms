@@ -78,6 +78,42 @@ async function sendEveReminders(supabase, opts) {
   return { date: tomorrow, requests: (rows || []).length, pushed: pushed };
 }
 
+// Evening before a party: guests who opened it in the app but never requested
+// get one nudge, only while the guestlist is still open and not full.
+async function sendStillThinking(supabase, opts) {
+  const now = new Date();
+  const hour = Number(now.toLocaleString('en-GB', { timeZone: 'Europe/Amsterdam', hour: '2-digit', hour12: false }));
+  if (hour < 18 && !(opts && opts.force)) return { skipped: 'not_evening' };
+  const tomorrow = new Date(now.getTime() + 24 * 3600 * 1000).toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
+  const { data: views, error } = await supabase.from('event_views')
+    .select('user_id, event_id, event_name, event_date, venue').eq('event_date', tomorrow).is('nudge_sent_at', null);
+  if (error) return { error: error.message };
+  if (!views || !views.length) return { date: tomorrow, nudges: 0 };
+  const ids = Array.from(new Set(views.map(function (v) { return v.event_id; })));
+  const { data: lists } = await supabase.from('event_guestlists').select('event_id, capacity, claimed_count, deadline, enabled, members_only_until').in('event_id', ids);
+  const open = {};
+  (lists || []).forEach(function (g) {
+    const left = (g.capacity || 0) - (g.claimed_count || 0);
+    if (g.enabled !== false && left > 0 && (!g.deadline || new Date(g.deadline) > now) && !(g.members_only_until && new Date(g.members_only_until) > now)) open[g.event_id] = left;
+  });
+  const { data: reqs } = await supabase.from('guestlist_requests').select('user_id, event_name').eq('event_date', tomorrow);
+  const has = new Set((reqs || []).map(function (r) { return r.user_id + '|' + r.event_name; }));
+  const todo = views.filter(function (v) { return open[v.event_id] && !has.has(v.user_id + '|' + v.event_name); });
+  if (opts && opts.dryRun) return { date: tomorrow, wouldNudge: todo.length };
+  let pushed = 0;
+  for (const v of todo) {
+    const left = open[v.event_id];
+    const text = {
+      title: 'Still thinking about ' + v.event_name + '? 🔑',
+      body: 'Tomorrow' + (v.venue ? ' at ' + v.venue : '') + '. ' + (left <= 10 ? 'Only ' + left + ' spots left' : 'Spots still open') + ' on the guestlist. One tap and you\'re on.'
+    };
+    if (await pushReminder(supabase, v, text, './index.html?event=' + encodeURIComponent(v.event_id))) pushed++;
+  }
+  // Mark every view for tomorrow, so nobody is nudged twice (also when skipped).
+  await supabase.from('event_views').update({ nudge_sent_at: new Date().toISOString() }).eq('event_date', tomorrow).is('nudge_sent_at', null);
+  return { date: tomorrow, candidates: todo.length, pushed: pushed };
+}
+
 // Afternoon after a party: "How was <party>? Rate your night" to guests who
 // were approved for it (once per request; skipped if they already rated).
 async function sendRatePushes(supabase, opts) {
@@ -168,7 +204,8 @@ module.exports = async function handler(req, res) {
       const newEventsPush = await sendNewEventsPush(supabase, { dryRun: true });
       const eveReminders = await sendEveReminders(supabase, { dryRun: true, force: true });
       const ratePushes = await sendRatePushes(supabase, { dryRun: true, force: true });
-      res.status(200).json({ ok: true, dryRun: true, date: today, tonightPush: tonightPush, weeklyPush: weeklyPush, newEventsPush: newEventsPush, eveReminders: eveReminders, ratePushes: ratePushes, wouldRemind: (rows || []).length,
+      const stillThinking = await sendStillThinking(supabase, { dryRun: true, force: true });
+      res.status(200).json({ ok: true, dryRun: true, date: today, tonightPush: tonightPush, weeklyPush: weeklyPush, newEventsPush: newEventsPush, eveReminders: eveReminders, ratePushes: ratePushes, stillThinking: stillThinking, wouldRemind: (rows || []).length,
         guests: (rows || []).map(function (r) { return { event: r.event_name, first_name: r.first_name, party: r.total_guests }; }) });
       return;
     }
@@ -205,8 +242,11 @@ module.exports = async function handler(req, res) {
     // Afternoon run: "Rate your night" for yesterday's guests.
     let ratePushes = null;
     try { ratePushes = await sendRatePushes(supabase); } catch (e) { ratePushes = { error: String(e && e.message || e) }; }
+    // Evening run: one nudge for people who looked at tomorrow's party but didn't request.
+    let stillThinking = null;
+    try { stillThinking = await sendStillThinking(supabase); } catch (e) { stillThinking = { error: String(e && e.message || e) }; }
 
-    res.status(200).json({ ok: true, date: today, requests: (rows || []).length, pushed, emailed, unreachable, waitlistNotified, tonightPush, weeklyPush, newEventsPush, eveReminders, ratePushes });
+    res.status(200).json({ ok: true, date: today, requests: (rows || []).length, pushed, emailed, unreachable, waitlistNotified, tonightPush, weeklyPush, newEventsPush, eveReminders, ratePushes, stillThinking });
   } catch (err) {
     res.status(500).json({ ok: false, error: String(err && err.message || err) });
   }

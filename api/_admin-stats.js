@@ -74,6 +74,12 @@ module.exports = async function handler(req, res) {
     });
     const evById = {};
     (events || []).forEach(function (e) { evById[e.id] = e; });
+    // Unique app users who opened each party (useful for sponsors).
+    const viewsBy = {};
+    try {
+      const { data: vw } = await sb.from('event_views').select('event_id').limit(20000);
+      (vw || []).forEach(function (v) { viewsBy[v.event_id] = (viewsBy[v.event_id] || 0) + 1; });
+    } catch (e) { /* optional */ }
     const upcoming = (lists.data || []).map(function (g) {
       const isAgeOk = /-ageok$/.test(g.event_id);
       const base = evById[isAgeOk ? g.event_id.replace(/-ageok$/, '') : g.event_id] || {};
@@ -81,7 +87,7 @@ module.exports = async function handler(req, res) {
       const k = (ev.name || '') + '|' + (ev.date || '');
       const c = byEvent[k] || { pending: 0, approved: 0, guests: 0 };
       return { event_id: g.event_id, name: ev.name || g.event_id, date: ev.date || String(g.deadline).slice(0, 10), venue: ev.venue || '',
-        enabled: g.enabled, capacity: g.capacity, claimed: g.claimed_count, pending: c.pending, approved: c.approved, guests: c.guests };
+        enabled: g.enabled, capacity: g.capacity, claimed: g.claimed_count, pending: c.pending, approved: c.approved, guests: c.guests, views: viewsBy[g.event_id] || 0 };
     }).sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; }).slice(0, 80);
 
     // Party ratings (1-5 stars) from guests the day after.

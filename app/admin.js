@@ -264,7 +264,7 @@
       const pct = e.capacity ? Math.min(100, Math.round(e.claimed / e.capacity * 100)) : 0;
       return '<div class="adm-ev" data-name="' + esc(e.name) + '" data-date="' + esc(e.date) + '"><div class="adm-ev__top"><span>' + esc(e.name) + '</span><i>' + esc(day(e.date)) + '</i></div>' +
         '<div class="adm-bar"><div style="width:' + pct + '%"></div></div>' +
-        '<div class="adm-ev__meta">' + e.claimed + ' / ' + e.capacity + ' people on the list · ' + e.approved + ' approved (' + e.guests + ' guests) · ' + e.pending + ' pending' + (e.enabled ? '' : ' · closed') + '</div><div class="adm-ev__more">' + (String(e.date) <= todayAms() ? 'Open guestlist · mark no-shows ›' : 'Open guestlist ›') + '</div></div>';
+        '<div class="adm-ev__meta">' + e.claimed + ' / ' + e.capacity + ' people on the list · ' + e.approved + ' approved (' + e.guests + ' guests) · ' + e.pending + ' pending' + (e.enabled ? '' : ' · closed') + (e.views ? ' · 👁 ' + e.views + ' viewed' : '') + '</div><div class="adm-ev__more">' + (String(e.date) <= todayAms() ? 'Open guestlist · mark no-shows ›' : 'Open guestlist ›') + '</div></div>';
     }).join('') : '<div class="adm-empty">No open guestlists' + (PARTY ? ' for ' + esc(PARTY) : '') + '.</div>';
   }
 
