@@ -626,7 +626,7 @@ const EVENTS = [
     venue: "Chin Chin Club · Amsterdam",
     image: "events/house-of-zenda-2026-11-28.jpg",
     description: "House of Zenda at Chin Chin Club. 21+.",
-    guestlistStatus: "none",
+    guestlistStatus: "limited",
     ticketUrl: "#",
     badgeLabel: "", // empty = no badge on the card
     guestlistUrl: "#guestlist",
