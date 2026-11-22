@@ -60,6 +60,14 @@ module.exports = async function handler(req, res) {
     // 3. Unlink the rest.
     await supabase.from('push_subscriptions').delete().eq('user_id', uid);
     await supabase.from('link_clicks').update({ user_id: null }).eq('user_id', uid);
+    // Social data: profile, photo, follows, views, ratings, member status.
+    for (const t of ['member_profiles', 'venue_follows', 'event_views', 'party_ratings', 'member_overrides']) {
+      try { await supabase.from(t).delete().eq('user_id', uid); } catch (e) { /* ignore */ }
+    }
+    try {
+      const { data: files } = await supabase.storage.from('avatars').list(uid);
+      if (files && files.length) await supabase.storage.from('avatars').remove(files.map(function (f) { return uid + '/' + f.name; }));
+    } catch (e) { /* ignore */ }
 
     // 4. Delete the user (cascades profile, waitlist, claims, Backroom).
     const { error: delErr } = await supabase.auth.admin.deleteUser(uid);

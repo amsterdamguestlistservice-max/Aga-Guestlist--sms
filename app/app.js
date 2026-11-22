@@ -1057,6 +1057,8 @@ function switchTab(name){
     btn.classList.toggle('is-active', btn.dataset.tab === tabName);
   });
   window.scrollTo(0, 0);
+  document.body.classList.toggle('feed-mode', name === 'feed');
+  if(name === 'feed'){ try{ renderFeed(); } catch(e){} } else { try{ pauseFeed(); } catch(e){} }
   // Keep "My Requests" fresh whenever the Account tab is opened while
   // signed in — e.g. right after submitting a new request elsewhere.
   if(name === 'account' && typeof currentUser !== 'undefined' && currentUser){
@@ -1712,8 +1714,249 @@ function renderSheetExtras(ev){
   const on = MY_FOLLOWS.has(venue);
   box.innerHTML = '<button type="button" class="follow-btn' + (on ? ' is-on' : '') + '" id="followBtn">' +
     (on ? '♥ Following ' : '♡ Follow ') + venue + '</button>' +
-    eventGenres(ev).map(function(g){ return '<span class="event-card__tag">♫ ' + g + '</span>'; }).join('');
+    eventGenres(ev).map(function(g){ return '<span class="event-card__tag">♫ ' + g + '</span>'; }).join('') +
+    '<div class="going" id="sheetGoing" style="width:100%;margin:4px 0 0" hidden></div>';
   document.getElementById('followBtn').addEventListener('click', function(){ toggleFollowVenue(venue, this); });
+  loadGoing(ev).then(function(g){ const box = document.getElementById('sheetGoing'); if(box && g){ const h = goingHtml(g); if(h){ box.innerHTML = h; box.hidden = false; bindGoingFaces(box); } } });
+}
+
+/* ---- Who's going (3): total on the list + members who chose to be shown ---- */
+const GOING_CACHE = {};
+async function loadGoing(ev){
+  const k = ev.name + '|' + ev.date;
+  if(GOING_CACHE[k] && Date.now() - GOING_CACHE[k].at < 60000) return GOING_CACHE[k].data;
+  if(!supabaseClient) return null;
+  try{
+    const { data, error } = await supabaseClient.rpc('event_going', { p_event_name: ev.name, p_event_date: ev.date });
+    if(error) return null;
+    GOING_CACHE[k] = { at: Date.now(), data: data };
+    return data;
+  } catch(e){ return null; }
+}
+function initialsOf(name){ return String(name || '?').trim().split(/\s+/).slice(0, 2).map(function(w){ return w[0]; }).join('').toUpperCase(); }
+function goingHtml(g){
+  const n = Number(g && g.count) || 0;
+  if(n < 3) return '';
+  const people = (g.people || []).slice(0, 5);
+  const esc = function(v){ return String(v || '').replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
+  const faces = people.map(function(p){
+    return '<button type="button" class="going__face" data-uid="' + esc(p.user_id) + '" data-public="' + (p.is_public ? '1' : '') + '"' +
+      (p.avatar ? ' style="background-image:url(\'' + esc(p.avatar).replace(/'/g, '%27') + '\')">' : '>' + esc(initialsOf(p.name))) + '</button>';
+  }).join('');
+  const names = people.slice(0, 2).map(function(p){ return esc(String(p.name).split(' ')[0]); });
+  const rest = n - names.length;
+  const text = names.length ? names.join(', ') + (rest > 0 ? ' +' + rest : '') + ' going' : n + ' people going';
+  return (faces ? '<span class="going__faces">' + faces + '</span>' : '<span>👥</span>') + '<span>' + text + '</span>';
+}
+function bindGoingFaces(box){
+  box.querySelectorAll('.going__face').forEach(function(f){
+    f.addEventListener('click', function(e){ e.stopPropagation(); if(f.dataset.public) openMemberProfile(f.dataset.uid); });
+  });
+}
+
+/* ---- Profiles (4) ---- */
+let MY_PROFILE = null;
+async function loadMyProfileCard(){
+  const card = document.getElementById('profileCard');
+  if(!card || !supabaseClient || !currentUser) return;
+  const { data } = await supabaseClient.from('member_profiles').select('*').eq('user_id', currentUser.id).maybeSingle();
+  let p = data;
+  if(!p){
+    // Sensible defaults from what we already know.
+    let name = '', ig = '';
+    try{
+      const { data: sm } = await supabaseClient.from('salon_members').select('display_name').eq('user_id', currentUser.id).maybeSingle();
+      if(sm && sm.display_name) name = sm.display_name;
+      const { data: rq } = await supabaseClient.from('guestlist_requests').select('first_name, instagram').order('created_at', { ascending: false }).limit(1);
+      if(rq && rq[0]){ if(!name) name = rq[0].first_name || ''; if(rq[0].instagram && rq[0].instagram !== 'None') ig = rq[0].instagram; }
+    } catch(e){}
+    p = { display_name: name, instagram: ig, bio: '', avatar_url: '', is_public: false, show_going: false, _new: true };
+  }
+  MY_PROFILE = p;
+  const esc = function(v){ return String(v || '').replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
+  card.innerHTML =
+    '<div class="profile-card__top">' +
+      '<button type="button" class="avatar-btn" id="pcAvatar" aria-label="Change profile photo"' + (p.avatar_url ? ' style="background-image:url(\'' + esc(p.avatar_url) + '\')">' : '>' + esc(initialsOf(p.display_name || '?'))) + '<em>＋</em></button>' +
+      '<div><div class="profile-card__title">Your profile</div><div class="profile-card__sub">Show who you are on the list. You choose what others see.</div></div>' +
+    '</div>' +
+    '<input type="file" id="pcFile" accept="image/*" hidden>' +
+    '<input type="text" id="pcName" maxlength="40" placeholder="Your name" value="' + esc(p.display_name) + '">' +
+    '<input type="text" id="pcIg" maxlength="40" placeholder="@instagram" value="' + esc(p.instagram) + '">' +
+    '<textarea id="pcBio" maxlength="120" placeholder="Short bio (optional)">' + esc(p.bio) + '</textarea>' +
+    '<label class="pc-toggle"><span>Public profile<small>Other members can open your profile</small></span><input type="checkbox" id="pcPublic"' + (p.is_public ? ' checked' : '') + '></label>' +
+    '<label class="pc-toggle"><span>Show me on “who’s going”<small>Your photo appears on parties you’re on the list for</small></span><input type="checkbox" id="pcGoing"' + (p.show_going ? ' checked' : '') + '></label>' +
+    '<div class="pc-actions"><button type="button" class="btn btn--solid" id="pcSave">Save profile</button><button type="button" class="btn" id="pcView">Preview</button></div>' +
+    '<div class="pc-saved" id="pcSaved"></div>';
+  card.hidden = false;
+  const file = document.getElementById('pcFile');
+  document.getElementById('pcAvatar').addEventListener('click', function(){ file.click(); });
+  file.addEventListener('change', function(){ if(file.files && file.files[0]) uploadAvatar(file.files[0]); });
+  document.getElementById('pcSave').addEventListener('click', saveMyProfile);
+  document.getElementById('pcView').addEventListener('click', async function(){ await saveMyProfile(); openMemberProfile(currentUser.id); });
+}
+async function saveMyProfile(){
+  const out = document.getElementById('pcSaved');
+  const name = (document.getElementById('pcName').value || '').trim().slice(0, 40);
+  if(!name){ out.style.color = '#ff8a80'; out.textContent = 'Please add your name.'; return false; }
+  let ig = (document.getElementById('pcIg').value || '').trim().replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/[\/?#].*$/, '').replace(/^@+/, '').slice(0, 40);
+  const row = {
+    user_id: currentUser.id, display_name: name, instagram: ig || null,
+    bio: (document.getElementById('pcBio').value || '').trim().slice(0, 120) || null,
+    avatar_url: (MY_PROFILE && MY_PROFILE.avatar_url) || null,
+    is_public: document.getElementById('pcPublic').checked,
+    show_going: document.getElementById('pcGoing').checked,
+    updated_at: new Date().toISOString()
+  };
+  const { error } = await supabaseClient.from('member_profiles').upsert(row);
+  if(error){ out.style.color = '#ff8a80'; out.textContent = 'Could not save right now. Please try again.'; return false; }
+  MY_PROFILE = row;
+  Object.keys(GOING_CACHE).forEach(function(k){ delete GOING_CACHE[k]; });
+  out.style.color = ''; out.textContent = 'Saved ✓';
+  setTimeout(function(){ if(out.textContent === 'Saved ✓') out.textContent = ''; }, 2500);
+  return true;
+}
+async function uploadAvatar(f){
+  const out = document.getElementById('pcSaved');
+  out.style.color = ''; out.textContent = 'Uploading photo…';
+  try{
+    // Square-crop and shrink to 512px so it loads fast everywhere.
+    const blob = await new Promise(function(resolve, reject){
+      const img = new Image(); const url = URL.createObjectURL(f);
+      img.onload = function(){
+        const size = Math.min(img.naturalWidth, img.naturalHeight), c = document.createElement('canvas');
+        c.width = c.height = 512;
+        c.getContext('2d').drawImage(img, (img.naturalWidth - size) / 2, (img.naturalHeight - size) / 2, size, size, 0, 0, 512, 512);
+        URL.revokeObjectURL(url);
+        c.toBlob(function(b){ b ? resolve(b) : reject(new Error('blob')); }, 'image/jpeg', 0.85);
+      };
+      img.onerror = reject; img.src = url;
+    });
+    const path = currentUser.id + '/avatar-' + Date.now() + '.jpg';
+    const { error } = await supabaseClient.storage.from('avatars').upload(path, blob, { contentType: 'image/jpeg', upsert: true });
+    if(error) throw error;
+    const pub = supabaseClient.storage.from('avatars').getPublicUrl(path);
+    MY_PROFILE = Object.assign({}, MY_PROFILE || {}, { avatar_url: pub.data.publicUrl });
+    const btn = document.getElementById('pcAvatar');
+    btn.style.backgroundImage = 'url(\'' + pub.data.publicUrl + '\')'; btn.firstChild && btn.firstChild.nodeType === 3 && btn.removeChild(btn.firstChild);
+    await saveMyProfile();
+  } catch(e){ out.style.color = '#ff8a80'; out.textContent = 'Photo upload failed. Try another photo.'; }
+}
+async function openMemberProfile(uid){
+  if(!supabaseClient || !uid) return;
+  const { data: p } = await supabaseClient.rpc('member_profile', { p_uid: uid });
+  const body = document.getElementById('quickBody');
+  if(!body) return;
+  const esc = function(v){ return String(v || '').replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
+  if(!p){
+    body.innerHTML = '<div class="quick-sheet__title" id="quickTitle">This profile is private</div><div class="quick-sheet__btns"><button type="button" class="btn" id="pvClose">Close</button></div>';
+  } else {
+    body.innerHTML = '<div class="profile-view">' +
+      '<div class="profile-view__avatar"' + (p.avatar ? ' style="background-image:url(\'' + esc(p.avatar) + '\')">' : '>' + esc(initialsOf(p.name))) + '</div>' +
+      '<h3 id="quickTitle">' + esc(p.name) + '</h3>' +
+      (p.instagram ? '<a class="ig" href="https://instagram.com/' + encodeURIComponent(p.instagram) + '" target="_blank" rel="noopener">@' + esc(p.instagram) + '</a>' : '') +
+      (p.bio ? '<p>' + esc(p.bio) + '</p>' : '') +
+      '<div class="profile-view__stats"><div><b>' + (p.nights || 0) + '</b><span>Nights</span></div>' + (p.club ? '<div><b style="font-size:18px;line-height:30px">' + esc(p.club) + '</b><span>Favourite club</span></div>' : '') + '</div>' +
+      (p.me ? '<p style="font-size:12px;color:rgba(255,255,255,.5)">' + (p.is_public ? 'This is how other members see you.' : 'Only you can see this. Turn on “Public profile” to share it.') + '</p>' : '') +
+      '<div class="quick-sheet__btns"><button type="button" class="btn" id="pvClose">Close</button></div>' +
+      (p.me ? '' : '<div class="profile-view__mod"><button type="button" id="pvReport">Report</button><button type="button" id="pvBlock">Block</button></div>') +
+    '</div>';
+  }
+  openQuickSheet();
+  document.getElementById('pvClose').addEventListener('click', closeQuickSheet);
+  const rep = document.getElementById('pvReport'), blk = document.getElementById('pvBlock');
+  if(rep) rep.addEventListener('click', async function(){
+    const r = await supabaseClient.from('salon_reports').insert({ reporter_id: currentUser.id, reported_id: uid, reason: 'Profile reported from who’s going' });
+    rep.textContent = r.error ? 'Could not report' : 'Reported ✓'; rep.disabled = true;
+  });
+  if(blk) blk.addEventListener('click', async function(){
+    const r = await supabaseClient.from('salon_blocks').insert({ blocker_id: currentUser.id, blocked_id: uid });
+    blk.textContent = r.error && !/duplicate/i.test(r.error.message || '') ? 'Could not block' : 'Blocked ✓'; blk.disabled = true;
+    Object.keys(GOING_CACHE).forEach(function(k){ delete GOING_CACHE[k]; });
+  });
+}
+
+/* ---- Feed tab (1): full-screen, swipe up through party videos and flyers ---- */
+let FEED_OBSERVER = null, FEED_MUTED = true;
+function feedEntries(){
+  const out = [];
+  getSortedEvents().forEach(function(ev){
+    storyItems(ev).forEach(function(it, i){ out.push({ ev: ev, it: it, key: ev.id + ':' + i }); });
+  });
+  // Videos first, sponsored first, then For you, keeping date order otherwise.
+  return out.map(function(x, i){ return { x: x, i: i }; }).sort(function(a, b){
+    return ((b.x.ev.sponsored ? 1 : 0) - (a.x.ev.sponsored ? 1 : 0)) || ((b.x.it.video ? 1 : 0) - (a.x.it.video ? 1 : 0)) ||
+      (forYouScore(b.x.ev) - forYouScore(a.x.ev)) || (a.i - b.i);
+  }).map(function(o){ return o.x; });
+}
+function renderFeed(){
+  const feed = document.getElementById('feed');
+  if(!feed) return;
+  if(feed.dataset.rendered === '1'){ resumeFeed(); return; }
+  const entries = feedEntries();
+  if(!entries.length){ feed.innerHTML = '<div class="feed-empty">New party videos coming soon 🔑</div>'; return; }
+  const esc = function(v){ return String(v || '').replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
+  feed.innerHTML = entries.map(function(e, idx){
+    const ev = e.ev, it = e.it, open = ['open', 'limited'].indexOf(ev.guestlistStatus) >= 0;
+    const media = it.video
+      ? '<video src="' + it.video + '"' + (it.poster ? ' poster="' + it.poster + '"' : '') + ' loop playsinline muted preload="' + (idx < 2 ? 'auto' : 'none') + '"></video>'
+      : '<div class="feed-bg" style="background-image:url(\'' + esc(it.image) + '\')"></div><img src="' + esc(it.image) + '" alt="" loading="lazy">';
+    return '<section class="feed-item" data-idx="' + idx + '" data-event-id="' + esc(ev.id) + '">' +
+      '<div class="feed-item__media">' + media + '</div><div class="feed-item__shade"></div>' +
+      '<div class="feed-item__info"><small>' + formatDate(ev.date) + ' · ' + esc(eventVenueName(ev)) + (ev.sponsored ? ' · Sponsored' : '') + '</small>' +
+        '<h3>' + esc(ev.name) + '</h3>' + (eventGenres(ev).length ? '<p>♫ ' + eventGenres(ev).join(' · ') + '</p>' : '') +
+        '<div class="feed-item__going" data-going></div>' +
+        '<button type="button" class="feed-item__cta" data-act="go">' + (open ? '🔑 Get on the list' : 'View party') + '</button></div>' +
+      '<div class="feed-rail">' +
+        (it.video ? '<button type="button" data-act="sound"><i>' + (FEED_MUTED ? '🔇' : '🔊') + '</i>Sound</button>' : '') +
+        '<button type="button" data-act="info"><i>ⓘ</i>Info</button>' +
+        '<button type="button" data-act="share"><i>↗</i>Share</button>' +
+      '</div></section>';
+  }).join('');
+  feed.dataset.rendered = '1';
+  feed.addEventListener('click', function(e){
+    const btn = e.target.closest('[data-act]'), item = e.target.closest('.feed-item');
+    if(!item) return;
+    const ev = EVENTS.find(function(x){ return x.id === item.dataset.eventId; });
+    if(!ev) return;
+    const act = btn ? btn.dataset.act : (e.target.tagName === 'VIDEO' ? 'sound' : null);
+    if(act === 'go'){ pauseFeed(); const open = ['open', 'limited'].indexOf(ev.guestlistStatus) >= 0; if(open) startGuestlistFor(ev, false); else openEventSheet(ev); }
+    else if(act === 'info'){ pauseFeed(); openEventSheet(ev); }
+    else if(act === 'share'){ try{ shareEvent(ev); } catch(err){ if(navigator.share) navigator.share({ title: ev.name, url: SITE_URL + '/app/?event=' + ev.id }).catch(function(){}); } }
+    else if(act === 'sound'){
+      FEED_MUTED = !FEED_MUTED;
+      feed.querySelectorAll('video').forEach(function(v){ v.muted = FEED_MUTED; });
+      feed.querySelectorAll('[data-act="sound"] i').forEach(function(i){ i.textContent = FEED_MUTED ? '🔇' : '🔊'; });
+      const v = item.querySelector('video'); if(v && v.paused) v.play().catch(function(){});
+    }
+  });
+  if('IntersectionObserver' in window){
+    FEED_OBSERVER = new IntersectionObserver(function(list){
+      list.forEach(function(en){
+        const v = en.target.querySelector('video');
+        if(en.isIntersecting){
+          if(v){ v.preload = 'auto'; v.muted = FEED_MUTED; v.play().catch(function(){ v.muted = true; v.play().catch(function(){}); }); }
+          const next = en.target.nextElementSibling, nv = next && next.querySelector('video'); if(nv) nv.preload = 'auto';
+          fillFeedGoing(en.target);
+        } else if(v){ v.pause(); }
+      });
+    }, { root: feed, threshold: 0.6 });
+    feed.querySelectorAll('.feed-item').forEach(function(el){ FEED_OBSERVER.observe(el); });
+  }
+}
+function fillFeedGoing(item){
+  const box = item.querySelector('[data-going]');
+  if(!box || box.dataset.done) return;
+  box.dataset.done = '1';
+  const ev = EVENTS.find(function(x){ return x.id === item.dataset.eventId; });
+  if(ev) loadGoing(ev).then(function(g){ const h = g && goingHtml(g); if(h){ box.innerHTML = h; bindGoingFaces(box); } });
+}
+function pauseFeed(){ document.querySelectorAll('#feed video').forEach(function(v){ try{ v.pause(); } catch(e){} }); }
+function resumeFeed(){
+  const feed = document.getElementById('feed'); if(!feed) return;
+  const items = feed.querySelectorAll('.feed-item');
+  const idx = Math.round(feed.scrollTop / Math.max(1, feed.clientHeight));
+  const v = items[idx] && items[idx].querySelector('video');
+  if(v){ v.muted = FEED_MUTED; v.play().catch(function(){}); }
 }
 async function toggleFollowVenue(venue, btn){
   if(!supabaseClient || !currentUser){
@@ -1935,6 +2178,7 @@ function closeEventSheet(){
   if(clip){ try{ clip.pause(); clip.muted = true; } catch(e){} }
   document.getElementById('sheetOverlay').classList.remove('is-open');
   document.body.style.overflow = '';
+  if(document.body.classList.contains('feed-mode')) try{ resumeFeed(); } catch(e){}
   const hero = document.getElementById('featuredHero'), heroClip = hero && hero.querySelector('video');
   if(heroClip && !hero.hidden && hero.offsetHeight){ heroClip.play().catch(function(){}); }
 }
@@ -2745,6 +2989,7 @@ function showAccountPanel(user){
   loadMemberAccess();
   loadMyPrefs();
   loadMyBadges();
+  loadMyProfileCard();
   linkPushSubscriptionToAccount();
   if(typeof salonInit === 'function') salonInit(user);
   if(typeof window.agsAdminCheck === 'function') window.agsAdminCheck();
@@ -3262,7 +3507,8 @@ document.getElementById('signOutBtn').addEventListener('click', async function()
   if(supabaseClient){ await supabaseClient.auth.signOut(); }
   currentUser = null;
   IS_MEMBER = false;
-  MY_PREFS = null; MY_FOLLOWS = new Set();
+  MY_PREFS = null; MY_FOLLOWS = new Set(); MY_PROFILE = null;
+  const pc = document.getElementById('profileCard'); if(pc){ pc.hidden = true; pc.innerHTML = ''; }
   const bb = document.getElementById('badgeBox'); if(bb) bb.hidden = true;
   for(let i = EVENTS.length - 1; i >= 0; i--){ if(EVENTS[i].secret) EVENTS.splice(i, 1); }
   try{ renderEventList(); } catch(e){}
