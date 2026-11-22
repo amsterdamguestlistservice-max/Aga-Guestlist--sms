@@ -871,6 +871,9 @@ function updateStartCountdowns(){
 setInterval(updateStartCountdowns, 30000);
 
 function revealCardsOnScroll(){
+  // All parties show straight away (no fade-in while scrolling).
+  document.querySelectorAll('#eventList .event-card.will-reveal').forEach(function(c){ c.classList.remove('will-reveal'); });
+  return;
   if(!('IntersectionObserver' in window)) return;
   const observer = new IntersectionObserver(function(entries){
     entries.forEach(function(entry){
@@ -1232,7 +1235,7 @@ function renderEventList(){
   updateEventsHeadline();
   list.innerHTML = getSortedEvents().map(function(ev, i){
     const featured = i === 0;
-    const mediaContent = eventMedia(ev, featured ? ' decoding="async"' : ' loading="lazy" decoding="async"');
+    const mediaContent = eventMedia(ev, ' decoding="async"');
     const nextUp = featured
       ? '<div class="event-card__next"><span>Next up</span><span class="js-starts-in" data-start="' + eventStartTime(ev) + '">' + formatStartsIn(eventStartTime(ev) - Date.now()) + '</span></div>'
       : '';
@@ -1978,7 +1981,7 @@ function renderFeed(){
     const ev = e.ev, it = e.it, open = ['open', 'limited'].indexOf(ev.guestlistStatus) >= 0;
     const media = it.video
       ? '<video src="' + it.video + '"' + (it.poster ? ' poster="' + it.poster + '"' : '') + ' loop playsinline muted preload="' + (idx < 2 ? 'auto' : 'none') + '"></video>'
-      : '<div class="feed-bg" style="background-image:url(\'' + esc(it.image) + '\')"></div>' + imgTag(esc(it.image), '', ' loading="lazy" decoding="async"');
+      : '<div class="feed-bg" style="background-image:url(\'' + esc(it.image) + '\')"></div>' + imgTag(esc(it.image), '', ' decoding="async"');
     return '<section class="feed-item" data-idx="' + idx + '" data-event-id="' + esc(ev.id) + '">' +
       '<div class="feed-item__media">' + media + '</div><div class="feed-item__shade"></div>' +
       '<div class="feed-item__info"><small>' + formatDate(ev.date) + ' · ' + esc(eventVenueName(ev)) + (ev.sponsored ? ' · Sponsored' : '') + '</small>' +
