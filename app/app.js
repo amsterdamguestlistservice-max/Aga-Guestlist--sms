@@ -625,6 +625,7 @@ const EVENTS = [
     time: "23:00",
     venue: "Chin Chin Club · Amsterdam",
     image: "events/house-of-zenda-2026-11-28.jpg",
+    clip: { mp4: "events/house-of-zenda-2026-11-28.mp4", poster: "events/house-of-zenda-2026-11-28-poster.jpg" },
     description: "House of Zenda at Chin Chin Club. 21+, Age OK list (18-20) open.",
     guestlistStatus: "limited",
     ticketUrl: "https://shop.celebratix.io/?c=356ku",
