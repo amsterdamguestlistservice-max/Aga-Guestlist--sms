@@ -1667,7 +1667,7 @@ function renderFeaturedHero(){
       if(e && e.target && e.target.closest && e.target.closest('#featuredHero')) return; // the hero handles its own taps
       document.removeEventListener('touchend', unmute, true);
       document.removeEventListener('click', unmute, true);
-      if(userMuted || box.hidden || !document.body.contains(v)) return;
+      if(userMuted || box.hidden || !document.body.contains(v) || document.body.classList.contains('hero-intro-open')) return;
       v.muted = false; setIcon();
       if(v.paused) v.play().catch(function(){});
     };
@@ -1677,7 +1677,7 @@ function renderFeaturedHero(){
   // Only play while it's on screen (saves battery and data).
   if('IntersectionObserver' in window){
     new IntersectionObserver(function(entries){
-      entries.forEach(function(en){ if(en.isIntersecting) v.play().catch(function(){}); else v.pause(); });
+      entries.forEach(function(en){ if(en.isIntersecting && !document.body.classList.contains('hero-intro-open')) v.play().catch(function(){}); else v.pause(); });
     }, { threshold: 0.2 }).observe(v);
   }
 }
@@ -2716,6 +2716,65 @@ function lockAppBehindGate(){
 }
 function unlockAppFromGate(){
   document.body.classList.remove('is-gated');
+  setTimeout(maybeShowHeroIntro, 400);
+}
+
+/* ---- Full-screen featured video, once per person per featured party ----
+   Shown when the app opens (after login and the welcome tour). ✕ closes it;
+   a tap on the video or the button goes straight to the guestlist. */
+function maybeShowHeroIntro(){
+  if(document.getElementById('heroIntro') || document.body.classList.contains('is-gated')) return;
+  const ev = featuredHeroEvent();
+  if(!ev) return;
+  const key = 'ags_intro_seen_' + ev.id;
+  try{ if(localStorage.getItem(key)) return; } catch(e){}
+  const tour = document.getElementById('welcomeOverlay');
+  if(tour && tour.classList.contains('is-open')){ setTimeout(maybeShowHeroIntro, 800); return; }
+  try{ localStorage.setItem(key, '1'); } catch(e){}
+
+  const open = ['open', 'limited'].indexOf(ev.guestlistStatus) >= 0;
+  const inline = document.querySelector('#featuredHero video');
+  if(inline){ try{ inline.pause(); inline.muted = true; } catch(e){} }
+  const inlineSnd = document.querySelector('#featuredHero .featured-hero__sound');
+  if(inlineSnd) inlineSnd.textContent = '🔇';
+
+  const el = document.createElement('div');
+  el.id = 'heroIntro';
+  el.className = 'hero-intro';
+  el.innerHTML =
+    '<video class="hero-intro__video" src="' + ev.clip.mp4 + '"' + (ev.clip.poster ? ' poster="' + ev.clip.poster + '"' : '') + ' autoplay loop playsinline preload="auto"></video>' +
+    '<button type="button" class="hero-intro__close" aria-label="Close">✕</button>' +
+    '<button type="button" class="hero-intro__sound" aria-label="Sound off">🔊</button>' +
+    '<div class="hero-intro__bottom"><span class="hero-intro__tag">Featured · ' + formatDate(ev.date) + ' · ' + eventVenueName(ev) + '</span>' +
+    '<button type="button" class="hero-intro__cta">' + (open ? 'Get on the guestlist →' : 'View party →') + '</button></div>';
+  document.body.appendChild(el);
+  document.body.classList.add('hero-intro-open');
+  document.body.style.overflow = 'hidden';
+  requestAnimationFrame(function(){ el.classList.add('is-open'); });
+
+  const v = el.querySelector('video'), snd = el.querySelector('.hero-intro__sound');
+  const setIcon = function(){ snd.textContent = v.muted ? '🔇' : '🔊'; snd.setAttribute('aria-label', v.muted ? 'Sound on' : 'Sound off'); };
+  v.muted = false;
+  v.play().then(setIcon).catch(function(){ v.muted = true; setIcon(); v.play().catch(function(){}); });
+
+  const close = function(){
+    try{ v.pause(); } catch(e){}
+    el.classList.remove('is-open');
+    document.body.classList.remove('hero-intro-open');
+    document.body.style.overflow = '';
+    setTimeout(function(){ el.remove(); }, 300);
+    if(inline && inline.getBoundingClientRect().height){ inline.play().catch(function(){}); }
+  };
+  el.querySelector('.hero-intro__close').addEventListener('click', function(e){ e.stopPropagation(); close(); });
+  snd.addEventListener('click', function(e){ e.stopPropagation(); v.muted = !v.muted; setIcon(); if(v.paused) v.play().catch(function(){}); });
+  const go = function(e){
+    if(e) e.stopPropagation();
+    close();
+    if(typeof AppSound !== 'undefined') AppSound.play('open');
+    if(open) startGuestlistFor(ev, false); else openEventSheet(ev);
+  };
+  el.querySelector('.hero-intro__cta').addEventListener('click', go);
+  v.addEventListener('click', go);
 }
 
 // Shown right after signing in/up, and again on every fresh visit,
