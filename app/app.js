@@ -983,8 +983,11 @@ async function loadMemberAccess(){
 const GENRES_BY_NAME = {
   'Amajoyo': ['Afro house'],
   'NEMA': ['Afro house'],
-  'Club Fair': ['Hits & house'],
-  'Behind Closed Doors': ['Amapiano', 'House', 'Afro house', 'New wave']
+  'Club Fair': ['Hits', 'House'],
+  'Behind Closed Doors': ['Amapiano', 'House', 'Afro house', 'New wave'],
+  'House of Zenda': ['Afro house', 'Amapiano'],
+  'Huisfissa': ['House', 'New wave'],
+  'Roza': ['Hits', 'House']
 };
 function eventGenres(ev){ return (ev && (ev.genres || GENRES_BY_NAME[ev.name])) || []; }
 
