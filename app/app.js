@@ -1680,6 +1680,7 @@ function openEventSheet(ev){
   document.getElementById('sheetName').textContent = ev.name;
   document.getElementById('sheetVenue').textContent = ev.venue;
   renderSheetExtras(ev);
+  applyPartyColor(ev);
   if(supabaseClient && currentUser && ev.id){
     supabaseClient.rpc('log_event_view', { p_event_id: ev.id, p_event_name: ev.name, p_event_date: ev.date, p_venue: eventVenueName(ev) }).then(function(){}, function(){});
   }
@@ -1900,7 +1901,13 @@ async function openMemberProfile(uid){
       '<h3 id="quickTitle">' + esc(p.name) + '</h3>' +
       (p.instagram ? '<a class="ig" href="https://instagram.com/' + encodeURIComponent(p.instagram) + '" target="_blank" rel="noopener">@' + esc(p.instagram) + '</a>' : '') +
       (p.bio ? '<p>' + esc(p.bio) + '</p>' : '') +
-      '<div class="profile-view__stats"><div><b>' + (p.nights || 0) + '</b><span>Nights</span></div>' + (p.club ? '<div><b style="font-size:18px;line-height:30px">' + esc(p.club) + '</b><span>Favourite club</span></div>' : '') + '</div>' +
+      '<div class="profile-view__stats"><div><b>' + (p.nights || 0) + '</b><span>Nights</span></div><div><b>' + ((p.badges || []).length) + '</b><span>Badges</span></div>' + (p.club ? '<div><b style="font-size:18px;line-height:30px">' + esc(p.club) + '</b><span>Favourite club</span></div>' : '') + '</div>' +
+      ((p.badges || []).length ? '<div class="profile-view__badges">' + p.badges.map(function(b){ return '<span title="' + esc(b.name) + '">' + b.icon + '</span>'; }).join('') + '</div>' : '') +
+      ((p.history || []).length ? '<div class="profile-view__label">Nights out</div><div class="profile-view__grid">' + p.history.map(function(h){
+        const ev = EVENTS.find(function(e){ return e.name === h.event_name && e.date === h.event_date; }) || EVENTS.find(function(e){ return e.name === h.event_name && e.image; });
+        const img = ev && ev.image ? ' style="background-image:url(\'' + esc(ev.image) + '\')"' : '';
+        return '<div' + img + '><span>' + esc(h.event_name) + '<br>' + formatDate(h.event_date) + '</span></div>';
+      }).join('') + '</div>' : '') +
       (p.me ? '<p style="font-size:12px;color:rgba(255,255,255,.5)">' + (p.is_public ? 'This is how other members see you.' : 'Only you can see this. Turn on “Public profile” to share it.') + '</p>' : '') +
       '<div class="quick-sheet__btns"><button type="button" class="btn" id="pvClose">Close</button></div>' +
       (p.me ? '' : '<div class="profile-view__mod"><button type="button" id="pvReport">Report</button><button type="button" id="pvBlock">Block</button></div>') +
@@ -1938,7 +1945,7 @@ function renderFeed(){
   if(!feed) return;
   if(feed.dataset.rendered === '1'){ resumeFeed(); return; }
   const entries = feedEntries();
-  if(!entries.length){ feed.innerHTML = '<div class="feed-empty">New party videos coming soon 🔑</div>'; return; }
+  if(!entries.length){ feed.innerHTML = '<div class="feed-empty">' + emptyStateHtml('🎬', 'Videos coming soon', 'Party clips and aftermovies land here first.', '', '') + '</div>'; return; }
   const esc = function(v){ return String(v || '').replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
   feed.innerHTML = entries.map(function(e, idx){
     const ev = e.ev, it = e.it, open = ['open', 'limited'].indexOf(ev.guestlistStatus) >= 0;
@@ -2760,7 +2767,7 @@ async function openInbox(){
   if(!body) return;
   if(!currentUser){ if(typeof lockAppBehindGate === 'function') lockAppBehindGate(); return; }
   const esc = function(v){ return String(v || '').replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
-  body.innerHTML = '<div class="quick-sheet__eyebrow">Inbox</div><div class="quick-sheet__title" id="quickTitle">Notifications</div><div class="inbox" id="inboxList"><div class="inbox__empty">Loading…</div></div>';
+  body.innerHTML = '<div class="quick-sheet__eyebrow">Inbox</div><div class="quick-sheet__title" id="quickTitle">Notifications</div><div class="inbox" id="inboxList"><div class="skel skel--row"></div><div class="skel skel--row"></div><div class="skel skel--row"></div></div>';
   openQuickSheet();
   const pushOn = await isPushOn();
   await loadInbox();
@@ -2771,7 +2778,7 @@ async function openInbox(){
     (INBOX.length ? INBOX.map(function(x){
       return '<button type="button" class="inbox__item' + (x.read_at ? '' : ' is-unread') + '" data-url="' + esc(x.url) + '">' +
         '<span class="inbox__dot"></span><span class="inbox__text"><b>' + esc(x.title) + '</b><span>' + esc(x.body) + '</span></span><em>' + timeAgo(x.created_at) + '</em></button>';
-    }).join('') : '<div class="inbox__empty">No notifications yet. When you\u2019re approved, a party drops or a badge unlocks, it shows up here 🔑</div>');
+    }).join('') : emptyStateHtml('🔔', 'All quiet', 'When you\u2019re approved, a party drops or a badge unlocks, it shows up here.', '', ''));
   const sw = document.getElementById('inboxPush');
   if(sw) sw.addEventListener('change', async function(){ sw.disabled = true; await togglePush(); sw.checked = await isPushOn(); sw.disabled = false; });
   list.querySelectorAll('.inbox__item').forEach(function(b){
@@ -3685,7 +3692,7 @@ async function loadMyRequests(silent){
   const list = document.getElementById('myRequestsList');
   if(!supabaseClient || !currentUser){ list.innerHTML = ''; return; }
 
-  if(!silent) list.innerHTML = '<p class="my-requests__empty">Loading…</p>';
+  if(!silent) list.innerHTML = '<div class="skel skel--card"></div><div class="skel skel--card"></div>';
   try {
     const { data, error } = await supabaseClient
       .from('guestlist_requests')
@@ -3697,7 +3704,8 @@ async function loadMyRequests(silent){
       return;
     }
     if(!data || data.length === 0){
-      list.innerHTML = '<p class="my-requests__empty">No requests yet — get on a guestlist to see it here.</p>';
+      list.innerHTML = emptyStateHtml('🔑', 'No requests yet', 'Pick a party and get on the guestlist in one tap.', 'See parties', 'events');
+      bindEmptyState(list);
       return;
     }
     list.innerHTML = data.map(function(r){
@@ -4327,7 +4335,7 @@ async function loadNextNight(){
   try{
     const { data } = await supabaseClient
       .from('guestlist_requests')
-      .select('id,event_name,event_venue,event_date,status,total_guests,first_name,last_name,additional_guests')
+      .select('id,event_name,event_venue,event_date,status,total_guests,first_name,last_name,additional_guests,approved_at')
       .eq('user_id', currentUser.id)
       .gte('event_date', todayAmsterdam())
       .order('event_date', { ascending: true });
@@ -4338,6 +4346,7 @@ async function loadNextNight(){
   } catch(err){ nextNightRows = []; }
   renderNextNight();
   try{ updateEventsHeadline(); } catch(e){}
+  try{ maybeCelebrateApproval(); } catch(e){}
   if(typeof openTonight === 'function') openTonight(false);
 }
 
@@ -4582,7 +4591,7 @@ var AppSound = (function(){
     error: function(){ note(220, 0, 0.14, 0.07, 'triangle'); note(196, 0.16, 0.22, 0.07, 'triangle'); buzz([30, 50, 30]); }
   };
   return {
-    play: function(name){ if(enabled && sounds[name]){ try{ sounds[name](); } catch(e){} } },
+    play: function(name){ try{ haptic(name === 'success' ? 'success' : 'light'); } catch(e){} if(enabled && sounds[name]){ try{ sounds[name](); } catch(e){} } },
     isOn: function(){ return enabled; },
     set: function(on){ enabled = !!on; try{ localStorage.setItem('ags_sounds', on ? 'on' : 'off'); } catch(e){} }
   };
@@ -4982,3 +4991,200 @@ document.addEventListener('click', function(e){
       .then(function(){}, function(){});
   } catch(err){ /* never block the link */ }
 }, true);
+
+
+/* =====================================================================
+   DESIGN v3 — behaviour (splash, haptics, party colour, celebrations,
+   metal card tilt, pull to refresh, empty states, card taps)
+   ===================================================================== */
+// 1. Splash fades once the app is ready (max ~1.4s).
+(function(){
+  const sp = document.getElementById('splash');
+  if(!sp) return;
+  const t0 = Date.now();
+  const hide = function(){ const wait = Math.max(0, 1100 - (Date.now() - t0)); setTimeout(function(){ sp.classList.add('is-gone'); setTimeout(function(){ sp.remove(); }, 600); }, wait); };
+  if(document.readyState === 'complete') hide(); else window.addEventListener('load', hide);
+  setTimeout(hide, 2500);
+})();
+
+// 7. Haptics: native plugin when the iPhone app has it; vibration on Android;
+// the iOS 18 "switch" tick in Safari/WebView otherwise.
+var hapticSwitch = null;
+function haptic(kind){
+  try{
+    const H = IS_NATIVE && window.Capacitor.Plugins && window.Capacitor.Plugins.Haptics;
+    if(H){ kind === 'success' ? H.notification({ type: 'SUCCESS' }) : H.impact({ style: 'LIGHT' }); return; }
+    if(navigator.vibrate){ navigator.vibrate(kind === 'success' ? [12, 60, 18] : 8); return; }
+    if(!hapticSwitch){
+      const label = document.createElement('label');
+      label.style.cssText = 'position:fixed;left:-99px;top:-99px;opacity:0;pointer-events:none';
+      label.innerHTML = '<input type="checkbox" switch>';
+      document.body.appendChild(label); hapticSwitch = label;
+    }
+    hapticSwitch.click();
+    if(kind === 'success') setTimeout(function(){ hapticSwitch.click(); }, 90);
+  } catch(e){}
+}
+
+// 4. Party colour: the sheet takes the main colour of the flyer.
+const PARTY_RGB = {};
+function applyPartyColor(ev){
+  const sheet = document.querySelector('#sheetOverlay .sheet');
+  if(!sheet) return;
+  sheet.classList.remove('has-party-color');
+  const src = (ev.clip && ev.clip.poster) || ev.image;
+  if(!src) return;
+  const set = function(c){ if(!c) return; sheet.style.setProperty('--party-rgb', c.join(',')); sheet.style.setProperty('--party-rgb-light', c.map(function(v){ return Math.min(255, Math.round(v + (255 - v) * 0.55)); }).join(',')); sheet.classList.add('has-party-color'); };
+  if(PARTY_RGB[src]){ set(PARTY_RGB[src]); return; }
+  const img = new Image();
+  img.onload = function(){
+    try{
+      const c = document.createElement('canvas'); c.width = c.height = 32;
+      const x = c.getContext('2d'); x.drawImage(img, 0, 0, 32, 32);
+      const d = x.getImageData(0, 0, 32, 32).data;
+      let best = null, bestScore = -1;
+      // Most colourful bright-ish pixel cluster, not black or white.
+      const buckets = {};
+      for(let i = 0; i < d.length; i += 4){
+        const r = d[i], g = d[i + 1], b = d[i + 2];
+        const max = Math.max(r, g, b), min = Math.min(r, g, b), sat = max ? (max - min) / max : 0;
+        if(max < 50 || sat < 0.35) continue;
+        const k = (r >> 5) + ',' + (g >> 5) + ',' + (b >> 5);
+        const o = buckets[k] || (buckets[k] = { n: 0, r: 0, g: 0, b: 0, s: 0 });
+        o.n++; o.r += r; o.g += g; o.b += b; o.s += sat;
+      }
+      Object.keys(buckets).forEach(function(k){ const o = buckets[k]; const score = o.n * (o.s / o.n); if(score > bestScore){ bestScore = score; best = [Math.round(o.r / o.n), Math.round(o.g / o.n), Math.round(o.b / o.n)]; } });
+      PARTY_RGB[src] = best || [201, 162, 74];
+      set(PARTY_RGB[src]);
+    } catch(e){}
+  };
+  img.src = src;
+}
+
+// 6. "You're on the list" moment: once per approval, within 3 days of it.
+function maybeCelebrateApproval(){
+  if(!currentUser || document.getElementById('approvedMoment')) return;
+  const key = 'ags_celebrated_' + currentUser.id;
+  let seen = []; try{ seen = JSON.parse(localStorage.getItem(key) || '[]'); } catch(e){}
+  const r = (nextNightRows || []).find(function(x){
+    return String(x.status || '').trim().toLowerCase() === 'approved' && x.approved_at &&
+      Date.now() - new Date(x.approved_at).getTime() < 3 * 864e5 && seen.indexOf(x.id) < 0;
+  });
+  if(!r) return;
+  seen.push(r.id); try{ localStorage.setItem(key, JSON.stringify(seen.slice(-50))); } catch(e){}
+  const label = nightGroupLabel(r.event_date);
+  const el = document.createElement('div');
+  el.id = 'approvedMoment'; el.className = 'approved-moment';
+  el.innerHTML = '<canvas></canvas><div class="approved-moment__check">✓</div><small>Approved</small><h2>You’re on the list</h2>' +
+    '<p>' + escHtml(r.event_name) + ' · ' + (label === 'Tonight' ? 'tonight' : label === 'Tomorrow' ? 'tomorrow' : formatDate(r.event_date)) + (r.total_guests > 1 ? ' · ' + r.total_guests + ' people' : '') + '</p>' +
+    '<button type="button" class="btn btn--solid" data-a="share">Share to your story</button><button type="button" class="btn" data-a="close">Let’s go 🥂</button>';
+  document.body.appendChild(el);
+  requestAnimationFrame(function(){ el.classList.add('is-in'); });
+  haptic('success');
+  try{ AppSound.play('success'); } catch(e){}
+  confetti(el.querySelector('canvas'));
+  el.addEventListener('click', function(e){
+    const a = e.target.closest('[data-a]'); if(!a) return;
+    const ev = findEventFor(r.event_name, r.event_date);
+    el.classList.remove('is-in'); setTimeout(function(){ el.remove(); }, 400);
+    if(a.dataset.a === 'share' && ev) shareStory(ev, null);
+  });
+}
+function confetti(canvas){
+  if(!canvas || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = canvas.width = innerWidth * dpr, H = canvas.height = innerHeight * dpr;
+  const x = canvas.getContext('2d');
+  const cols = ['#f1dc9c', '#c9a24a', '#fff3cf', '#e6c875', '#ffffff', '#8a6a24'];
+  const parts = Array.from({ length: 140 }, function(){
+    return { x: W / 2 + (Math.random() - 0.5) * W * 0.2, y: H * 0.42, vx: (Math.random() - 0.5) * 16 * dpr, vy: (-Math.random() * 15 - 6) * dpr,
+      w: (5 + Math.random() * 6) * dpr, h: (8 + Math.random() * 8) * dpr, r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.4, c: cols[(Math.random() * cols.length) | 0] };
+  });
+  const t0 = performance.now();
+  (function frame(t){
+    if(!document.body.contains(canvas)) return;
+    x.clearRect(0, 0, W, H);
+    parts.forEach(function(p){ p.vy += 0.45 * dpr; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+      x.save(); x.translate(p.x, p.y); x.rotate(p.r); x.fillStyle = p.c; x.fillRect(-p.w / 2, -p.h / 2, p.w, p.h * Math.abs(Math.cos(p.r * 2))); x.restore(); });
+    if(t - t0 < 4200) requestAnimationFrame(frame); else x.clearRect(0, 0, W, H);
+  })(t0);
+}
+
+// 8. Metal card follows your finger / phone tilt.
+(function(){
+  const card = document.querySelector('.member-card');
+  if(!card) return;
+  const setT = function(px, py){ // px,py in 0..1
+    card.style.setProperty('--ry', ((px - 0.5) * 14).toFixed(2) + 'deg');
+    card.style.setProperty('--rx', ((0.5 - py) * 12).toFixed(2) + 'deg');
+    card.style.setProperty('--mx', (px * 100).toFixed(1) + '%');
+    card.style.setProperty('--my', (py * 100).toFixed(1) + '%');
+  };
+  const reset = function(){ card.style.setProperty('--rx', '0deg'); card.style.setProperty('--ry', '0deg'); };
+  const fromEvent = function(e){
+    const t = e.touches ? e.touches[0] : e, b = card.getBoundingClientRect();
+    setT(Math.min(1, Math.max(0, (t.clientX - b.left) / b.width)), Math.min(1, Math.max(0, (t.clientY - b.top) / b.height)));
+  };
+  card.addEventListener('pointermove', fromEvent);
+  card.addEventListener('touchmove', fromEvent, { passive: true });
+  card.addEventListener('pointerleave', reset);
+  card.addEventListener('touchend', reset);
+  // Phone tilt where the browser allows it without asking (Android, iPhone app).
+  window.addEventListener('deviceorientation', function(e){
+    if(e.gamma == null || !card.offsetParent) return;
+    setT(Math.min(1, Math.max(0, 0.5 + e.gamma / 60)), Math.min(1, Math.max(0, 0.5 + (e.beta - 45) / 80)));
+  });
+  // Gentle shimmer while idle.
+  let a = 0; setInterval(function(){ if(!card.offsetParent || document.hidden) return; a += 0.05; card.style.setProperty('--mx', (50 + Math.sin(a) * 35).toFixed(1) + '%'); }, 120);
+})();
+
+// 10. Empty states.
+function emptyStateHtml(icon, title, text, btn, tab){
+  return '<div class="empty-state"><div class="empty-state__icon">' + icon + '</div><b>' + title + '</b><p>' + text + '</p>' +
+    (btn ? '<button type="button" class="btn btn--solid" data-empty-tab="' + tab + '">' + btn + '</button>' : '') + '</div>';
+}
+function bindEmptyState(root){
+  (root || document).querySelectorAll('[data-empty-tab]').forEach(function(b){ b.addEventListener('click', function(){ switchTab(b.dataset.emptyTab); }); });
+}
+
+// 3. Whole card is tappable (the text sits on top of the flyer now).
+(function(){
+  const list = document.getElementById('eventList');
+  if(!list) return;
+  list.addEventListener('click', function(e){
+    if(e.target.closest('button, a, input, .glive')) return;
+    const body = e.target.closest('.event-card__body'); if(!body) return;
+    const media = body.parentElement && body.parentElement.querySelector('.event-card__media');
+    if(media) media.click();
+  });
+})();
+
+// 11. Pull to refresh on the parties screen.
+(function(){
+  const ptr = document.createElement('div'); ptr.className = 'ptr'; ptr.innerHTML = '<img src="icon-192.png" alt="">';
+  document.body.appendChild(ptr);
+  let y0 = null, pull = 0, busy = false;
+  const active = function(){ const t = document.getElementById('tab-events'); return t && t.classList.contains('is-active') && !document.body.classList.contains('is-gated') && !document.querySelector('.sheet-overlay.is-open, .story-viewer, .hero-intro'); };
+  document.addEventListener('touchstart', function(e){ y0 = (active() && window.scrollY <= 0 && !busy) ? e.touches[0].clientY : null; pull = 0; }, { passive: true });
+  document.addEventListener('touchmove', function(e){
+    if(y0 === null) return;
+    pull = Math.max(0, e.touches[0].clientY - y0);
+    const p = Math.min(1, pull / 90);
+    ptr.style.opacity = p; ptr.style.transform = 'translateY(' + (p * 70 - 60) + 'px) rotate(' + (pull * 3) + 'deg)';
+  }, { passive: true });
+  document.addEventListener('touchend', async function(){
+    if(y0 === null) return; y0 = null;
+    if(pull < 90){ ptr.style.opacity = 0; ptr.style.transform = 'translateY(-60px)'; return; }
+    busy = true; ptr.classList.add('is-spinning'); ptr.style.transform = 'translateY(10px)';
+    haptic('light');
+    try{
+      renderEventList(); renderVenueFilter();
+      const jobs = [];
+      if(typeof loadNextNight === 'function') jobs.push(loadNextNight());
+      if(currentUser){ jobs.push(loadInbox()); jobs.push(loadMyPrefs()); }
+      await Promise.race([Promise.all(jobs), new Promise(function(r){ setTimeout(r, 2500); })]);
+      await new Promise(function(r){ setTimeout(r, 500); });
+    } catch(e){}
+    ptr.classList.remove('is-spinning'); ptr.style.opacity = 0; ptr.style.transform = 'translateY(-60px)'; busy = false;
+  });
+})();
