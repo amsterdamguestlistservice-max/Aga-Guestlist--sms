@@ -625,12 +625,12 @@ const EVENTS = [
     time: "23:00",
     venue: "Chin Chin Club · Amsterdam",
     image: "events/house-of-zenda-2026-11-28.jpg",
-    description: "House of Zenda at Chin Chin Club. 21+.",
+    description: "House of Zenda at Chin Chin Club. 21+, Age OK list (18-20) open.",
     guestlistStatus: "limited",
     ticketUrl: "#",
     badgeLabel: "", // empty = no badge on the card
     guestlistUrl: "#guestlist",
-    minAge: 21,
+    minAge: 18,
     featured: false,
     countdownEnabled: false
   },
