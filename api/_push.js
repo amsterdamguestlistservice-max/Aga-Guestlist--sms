@@ -85,14 +85,37 @@ function withPid(payloadString) {
   } catch (e) { return payloadString; }
 }
 
+// In-app inbox: every delivered push is also saved for that account
+// (once per message, even with several devices). Never blocks a push.
+let inboxClient = null;
+function inboxDb() {
+  if (inboxClient) return inboxClient;
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return null;
+  const { createClient } = require('@supabase/supabase-js');
+  inboxClient = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  return inboxClient;
+}
+async function logInbox(endpoint, payloadString) {
+  try {
+    const p = JSON.parse(payloadString || '{}');
+    if (String(p.url || '').indexOf('/admin') === 0) return; // team-only alerts stay out of the inbox
+    const db = inboxDb(); if (!db) return;
+    await db.rpc('log_inbox', { p_endpoint: endpoint, p_pid: p.pid || '', p_title: p.title || '', p_body: p.body || '', p_url: p.url || '' });
+  } catch (e) { /* optional */ }
+}
+
 async function sendPush(webpush, sub, payloadString) {
   payloadString = withPid(payloadString);
   const endpoint = String((sub && sub.endpoint) || '');
+  let result;
   if (endpoint.indexOf('apns:') === 0) {
     if (!apnsConfigured()) { const e = new Error('APNs not configured'); e.statusCode = 0; throw e; }
-    return sendApns(endpoint.slice(5), payloadString);
+    result = await sendApns(endpoint.slice(5), payloadString);
+  } else {
+    result = await webpush.sendNotification(sub, payloadString);
   }
-  return webpush.sendNotification(sub, payloadString);
+  await logInbox(endpoint, payloadString);
+  return result;
 }
 
 module.exports = { sendPush };

@@ -2662,28 +2662,89 @@ async function unsubscribeFromPush(){
   await updateNotifyBtnState();
 }
 
-if(notifyBtn && NATIVE_PUSH){
-  notifyBtn.hidden = false;
-  updateNotifyBtnState();
-  notifyBtn.addEventListener('click', async function(){
-    if(nativePushOn){
-      try{ await NATIVE_PUSH.unregister(); } catch(e){}
-      nativePushOn = false; await updateNotifyBtnState();
-    } else { await subscribeToPush(); }
-  });
-} else if(notifyBtn && pushSupported){
-  notifyBtn.hidden = false;
-  navigator.serviceWorker.ready.then(updateNotifyBtnState);
-  notifyBtn.addEventListener('click', async function(){
-    const reg = await navigator.serviceWorker.ready;
-    const existing = await reg.pushManager.getSubscription();
-    if(existing && Notification.permission === 'granted'){
-      await unsubscribeFromPush();
-    } else {
-      await subscribeToPush();
-    }
-  });
+// Push on/off (used by the switch inside the notifications inbox).
+async function isPushOn(){
+  if(NATIVE_PUSH) return nativePushOn;
+  if(!pushSupported) return false;
+  try{ const reg = await navigator.serviceWorker.ready; const ex = await reg.pushManager.getSubscription(); return !!ex && Notification.permission === 'granted'; } catch(e){ return false; }
 }
+async function togglePush(){
+  if(NATIVE_PUSH){
+    if(nativePushOn){ try{ await NATIVE_PUSH.unregister(); } catch(e){} nativePushOn = false; await updateNotifyBtnState(); }
+    else { await subscribeToPush(); }
+    return;
+  }
+  if(!pushSupported) return;
+  if(await isPushOn()) await unsubscribeFromPush(); else await subscribeToPush();
+}
+if(notifyBtn && NATIVE_PUSH){ updateNotifyBtnState(); }
+else if(notifyBtn && pushSupported){ navigator.serviceWorker.ready.then(updateNotifyBtnState); }
+if(notifyBtn){ notifyBtn.addEventListener('click', function(){ openInbox(); }); }
+
+/* ---- Notifications inbox (the bell): every push, saved per account ---- */
+let INBOX = [];
+async function loadInbox(){
+  if(!supabaseClient || !currentUser) return [];
+  try{
+    const { data } = await supabaseClient.from('inbox').select('id, title, body, url, created_at, read_at').order('created_at', { ascending: false }).limit(60);
+    INBOX = data || [];
+  } catch(e){ INBOX = []; }
+  updateInboxBadge();
+  return INBOX;
+}
+function updateInboxBadge(){
+  if(!notifyBtn) return;
+  const n = INBOX.filter(function(x){ return !x.read_at; }).length;
+  let dot = notifyBtn.querySelector('.notify-btn__count');
+  if(!dot){ dot = document.createElement('span'); dot.className = 'notify-btn__count'; notifyBtn.appendChild(dot); }
+  dot.textContent = n > 9 ? '9+' : String(n);
+  dot.hidden = n === 0;
+}
+function timeAgo(iso){
+  const s = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  if(s < 60) return 'now';
+  const m = Math.round(s / 60); if(m < 60) return m + 'm';
+  const h = Math.round(m / 60); if(h < 24) return h + 'h';
+  const d = Math.round(h / 24); if(d < 7) return d + 'd';
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+async function openInbox(){
+  const body = document.getElementById('quickBody');
+  if(!body) return;
+  if(!currentUser){ if(typeof lockAppBehindGate === 'function') lockAppBehindGate(); return; }
+  const esc = function(v){ return String(v || '').replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
+  body.innerHTML = '<div class="quick-sheet__eyebrow">Inbox</div><div class="quick-sheet__title" id="quickTitle">Notifications</div><div class="inbox" id="inboxList"><div class="inbox__empty">Loading…</div></div>';
+  openQuickSheet();
+  const pushOn = await isPushOn();
+  await loadInbox();
+  const list = document.getElementById('inboxList');
+  if(!list) return;
+  list.innerHTML =
+    (pushSupported ? '<label class="inbox__push"><span>Push notifications<small>' + (pushOn ? 'On, you get them on this phone' : 'Off, turn on so you never miss a spot') + '</small></span><input type="checkbox" id="inboxPush"' + (pushOn ? ' checked' : '') + '></label>' : '') +
+    (INBOX.length ? INBOX.map(function(x){
+      return '<button type="button" class="inbox__item' + (x.read_at ? '' : ' is-unread') + '" data-url="' + esc(x.url) + '">' +
+        '<span class="inbox__dot"></span><span class="inbox__text"><b>' + esc(x.title) + '</b><span>' + esc(x.body) + '</span></span><em>' + timeAgo(x.created_at) + '</em></button>';
+    }).join('') : '<div class="inbox__empty">No notifications yet. When you\u2019re approved, a party drops or a badge unlocks, it shows up here 🔑</div>');
+  const sw = document.getElementById('inboxPush');
+  if(sw) sw.addEventListener('change', async function(){ sw.disabled = true; await togglePush(); sw.checked = await isPushOn(); sw.disabled = false; });
+  list.querySelectorAll('.inbox__item').forEach(function(b){
+    b.addEventListener('click', function(){ closeQuickSheet(); openInboxLink(b.dataset.url); });
+  });
+  // Opening the inbox marks everything as read.
+  const unread = INBOX.filter(function(x){ return !x.read_at; }).map(function(x){ return x.id; });
+  if(unread.length){
+    supabaseClient.from('inbox').update({ read_at: new Date().toISOString() }).in('id', unread).then(function(){
+      INBOX.forEach(function(x){ if(!x.read_at) x.read_at = new Date().toISOString(); }); updateInboxBadge();
+    }, function(){});
+  }
+}
+function openInboxLink(url){
+  const u = String(url || '');
+  if(/[?&]rate=1/.test(u)){ maybeAskForPartyRating(true); return; }
+  if(/[?&]event=/.test(u)){ openEventFromLink(u); return; }
+  switchTab(/guestlist|request/i.test(u) ? 'account' : 'events');
+}
+document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible' && currentUser) loadInbox(); });
 
 let deferredInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', function(e){
@@ -2990,6 +3051,8 @@ function showAccountPanel(user){
   loadMyPrefs();
   loadMyBadges();
   loadMyProfileCard();
+  if(notifyBtn) notifyBtn.hidden = false;
+  loadInbox();
   linkPushSubscriptionToAccount();
   if(typeof salonInit === 'function') salonInit(user);
   if(typeof window.agsAdminCheck === 'function') window.agsAdminCheck();
@@ -3507,7 +3570,7 @@ document.getElementById('signOutBtn').addEventListener('click', async function()
   if(supabaseClient){ await supabaseClient.auth.signOut(); }
   currentUser = null;
   IS_MEMBER = false;
-  MY_PREFS = null; MY_FOLLOWS = new Set(); MY_PROFILE = null;
+  MY_PREFS = null; MY_FOLLOWS = new Set(); MY_PROFILE = null; INBOX = []; try{ updateInboxBadge(); } catch(e){}
   const pc = document.getElementById('profileCard'); if(pc){ pc.hidden = true; pc.innerHTML = ''; }
   const bb = document.getElementById('badgeBox'); if(bb) bb.hidden = true;
   for(let i = EVENTS.length - 1; i >= 0; i--){ if(EVENTS[i].secret) EVENTS.splice(i, 1); }
