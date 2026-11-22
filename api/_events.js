@@ -29,15 +29,30 @@ async function loadEvents() {
 }
 
 // Requests store event_name + event_date (not the id), so match on those.
+// Secret (members-only) parties live in Supabase, not in the public app.js.
+// Used only for one guest's own emails/calendar, never for broadcasts.
+let secretCache = { at: 0, events: [] };
+async function loadSecretEvents() {
+  if (Date.now() - secretCache.at < 5 * 60 * 1000) return secretCache.events;
+  try {
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return [];
+    const { createClient } = require('@supabase/supabase-js');
+    const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const { data } = await sb.from('member_events').select('event');
+    secretCache = { at: Date.now(), events: (data || []).map(function (r) { return Object.assign({ secret: true }, r.event); }) };
+  } catch (e) { /* keep last copy */ }
+  return secretCache.events;
+}
+
 async function findEvent(name, date) {
-  const events = await loadEvents();
   const d = String(date || '').slice(0, 10);
-  return events.find(function (e) { return e.name === name && e.date === d; }) || null;
+  const match = function (e) { return e.name === name && e.date === d; };
+  return (await loadEvents()).find(match) || (await loadSecretEvents()).find(match) || null;
 }
 
 async function findEventById(id) {
-  const events = await loadEvents();
-  return events.find(function (e) { return e.id === id; }) || null;
+  const match = function (e) { return e.id === id; };
+  return (await loadEvents()).find(match) || (await loadSecretEvents()).find(match) || null;
 }
 
 // Absolute flyer URL, or '' when the event has no usable image.

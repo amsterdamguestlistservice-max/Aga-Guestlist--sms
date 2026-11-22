@@ -935,8 +935,49 @@ function buildTicketWhatsappLink(ev){
 function isPastEvent(ev){
   return new Date(ev.date + 'T' + ev.time).getTime() < Date.now();
 }
+/* ---- Members (Silver+, 50 points): secret parties + 48h early access ----
+   ev.secret     → only members see it (loaded from Supabase, never in this file)
+   ev.publicFrom → ISO time; before it only members see the party (early access) */
+let IS_MEMBER = false;
+let SECRET_COUNT = 0;
+function isEarlyOnly(ev){ return !!(ev && ev.publicFrom && Date.now() < Date.parse(ev.publicFrom)); }
+function eventVisible(ev){ return (ev.secret || isEarlyOnly(ev)) ? IS_MEMBER : true; }
+function memberTag(ev){
+  if(ev.secret) return '<div class="event-card__members">🔒 Secret party · members only</div>';
+  if(isEarlyOnly(ev)){
+    const h = Math.max(1, Math.round((Date.parse(ev.publicFrom) - Date.now()) / 36e5));
+    return '<div class="event-card__members">⚡ Early access · public in ' + (h >= 24 ? Math.round(h / 24) + 'd' : h + 'h') + '</div>';
+  }
+  return '';
+}
+function memberTeaserHtml(){
+  if(IS_MEMBER) return '';
+  const early = EVENTS.filter(function(ev){ return isEarlyOnly(ev) && !isPastEvent(ev); }).length;
+  const n = SECRET_COUNT + early;
+  if(!n) return '';
+  return '<div class="member-teaser"><div class="member-teaser__lock">🔒</div>' +
+    '<div><b>' + n + ' members-only ' + (n === 1 ? 'party' : 'parties') + '</b>' +
+    '<span>Reach Silver (50 points) to unlock secret parties and see new parties 48 hours before everyone else. +10 points for every night you’re on the list.</span></div></div>';
+}
+async function loadMemberAccess(){
+  if(!supabaseClient) return;
+  try{
+    const { data, error } = await supabaseClient.rpc('member_access');
+    if(error || !data) return;
+    IS_MEMBER = !!data.member;
+    SECRET_COUNT = Number(data.secret_count) || 0;
+    (data.events || []).forEach(function(ev){
+      if(!ev || !ev.id || EVENTS.some(function(x){ return x.id === ev.id; })) return;
+      ev.secret = true;
+      EVENTS.push(ev);
+    });
+    renderEventList();
+    try{ renderVenueFilter(); } catch(e){}
+  } catch(e){}
+}
+
 function getSortedEvents(){
-  return EVENTS.filter(function(ev){ return !isPastEvent(ev); }).sort(function(a, b){
+  return EVENTS.filter(function(ev){ return !isPastEvent(ev) && eventVisible(ev); }).sort(function(a, b){
     return new Date(a.date + 'T' + a.time) - new Date(b.date + 'T' + b.time);
   });
 }
@@ -1054,13 +1095,13 @@ function renderEventList(){
         '<div class="event-card__body">' +
           '<div class="event-card__meta"><div class="event-card__date">' + formatDate(ev.date) + '</div>' + guestlistBadge(ev.guestlistStatus, ev.badgeLabel) + '</div>' +
           '<h3 class="event-card__name">' + ev.name + '</h3>' +
-          '<div class="event-card__venue">' + ev.venue + '</div>' +
+          '<div class="event-card__venue">' + ev.venue + '</div>' + memberTag(ev) +
           '<button type="button" class="event-card__cta">View Details</button>' +
         '</div>' +
         '<div class="glive" style="display:none;"></div>' +
       '</article>'
     );
-  }).join('');
+  }).join('') + memberTeaserHtml();
 
   list.querySelectorAll('.event-card').forEach(function(card){
     card.querySelector('.event-card__cta').addEventListener('click', function(){
@@ -2198,6 +2239,7 @@ renderEventList();
 renderVenueFilter();
 renderPastEventList();
 populateGuestlistSelect();
+setTimeout(function(){ if(!currentUser) loadMemberAccess(); }, 1500);
 openEventFromLink(window.location.search);
 
 /* ================================================================
@@ -2270,6 +2312,7 @@ function showAccountPanel(user){
   }
   loadMyRequests();
   loadMyPoints();
+  loadMemberAccess();
   linkPushSubscriptionToAccount();
   if(typeof salonInit === 'function') salonInit(user);
   if(typeof window.agsAdminCheck === 'function') window.agsAdminCheck();
@@ -2727,6 +2770,9 @@ document.getElementById('signupForm').addEventListener('submit', async function(
 document.getElementById('signOutBtn').addEventListener('click', async function(){
   if(supabaseClient){ await supabaseClient.auth.signOut(); }
   currentUser = null;
+  IS_MEMBER = false;
+  for(let i = EVENTS.length - 1; i >= 0; i--){ if(EVENTS[i].secret) EVENTS.splice(i, 1); }
+  try{ renderEventList(); } catch(e){}
   if(typeof loadNextNight === 'function') loadNextNight();
   if(typeof salonStop === 'function') salonStop();
   lockAppBehindGate();

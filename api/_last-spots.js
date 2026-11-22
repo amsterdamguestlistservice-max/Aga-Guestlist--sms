@@ -11,6 +11,18 @@ const webpush = require('web-push');
 const { sendPush: sendAnyPush } = require('./_push');
 const { findEvent, loadEvents } = require('./_events');
 
+// Early access: before ev.publicFrom only members (Silver+, 50 points) may see a
+// party, so public pushes skip it until then.
+function isPublicNow(e) { return !e.secret && !(e.publicFrom && Date.now() < Date.parse(e.publicFrom)); }
+async function memberUserIds(supabase) {
+  const ids = new Set();
+  const { data: rich } = await supabase.from('profiles').select('user_id').gte('points', 50);
+  (rich || []).forEach(function (r) { ids.add(r.user_id); });
+  const { data: extra } = await supabase.from('member_overrides').select('user_id');
+  (extra || []).forEach(function (r) { ids.add(r.user_id); });
+  return ids;
+}
+
 function spotsThreshold(capacity) {
   return Math.max(3, Math.ceil(capacity * 0.2));
 }
@@ -94,7 +106,7 @@ async function sendTonightPush(supabase, opts) {
   try {
     if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return { skipped: 'no_vapid' };
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
-    const events = (await loadEvents()).filter(function (e) { return e.date === today; });
+    const events = (await loadEvents()).filter(function (e) { return e.date === today && isPublicNow(e); });
     if (!events.length) return { skipped: 'no_events_today' };
 
     const { data: lists } = await supabase
@@ -176,7 +188,7 @@ async function sendWeeklyPush(supabase, opts) {
     const hour = Number(new Date().toLocaleString('en-GB', { timeZone: 'Europe/Amsterdam', hour: '2-digit', hour12: false }));
     if (hour < 19 && !opts.force) return { skipped: 'too_early' };
     const from = fmt(Date.now() + 864e5), to = fmt(Date.now() + 5 * 864e5); // Wed .. Sun
-    const events = (await loadEvents()).filter(function (e) { return e.date >= from && e.date <= to; })
+    const events = (await loadEvents()).filter(function (e) { return e.date >= from && e.date <= to && isPublicNow(e); })
       .sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
     if (!events.length) return { skipped: 'no_events_this_week' };
 
@@ -225,8 +237,12 @@ async function sendNewEventsPush(supabase, opts) {
   try {
     if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return { skipped: 'no_vapid' };
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
-    const events = await loadEvents();
-    if (!events || !events.length) return { skipped: 'no_events_loaded' };
+    const allEvents = await loadEvents();
+    if (!allEvents || !allEvents.length) return { skipped: 'no_events_loaded' };
+    // Members hear about early-access parties first (once per party).
+    const early = opts.dryRun ? null : await announceEarlyToMembers(supabase, allEvents.filter(function (e) { return !isPublicNow(e) && e.date >= today; }));
+    // Parties still in their members-only window are announced to everyone once they go public.
+    const events = allEvents.filter(isPublicNow);
     const ids = events.map(function (e) { return e.id; });
 
     const { data: flag } = await supabase.from('app_flags').select('value').eq('key', 'known_events').maybeSingle();
@@ -275,7 +291,41 @@ async function sendNewEventsPush(supabase, opts) {
         }
       }
     }));
-    return { sent: true, events: fresh.map(function (e) { return e.id; }), pushed: pushed };
+    return { sent: true, events: fresh.map(function (e) { return e.id; }), pushed: pushed, early: early };
+  } catch (e) {
+    return { error: e.message || 'failed' };
+  }
+}
+
+async function announceEarlyToMembers(supabase, earlyEvents) {
+  try {
+    if (!earlyEvents.length) return { skipped: 'none' };
+    const { data: flag } = await supabase.from('app_flags').select('value').eq('key', 'known_early_events').maybeSingle();
+    let known = [];
+    try { known = flag && flag.value ? JSON.parse(flag.value) : []; } catch (e) { known = []; }
+    const fresh = earlyEvents.filter(function (e) { return known.indexOf(e.id) < 0; });
+    if (!fresh.length) return { skipped: 'nothing_new' };
+    await supabase.from('app_flags').upsert({ key: 'known_early_events', value: JSON.stringify(known.concat(fresh.map(function (e) { return e.id; }))), updated_at: new Date().toISOString() });
+    const members = await memberUserIds(supabase);
+    const { data: subs } = await supabase.from('push_subscriptions').select('endpoint, p256dh, auth, user_id');
+    const mine = (subs || []).filter(function (s) { return s.user_id && members.has(s.user_id); });
+    const ev = fresh[0];
+    const venue = String(ev.venue || '').split(' · ')[0];
+    const payload = JSON.stringify(fresh.length === 1 ? {
+      title: 'Early access: ' + ev.name + ' ⚡',
+      body: shortDate(ev.date) + (venue ? ' at ' + venue : '') + '. Members see it 48 hours before everyone else. Get on the list first.',
+      url: './index.html?event=' + encodeURIComponent(ev.id)
+    } : {
+      title: fresh.length + ' new parties, early access ⚡',
+      body: fresh.slice(0, 4).map(function (e) { return e.name + ' (' + shortDate(e.date) + ')'; }).join(' · ') + '. Members see them 48 hours early.',
+      url: './index.html'
+    });
+    webpush.setVapidDetails('mailto:amsterdamguestlistservice@outlook.com', process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
+    let pushed = 0;
+    await Promise.all(mine.map(async function (sub) {
+      try { await sendAnyPush(webpush, { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload); pushed++; } catch (e) { /* ignore */ }
+    }));
+    return { events: fresh.map(function (e) { return e.id; }), pushed: pushed };
   } catch (e) {
     return { error: e.message || 'failed' };
   }
