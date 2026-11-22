@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<link rel="preconnect" href="https://ogyvzgkykyesjozwmkds.supabase.co" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <title>Amsterdam Guestlist Service</title>
@@ -1171,6 +1173,40 @@ body{ background:#020202; }
    DESIGN v3 — splash, floating tab bar, full-bleed party cards, party
    colour, skeletons, metal membership card, profile, celebrations
    ===================================================================== */
+/* Hidden really means hidden (some blocks set their own display) */
+[hidden]{ display:none !important; }
+/* Calmer home: points live in Account (the +points moment still shows) */
+#tab-events .points-strip{ display:none !important; }
+/* Social proof on party cards */
+.event-card__proof{ display:flex; flex-wrap:wrap; gap:6px; margin:-2px 0 10px; }
+.event-card__proof span{ font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; background:rgba(0,0,0,.45); border:1px solid rgba(255,255,255,.16); color:#fff; }
+.event-card__proof span.is-hot{ border-color:rgba(255,120,80,.6); color:#ffb38a; }
+.event-card__proof span.is-star{ border-color:rgba(233,196,106,.6); color:#f1dc9c; }
+/* Onboarding */
+.onb{ position:fixed; inset:0; z-index:9400; background:radial-gradient(90% 50% at 50% 0%, rgba(201,162,74,.22), transparent 70%), #070605; overflow-y:auto; opacity:0; transition:opacity .35s ease; }
+.onb.is-in{ opacity:1; }
+.onb__inner{ max-width:440px; margin:0 auto; padding:calc(env(safe-area-inset-top,0px) + 34px) 22px calc(env(safe-area-inset-bottom,0px) + 30px); }
+.onb__dots{ display:flex; gap:6px; margin-bottom:26px; }
+.onb__dots i{ flex:1; height:3px; border-radius:2px; background:rgba(255,255,255,.15); }
+.onb__dots i.on{ background:#e9d18b; }
+.onb__inner > small{ font-size:11px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:#cfae5e; }
+.onb h2{ font-family:var(--serif); font-size:38px; line-height:1.02; margin:8px 0 8px; }
+.onb p{ font-size:14.5px; color:rgba(255,255,255,.72); line-height:1.5; margin:0 0 20px; }
+.onb__label{ font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.55); margin:18px 0 10px; }
+.onb__chips{ display:flex; flex-wrap:wrap; gap:8px; }
+.onb__chip{ padding:10px 15px; border-radius:999px; border:1px solid rgba(255,255,255,.2); background:rgba(255,255,255,.04); color:#fff; font:600 13.5px/1 var(--sans, Inter, sans-serif); cursor:pointer; transition:all .15s ease; }
+.onb__chip.on{ background:linear-gradient(100deg,#c9a24a,#f1dc9c 50%,#c9a24a); color:#1a1408; border-color:transparent; }
+.onb__btns{ display:flex; flex-direction:column; gap:10px; margin-top:30px; }
+.onb__skip{ background:none; border:0; color:rgba(255,255,255,.55); font-size:13px; padding:10px; cursor:pointer; }
+.onb__avatar{ display:flex; align-items:center; justify-content:center; width:120px; height:120px; margin:6px auto 18px; border-radius:50%; border:2px dashed rgba(201,162,74,.7); background:#15120c center/cover; font-size:34px; color:#e9d18b; cursor:pointer; }
+.onb__input{ width:100%; padding:14px 16px; border-radius:12px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.04); color:#fff; font:inherit; font-size:16px; margin-bottom:10px; }
+.onb__err{ color:#ff8a80; font-size:12.5px; min-height:16px; }
+.onb__bell{ font-size:64px; text-align:center; margin:20px 0 6px; filter:drop-shadow(0 0 24px rgba(233,209,139,.6)); }
+/* Soft tab transitions */
+.tab-panel.is-active{ animation:tab-in .32s cubic-bezier(.2,.8,.2,1) both; }
+#tab-feed.is-active{ animation:none; }
+@keyframes tab-in{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:none; } }
+@media (prefers-reduced-motion: reduce){ .tab-panel.is-active{ animation:none; } }
 /* 1. Splash */
 .splash{ position:fixed; inset:0; z-index:10000; background:#050403; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; transition:opacity .5s ease, visibility .5s; }
 .splash.is-gone{ opacity:0; visibility:hidden; }
@@ -1410,12 +1446,12 @@ body{ background:#020202; }
       <h1 id="eventsHeadline">Upcoming Events</h1>
       <p id="eventsSub">Amsterdam nightlife, curated.</p>
     </div>
-    <div class="points-strip" id="pointsStrip" hidden><!-- rendered by JS --></div>
     <div class="next-night" id="nextNight" hidden><!-- rendered by JS --></div>
-    <div class="push-nudge" id="pushNudge" hidden><!-- rendered by JS --></div>
     <div class="story-head" id="storyHead" hidden><span>Stories</span><em>Tap to watch</em></div>
     <div class="story-bar" id="storyBar" hidden><!-- rendered by JS --></div>
+    <div class="push-nudge" id="pushNudge" hidden><!-- rendered by JS --></div>
     <div class="featured-hero" id="featuredHero" hidden role="button" tabindex="0" aria-label="Featured party, open the guestlist"><!-- rendered by JS --></div>
+    <div class="points-strip" id="pointsStrip" hidden><!-- rendered by JS --></div>
     <div class="venue-filter" id="venueFilter"><!-- rendered by JS --></div>
     <div class="event-list" id="eventList"><!-- rendered by JS --></div>
 

@@ -887,11 +887,18 @@ function revealCardsOnScroll(){
   });
 }
 
+// Flyers are served as WebP (about half the size); the original is the fallback.
+function webpOf(src){ return /^events\/[^?#]+\.(jpe?g|png)$/i.test(String(src || '')) ? String(src).replace(/\.(jpe?g|png)$/i, '.webp') : ''; }
+function imgTag(src, alt, attrs){
+  const w = webpOf(src);
+  return '<img src="' + (w || src) + '"' + (w ? ' data-fallback="' + src + '" onerror="if(this.dataset.fallback){this.src=this.dataset.fallback;this.removeAttribute(\'data-fallback\');}"' : '') +
+    ' alt="' + String(alt || '').replace(/"/g, '&quot;') + '"' + (attrs || '') + '>';
+}
 function eventMedia(ev, attrs){
   if((ev.flyerPending && !isPastEvent(ev)) || !ev.image){
     return autoPoster(ev);
   }
-  return '<img src="' + ev.image + '" alt="' + ev.name + '"' + (attrs || '') + '>';
+  return imgTag(ev.image, ev.name, attrs);
 }
 // A designed AGS poster for nights whose flyer isn't in yet, so the
 // app never shows an empty block.
@@ -917,7 +924,7 @@ function autoPoster(ev){
 // Lets the flyer's own colours glow around it (CSS var used by ::after).
 function flyerStyle(ev){
   if(!ev || !ev.image || (ev.flyerPending && !isPastEvent(ev))) return '';
-  return ' style="--flyer:url(\'' + String(ev.image).replace(/'/g, '%27') + '\')"';
+  return ' style="--flyer:url(\'' + String(webpOf(ev.image) || ev.image).replace(/'/g, '%27') + '\')"';
 }
 function guestlistBadge(status, label){
   if(status === 'limited') return '<span class="event-card__badge">Limited Guestlist</span>';
@@ -1017,6 +1024,10 @@ async function loadMyPrefs(){
       (GENRES_BY_NAME[v.event_name] || []).forEach(function(g){ add(prefs.genres, g, 1); });
     });
     MY_FOLLOWS = new Set((follows.data || []).map(function(f){ return f.venue; }));
+    try{
+      const { data: mp } = await supabaseClient.from('member_profiles').select('genres').eq('user_id', currentUser.id).maybeSingle();
+      ((mp && mp.genres) || []).forEach(function(g){ add(prefs.genres, g, 3); });
+    } catch(e){}
     MY_PREFS = prefs;
     renderEventList();
     try{ renderVenueFilter(); } catch(e){}
@@ -1033,6 +1044,22 @@ function forYouScore(ev){
   return score;
 }
 function isForYou(ev){ return forYouScore(ev) >= 3; }
+// Social proof (4): real ratings per party and today's interest.
+let PROOF = { ratings: {}, trending: {} };
+async function loadProof(){
+  if(!supabaseClient) return;
+  try{
+    const { data } = await supabaseClient.rpc('party_proof');
+    if(data){ PROOF = { ratings: data.ratings || {}, trending: data.trending || {} }; renderEventList(); }
+  } catch(e){}
+}
+function proofHtml(ev){
+  const r = PROOF.ratings[ev.name], t = PROOF.trending[ev.id];
+  const out = [];
+  if(r && r.n >= 3) out.push('<span class="is-star">★ ' + Number(r.avg).toFixed(1) + ' · ' + r.n + ' guests</span>');
+  if(t) out.push('<span class="is-hot">🔥 ' + t + ' looking today</span>');
+  return out.length ? '<div class="event-card__proof">' + out.join('') + '</div>' : '';
+}
 function cardTags(ev){
   const tags = [];
   if(ev.sponsored) tags.push('<span class="event-card__tag is-sponsored">Sponsored</span>');
@@ -1218,7 +1245,7 @@ function renderEventList(){
         '<div class="event-card__body">' +
           '<div class="event-card__meta"><div class="event-card__date">' + formatDate(ev.date) + '</div>' + guestlistBadge(ev.guestlistStatus, ev.badgeLabel) + '</div>' +
           '<h3 class="event-card__name">' + ev.name + '</h3>' +
-          '<div class="event-card__venue">' + ev.venue + '</div>' + memberTag(ev) + cardTags(ev) +
+          '<div class="event-card__venue">' + ev.venue + '</div>' + memberTag(ev) + proofHtml(ev) + cardTags(ev) +
           '<button type="button" class="event-card__cta">View Details</button>' +
         '</div>' +
         '<div class="glive" style="display:none;"></div>' +
@@ -1951,7 +1978,7 @@ function renderFeed(){
     const ev = e.ev, it = e.it, open = ['open', 'limited'].indexOf(ev.guestlistStatus) >= 0;
     const media = it.video
       ? '<video src="' + it.video + '"' + (it.poster ? ' poster="' + it.poster + '"' : '') + ' loop playsinline muted preload="' + (idx < 2 ? 'auto' : 'none') + '"></video>'
-      : '<div class="feed-bg" style="background-image:url(\'' + esc(it.image) + '\')"></div><img src="' + esc(it.image) + '" alt="" loading="lazy">';
+      : '<div class="feed-bg" style="background-image:url(\'' + esc(it.image) + '\')"></div>' + imgTag(esc(it.image), '', ' loading="lazy" decoding="async"');
     return '<section class="feed-item" data-idx="' + idx + '" data-event-id="' + esc(ev.id) + '">' +
       '<div class="feed-item__media">' + media + '</div><div class="feed-item__shade"></div>' +
       '<div class="feed-item__info"><small>' + formatDate(ev.date) + ' · ' + esc(eventVenueName(ev)) + (ev.sponsored ? ' · Sponsored' : '') + '</small>' +
@@ -2137,7 +2164,7 @@ function openStoryViewer(events, startIndex){
     el.innerHTML =
       '<div class="story-viewer__media">' + (it.video
         ? '<video src="' + it.video + '"' + (it.poster ? ' poster="' + it.poster + '"' : '') + ' autoplay playsinline' + (muted ? ' muted' : '') + '></video>'
-        : '<img class="is-flyer" src="' + it.image + '" alt="">') + '</div>' +
+        : imgTag(it.image, '', ' class="is-flyer"')) + '</div>' +
       '<div class="story-viewer__bars">' + items.map(function(_, i){ return '<i><b style="width:' + (i < itemIdx ? 100 : 0) + '%"></b></i>'; }).join('') + '</div>' +
       '<div class="story-viewer__head" style="top:calc(env(safe-area-inset-top, 0px) + 22px)">' +
         '<span>' + ev.name + '<small>' + formatDate(ev.date) + ' · ' + eventVenueName(ev) + '</small></span>' +
@@ -2199,7 +2226,7 @@ function renderFeaturedHero(){
   box.hidden = false;
   box.innerHTML =
     '<video class="featured-hero__video" src="' + ev.clip.mp4 + '"' + (ev.clip.poster ? ' poster="' + ev.clip.poster + '"' : '') +
-      ' autoplay muted loop playsinline preload="auto"></video>' +
+      ' autoplay muted loop playsinline preload="metadata"></video>' +
     '<span class="featured-hero__tag">Featured · ' + formatDate(ev.date) + '</span>' +
     '<button type="button" class="featured-hero__sound" aria-label="Sound on">🔇</button>' +
     '<div class="featured-hero__cta">' + (open ? 'Get on the guestlist →' : 'View party →') + '</div>';
@@ -2936,6 +2963,7 @@ renderVenueFilter();
 renderPastEventList();
 populateGuestlistSelect();
 setTimeout(function(){ if(!currentUser) loadMemberAccess(); }, 1500);
+setTimeout(loadProof, 900);
 openEventFromLink(window.location.search);
 
 /* ================================================================
@@ -3081,8 +3109,9 @@ function showPartyRatingSheet(night){
 
 function showAccountPanel(user){
   claimReferralIfAny();
-  maybeShowGroupJoin().then(function(joined){
+  maybeShowGroupJoin().then(async function(joined){
     if(joined) return;
+    if(await maybeShowOnboarding()) return;
     maybeAskForPartyRating(/[?&]rate=1/.test(window.location.search)).then(function(shown){ if(!shown) maybeAskForReview(); });
   }).catch(function(){});
   document.getElementById('authPanel').style.display = 'none';
@@ -3437,7 +3466,7 @@ function maybeShowHeroIntro(){
   const key = 'ags_intro_seen_' + ev.id;
   try{ if(localStorage.getItem(key)) return; } catch(e){}
   const tour = document.getElementById('welcomeOverlay');
-  if(tour && tour.classList.contains('is-open')){ setTimeout(maybeShowHeroIntro, 800); return; }
+  if((tour && tour.classList.contains('is-open')) || document.getElementById('onboarding') || document.getElementById('approvedMoment')){ setTimeout(maybeShowHeroIntro, 800); return; }
   try{ localStorage.setItem(key, '1'); } catch(e){}
 
   const open = ['open', 'limited'].indexOf(ev.guestlistStatus) >= 0;
@@ -4339,11 +4368,17 @@ async function loadNextNight(){
       .eq('user_id', currentUser.id)
       .gte('event_date', todayAmsterdam())
       .order('event_date', { ascending: true });
+    if(!data) throw new Error('offline');
     nextNightRows = (data || []).filter(function(r){
       const st = String(r.status || 'Pending').trim().toLowerCase();
       return st === 'pending' || st === 'approved';
     });
-  } catch(err){ nextNightRows = []; }
+    // Keep tonight's pass on the phone, so it also opens without signal at the door.
+    try{ localStorage.setItem('ags_next_cache_' + currentUser.id, JSON.stringify(nextNightRows.slice(0, 3))); } catch(e){}
+  } catch(err){
+    let cached = []; try{ cached = JSON.parse(localStorage.getItem('ags_next_cache_' + currentUser.id) || '[]'); } catch(e){}
+    nextNightRows = (cached || []).filter(function(r){ return String(r.event_date).slice(0, 10) >= todayAmsterdam(); });
+  }
   renderNextNight();
   try{ updateEventsHeadline(); } catch(e){}
   try{ maybeCelebrateApproval(); } catch(e){}
@@ -5187,4 +5222,117 @@ function bindEmptyState(root){
     } catch(e){}
     ptr.classList.remove('is-spinning'); ptr.style.opacity = 0; ptr.style.transform = 'translateY(-60px)'; busy = false;
   });
+})();
+
+
+/* ---- Onboarding (1): your vibe → your profile → notifications ---- */
+async function maybeShowOnboarding(){
+  if(!supabaseClient || !currentUser) return false;
+  const key = 'ags_onboarded_' + currentUser.id;
+  try{ if(localStorage.getItem(key)) return false; } catch(e){}
+  const { data: mp } = await supabaseClient.from('member_profiles').select('user_id, genres, display_name').eq('user_id', currentUser.id).maybeSingle();
+  if(mp && mp.genres && mp.genres.length){ try{ localStorage.setItem(key, '1'); } catch(e){} return false; }
+  showOnboarding(mp || null, key);
+  return true;
+}
+function showOnboarding(existing, key){
+  const genres = []; Object.keys(GENRES_BY_NAME).forEach(function(n){ GENRES_BY_NAME[n].forEach(function(g){ if(genres.indexOf(g) < 0) genres.push(g); }); });
+  const clubs = []; getSortedEvents().forEach(function(ev){ const v = eventVenueName(ev); if(clubs.indexOf(v) < 0) clubs.push(v); });
+  const pickG = new Set(), pickC = new Set(MY_FOLLOWS);
+  const meta = currentUser.user_metadata || {};
+  let step = 0, name = (existing && existing.display_name) || meta.first_name || '', photo = '';
+  const el = document.createElement('div'); el.className = 'onb'; el.id = 'onboarding';
+  document.body.appendChild(el); document.body.style.overflow = 'hidden';
+  const esc = function(v){ return String(v || '').replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
+  const finish = function(){ try{ localStorage.setItem(key, '1'); } catch(e){} el.classList.remove('is-in'); document.body.style.overflow = ''; setTimeout(function(){ el.remove(); }, 400); try{ loadMyPrefs(); loadMyProfileCard(); updateEventsHeadline(); } catch(e){} };
+  async function save(){
+    try{
+      await supabaseClient.from('member_profiles').upsert({ user_id: currentUser.id, display_name: (name || 'Guest').slice(0, 40), genres: Array.from(pickG),
+        avatar_url: photo || (MY_PROFILE && MY_PROFILE.avatar_url) || null, is_public: !!document.querySelector('#onbPublic:checked') || !!(MY_PROFILE && MY_PROFILE.is_public),
+        show_going: !!document.querySelector('#onbPublic:checked') || !!(MY_PROFILE && MY_PROFILE.show_going), updated_at: new Date().toISOString() });
+      const add = Array.from(pickC).filter(function(v){ return !MY_FOLLOWS.has(v); });
+      if(add.length) await supabaseClient.from('venue_follows').upsert(add.map(function(v){ return { user_id: currentUser.id, venue: v }; }), { onConflict: 'user_id,venue', ignoreDuplicates: true });
+      add.forEach(function(v){ MY_FOLLOWS.add(v); });
+    } catch(e){}
+  }
+  function render(){
+    const dots = '<div class="onb__dots">' + [0,1,2].map(function(i){ return '<i class="' + (i === step ? 'on' : '') + '"></i>'; }).join('') + '</div>';
+    if(step === 0){
+      el.innerHTML = '<div class="onb__inner">' + dots + '<small>Step 1 of 3</small><h2>What’s your vibe?</h2><p>Pick your music and clubs. We’ll put the right parties first.</p>' +
+        '<div class="onb__label">Music</div><div class="onb__chips">' + genres.map(function(g){ return '<button type="button" class="onb__chip' + (pickG.has(g) ? ' on' : '') + '" data-g="' + esc(g) + '">♫ ' + esc(g) + '</button>'; }).join('') + '</div>' +
+        '<div class="onb__label">Clubs</div><div class="onb__chips">' + clubs.map(function(c){ return '<button type="button" class="onb__chip' + (pickC.has(c) ? ' on' : '') + '" data-c="' + esc(c) + '">♡ ' + esc(c) + '</button>'; }).join('') + '</div>' +
+        '<div class="onb__btns"><button type="button" class="btn btn--solid" data-n>Next</button><button type="button" class="onb__skip" data-skip>Skip</button></div></div>';
+    } else if(step === 1){
+      el.innerHTML = '<div class="onb__inner">' + dots + '<small>Step 2 of 3</small><h2>Show who you are</h2><p>Your name and photo appear when you’re on the list. You choose who sees it.</p>' +
+        '<button type="button" class="onb__avatar" id="onbAvatar"' + ((photo || (MY_PROFILE && MY_PROFILE.avatar_url)) ? ' style="background-image:url(\'' + esc(photo || MY_PROFILE.avatar_url) + '\')">' : '>📷') + '</button><input type="file" id="onbFile" accept="image/*" hidden>' +
+        '<input type="text" class="onb__input" id="onbName" maxlength="40" placeholder="Your name" value="' + esc(name) + '">' +
+        '<label class="pc-toggle"><span>Show me on “who’s going”<small>Your photo and first name on parties you’re on the list for</small></span><input type="checkbox" id="onbPublic"></label>' +
+        '<div class="onb__err" id="onbErr"></div>' +
+        '<div class="onb__btns"><button type="button" class="btn btn--solid" data-n>Next</button><button type="button" class="onb__skip" data-n>Skip</button></div></div>';
+      const f = el.querySelector('#onbFile');
+      el.querySelector('#onbAvatar').addEventListener('click', function(){ f.click(); });
+      f.addEventListener('change', async function(){
+        if(!f.files || !f.files[0]) return;
+        const a = el.querySelector('#onbAvatar'); a.textContent = '…';
+        try{
+          const blob = await new Promise(function(res, rej){ const img = new Image(), url = URL.createObjectURL(f.files[0]); img.onload = function(){ const sz = Math.min(img.naturalWidth, img.naturalHeight), c = document.createElement('canvas'); c.width = c.height = 512; c.getContext('2d').drawImage(img, (img.naturalWidth - sz) / 2, (img.naturalHeight - sz) / 2, sz, sz, 0, 0, 512, 512); URL.revokeObjectURL(url); c.toBlob(function(b){ b ? res(b) : rej(); }, 'image/jpeg', 0.85); }; img.onerror = rej; img.src = url; });
+          const path = currentUser.id + '/avatar-' + Date.now() + '.jpg';
+          const up = await supabaseClient.storage.from('avatars').upload(path, blob, { contentType: 'image/jpeg', upsert: true });
+          if(up.error) throw up.error;
+          photo = supabaseClient.storage.from('avatars').getPublicUrl(path).data.publicUrl;
+          a.textContent = ''; a.style.backgroundImage = 'url(\'' + photo + '\')';
+        } catch(e){ a.textContent = '📷'; el.querySelector('#onbErr').textContent = 'Photo upload failed. Try another one.'; }
+      });
+    } else {
+      el.innerHTML = '<div class="onb__inner">' + dots + '<small>Step 3 of 3</small><div class="onb__bell">🔔</div><h2>Know when you’re in</h2><p>Get a notification the moment you’re on the list, when spots open up and when your clubs drop a party.</p>' +
+        '<div class="onb__btns"><button type="button" class="btn btn--solid" id="onbPush">Turn on notifications</button><button type="button" class="onb__skip" data-done>Maybe later</button></div></div>';
+      el.querySelector('#onbPush').addEventListener('click', async function(){ this.disabled = true; try{ if(typeof subscribeToPush === 'function') await subscribeToPush(); } catch(e){} finish(); });
+    }
+  }
+  el.addEventListener('click', async function(e){
+    const g = e.target.closest('[data-g]'), c = e.target.closest('[data-c]');
+    if(g){ const v = g.dataset.g; pickG.has(v) ? pickG.delete(v) : pickG.add(v); g.classList.toggle('on'); haptic('light'); return; }
+    if(c){ const v = c.dataset.c; pickC.has(v) ? pickC.delete(v) : pickC.add(v); c.classList.toggle('on'); haptic('light'); return; }
+    if(e.target.closest('[data-skip]')){ step = 1; render(); return; }
+    if(e.target.closest('[data-done]')){ await save(); finish(); return; }
+    if(e.target.closest('[data-n]')){
+      if(step === 1){ const n = el.querySelector('#onbName'); name = (n && n.value.trim()) || name; }
+      if(step >= 1) await save();
+      if(step === 1 && pushSupported && typeof isPushOn === 'function' && await isPushOn()){ finish(); return; }
+      if(step === 1 && !pushSupported){ finish(); return; }
+      step++; render();
+    }
+  });
+  render();
+  requestAnimationFrame(function(){ el.classList.add('is-in'); });
+}
+
+
+/* ---- Smooth (5): swipe down to close sheets, soft tab transitions ---- */
+(function(){
+  function swipeToClose(overlayId, close){
+    const ov = document.getElementById(overlayId);
+    const sheet = ov && ov.querySelector('.sheet');
+    if(!sheet) return;
+    let y0 = null, dy = 0, scroller = null;
+    sheet.addEventListener('touchstart', function(e){
+      scroller = e.target.closest('.inbox, textarea, input, .feed, video');
+      if(scroller && scroller.tagName !== 'VIDEO' && scroller.scrollTop > 0){ y0 = null; return; }
+      if(sheet.scrollTop > 0){ y0 = null; return; }
+      y0 = e.touches[0].clientY; dy = 0; sheet.style.transition = 'none';
+    }, { passive: true });
+    sheet.addEventListener('touchmove', function(e){
+      if(y0 === null) return;
+      dy = Math.max(0, e.touches[0].clientY - y0);
+      if(dy > 4) sheet.style.transform = 'translateY(' + dy + 'px)';
+    }, { passive: true });
+    sheet.addEventListener('touchend', function(){
+      if(y0 === null) return; y0 = null;
+      sheet.style.transition = 'transform .25s ease';
+      if(dy > 120){ sheet.style.transform = 'translateY(100%)'; setTimeout(function(){ close(); sheet.style.transform = ''; sheet.style.transition = ''; }, 220); }
+      else { sheet.style.transform = ''; setTimeout(function(){ sheet.style.transition = ''; }, 260); }
+    });
+  }
+  swipeToClose('sheetOverlay', closeEventSheet);
+  swipeToClose('quickOverlay', closeQuickSheet);
 })();
