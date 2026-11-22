@@ -1637,9 +1637,9 @@ function renderFeaturedHero(){
   box.hidden = false;
   box.innerHTML =
     '<video class="featured-hero__video" src="' + ev.clip.mp4 + '"' + (ev.clip.poster ? ' poster="' + ev.clip.poster + '"' : '') +
-      ' autoplay loop playsinline preload="auto"></video>' +
+      ' autoplay muted loop playsinline preload="auto"></video>' +
     '<span class="featured-hero__tag">Featured · ' + formatDate(ev.date) + '</span>' +
-    '<button type="button" class="featured-hero__sound" aria-label="Sound off">🔊</button>' +
+    '<button type="button" class="featured-hero__sound" aria-label="Sound on">🔇</button>' +
     '<div class="featured-hero__cta">' + (open ? 'Get on the guestlist →' : 'View party →') + '</div>';
   const v = box.querySelector('video'), snd = box.querySelector('.featured-hero__sound');
   snd.addEventListener('click', function(e){
@@ -1653,27 +1653,10 @@ function renderFeaturedHero(){
     if(typeof AppSound !== 'undefined') AppSound.play('open');
     if(open) startGuestlistFor(ev, false); else openEventSheet(ev);
   };
-  // Sound on straight away. Phones only allow that when the browser permits
-  // autoplay with sound; otherwise start muted and switch the sound on at the
-  // first touch anywhere in the app (unless the guest muted it themselves).
-  let userMuted = false;
-  snd.addEventListener('click', function(){ userMuted = v.muted; });
-  const setIcon = function(){ snd.textContent = v.muted ? '🔇' : '🔊'; snd.setAttribute('aria-label', v.muted ? 'Sound on' : 'Sound off'); };
-  v.muted = false;
-  v.play().then(setIcon).catch(function(){
-    v.muted = true; setIcon();
-    v.play().catch(function(){});
-    const unmute = function(e){
-      if(e && e.target && e.target.closest && e.target.closest('#featuredHero')) return; // the hero handles its own taps
-      document.removeEventListener('touchend', unmute, true);
-      document.removeEventListener('click', unmute, true);
-      if(userMuted || box.hidden || !document.body.contains(v) || document.body.classList.contains('hero-intro-open')) return;
-      v.muted = false; setIcon();
-      if(v.paused) v.play().catch(function(){});
-    };
-    document.addEventListener('touchend', unmute, true);
-    document.addEventListener('click', unmute, true);
-  });
+  // Small home-screen version always starts without sound; only the
+  // one-time full-screen intro (maybeShowHeroIntro) plays with sound.
+  v.muted = true;
+  v.play().catch(function(){});
   // Only play while it's on screen (saves battery and data).
   if('IntersectionObserver' in window){
     new IntersectionObserver(function(entries){
