@@ -84,8 +84,24 @@ module.exports = async function handler(req, res) {
         enabled: g.enabled, capacity: g.capacity, claimed: g.claimed_count, pending: c.pending, approved: c.approved, guests: c.guests };
     }).sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; }).slice(0, 80);
 
+    // Party ratings (1-5 stars) from guests the day after.
+    let ratings = [];
+    try {
+      const { data: rt } = await sb.from('party_ratings').select('event_name, event_date, rating, comment, created_at').order('created_at', { ascending: false }).limit(1000);
+      const by = {};
+      (rt || []).forEach(function (r) {
+        const k = r.event_name + '|' + r.event_date;
+        const o = by[k] || (by[k] = { name: r.event_name, date: r.event_date, n: 0, sum: 0, comments: [] });
+        o.n++; o.sum += r.rating;
+        if (r.comment && o.comments.length < 5) o.comments.push({ rating: r.rating, text: r.comment });
+      });
+      ratings = Object.keys(by).map(function (k) { const o = by[k]; return { name: o.name, date: o.date, count: o.n, avg: Math.round(o.sum / o.n * 10) / 10, comments: o.comments }; })
+        .sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 20);
+    } catch (e) { ratings = []; }
+
     res.status(200).json({
       ok: true,
+      ratings: ratings,
       email: who.email || null,
       members: members.count || 0,
       accountsTotal: accountsTotal || members.count || 0,

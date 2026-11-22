@@ -700,6 +700,34 @@ body{ -webkit-font-smoothing:antialiased; }
 .sheet__media{ position:relative; }
 .featured-hero{ position:relative; margin:4px 0 18px; height:min(68vh, 600px); border-radius:20px; overflow:hidden; background:#000; cursor:pointer; box-shadow:0 0 0 1px rgba(201,162,74,.45), 0 24px 60px rgba(0,0,0,.6); }
 .featured-hero[hidden]{ display:none; }
+.rate-stars{ display:flex; justify-content:center; gap:8px; margin:18px 0 14px; }
+.rate-star{ width:48px; height:48px; border:0; background:none; font-size:38px; line-height:1; color:rgba(255,255,255,.22); cursor:pointer; transition:transform .15s ease, color .15s ease; }
+.rate-star.is-on{ color:#e9c46a; text-shadow:0 0 18px rgba(233,196,106,.45); }
+.rate-star:active{ transform:scale(1.15); }
+.rate-comment{ width:100%; min-height:74px; padding:12px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.04); color:#fff; font:inherit; font-size:14px; resize:vertical; margin-bottom:8px; }
+.story-bar{ display:flex; gap:14px; overflow-x:auto; padding:6px 2px 14px; margin:0 -2px 4px; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+.story-bar::-webkit-scrollbar{ display:none; }
+.story-bar[hidden]{ display:none; }
+.story-bubble{ flex:0 0 auto; width:72px; background:none; border:0; padding:0; color:inherit; text-align:center; cursor:pointer; }
+.story-bubble__ring{ display:block; width:68px; height:68px; margin:0 auto; border-radius:50%; padding:3px; background:conic-gradient(#f1dc9c, #c9a24a, #8a6a24, #e9d18b, #f1dc9c); }
+.story-bubble.is-seen .story-bubble__ring{ background:rgba(255,255,255,.22); }
+.story-bubble__img{ display:block; width:100%; height:100%; border-radius:50%; border:3px solid #050403; background:#111 center/cover no-repeat; }
+.story-bubble__name{ display:block; margin-top:6px; font-size:11px; line-height:1.2; color:rgba(255,255,255,.85); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.story-bubble__day{ display:block; font-size:10px; color:#cfae5e; letter-spacing:.04em; }
+.story-viewer{ position:fixed; inset:0; z-index:9100; background:#000; display:flex; flex-direction:column; touch-action:none; }
+.story-viewer__media{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:#000; }
+.story-viewer__media video, .story-viewer__media img{ width:100%; height:100%; object-fit:contain; }
+.story-viewer__media img.is-flyer{ object-fit:contain; }
+.story-viewer__bars{ position:absolute; left:10px; right:10px; top:calc(env(safe-area-inset-top, 0px) + 10px); display:flex; gap:4px; z-index:3; }
+.story-viewer__bars i{ flex:1; height:3px; border-radius:2px; background:rgba(255,255,255,.3); overflow:hidden; }
+.story-viewer__bars i b{ display:block; height:100%; width:0; background:#fff; }
+.story-viewer__head{ position:absolute; left:14px; right:14px; top:calc(env(safe-area-inset-top, 0px) + 22px); display:flex; align-items:center; gap:10px; z-index:3; text-shadow:0 1px 6px rgba(0,0,0,.8); }
+.story-viewer__head span{ flex:1; font-size:13px; font-weight:700; }
+.story-viewer__head small{ display:block; font-weight:500; color:#e9d18b; font-size:11px; }
+.story-viewer__btn{ width:40px; height:40px; border-radius:50%; border:1px solid rgba(233,209,139,.5); background:rgba(0,0,0,.5); color:#fff; font-size:17px; display:flex; align-items:center; justify-content:center; }
+.story-viewer__tap{ position:absolute; top:90px; bottom:110px; width:40%; z-index:2; }
+.story-viewer__tap--prev{ left:0; } .story-viewer__tap--next{ right:0; width:60%; }
+.story-viewer__cta{ position:absolute; left:16px; right:16px; bottom:calc(env(safe-area-inset-bottom, 0px) + 22px); z-index:3; padding:16px; border:0; border-radius:14px; font-weight:800; font-size:14px; letter-spacing:.12em; text-transform:uppercase; color:#1a1408; background:linear-gradient(100deg,#c9a24a,#f1dc9c 50%,#c9a24a); box-shadow:0 10px 30px rgba(0,0,0,.6); }
 .hero-intro{ position:fixed; inset:0; z-index:9000; background:#000; opacity:0; transition:opacity .3s ease; }
 .hero-intro.is-open{ opacity:1; }
 .hero-intro__video{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; background:#000; }
@@ -1165,6 +1193,7 @@ body{ background:#020202; }
     <div class="points-strip" id="pointsStrip" hidden><!-- rendered by JS --></div>
     <div class="next-night" id="nextNight" hidden><!-- rendered by JS --></div>
     <div class="push-nudge" id="pushNudge" hidden><!-- rendered by JS --></div>
+    <div class="story-bar" id="storyBar" hidden><!-- rendered by JS --></div>
     <div class="featured-hero" id="featuredHero" hidden role="button" tabindex="0" aria-label="Featured party, open the guestlist"><!-- rendered by JS --></div>
     <div class="venue-filter" id="venueFilter"><!-- rendered by JS --></div>
     <div class="event-list" id="eventList"><!-- rendered by JS --></div>

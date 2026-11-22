@@ -1081,6 +1081,7 @@ function updateEventsHeadline(){
 function renderEventList(){
   const list = document.getElementById('eventList');
   try{ renderFeaturedHero(); } catch(e){}
+  try{ renderStoryBar(); } catch(e){}
   let lastGroup = '';
   updateEventsHeadline();
   list.innerHTML = getSortedEvents().map(function(ev, i){
@@ -1620,6 +1621,120 @@ async function startGuestlistFor(ev, fromSheet){
   preselectEvent(ev);
   prefillGuestlistForm();
   document.getElementById('glSpotNotice').style.display = 'none';
+}
+
+/* ---- Stories: a bubble per upcoming party; full-screen viewer ----
+   Each party's story = ev.stories ([{video|image}]) if set, else its clip,
+   else its flyer. Seen state is per device. */
+const STORY_IMAGE_MS = 5000;
+function storyItems(ev){
+  if(Array.isArray(ev.stories) && ev.stories.length) return ev.stories;
+  const items = [];
+  if(ev.clip && ev.clip.mp4) items.push({ video: ev.clip.mp4, poster: ev.clip.poster });
+  if(ev.image && !(ev.flyerPending && !isPastEvent(ev))) items.push({ image: ev.image });
+  return items;
+}
+function storySeen(id){ try{ return !!localStorage.getItem('ags_story_' + id); } catch(e){ return false; } }
+function storyEvents(){
+  return getSortedEvents().filter(function(ev){ return storyItems(ev).length; }).slice(0, 12)
+    .sort(function(a, b){ return storySeen(a.id) - storySeen(b.id); });
+}
+function renderStoryBar(){
+  const bar = document.getElementById('storyBar');
+  if(!bar) return;
+  const list = storyEvents();
+  if(list.length < 2){ bar.hidden = true; bar.innerHTML = ''; return; }
+  const esc = function(v){ return String(v || '').replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
+  bar.hidden = false;
+  bar.innerHTML = list.map(function(ev){
+    const thumb = (ev.clip && ev.clip.poster) || ev.image || '';
+    const d = new Date(ev.date + 'T00:00:00');
+    const day = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()] + ' ' + d.getDate();
+    return '<button type="button" class="story-bubble' + (storySeen(ev.id) ? ' is-seen' : '') + '" data-story="' + esc(ev.id) + '">' +
+      '<span class="story-bubble__ring"><span class="story-bubble__img" style="background-image:url(\'' + esc(thumb).replace(/'/g, '%27') + '\')"></span></span>' +
+      '<span class="story-bubble__name">' + esc(ev.name) + '</span><span class="story-bubble__day">' + day + '</span></button>';
+  }).join('');
+  bar.querySelectorAll('.story-bubble').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      const order = storyEvents();
+      const idx = order.findIndex(function(e){ return e.id === btn.dataset.story; });
+      openStoryViewer(order, Math.max(0, idx));
+    });
+  });
+}
+function openStoryViewer(events, startIndex){
+  if(document.getElementById('storyViewer')) return;
+  const heroClip = document.querySelector('#featuredHero video');
+  if(heroClip){ try{ heroClip.pause(); } catch(e){} }
+  const el = document.createElement('div');
+  el.id = 'storyViewer';
+  el.className = 'story-viewer';
+  document.body.appendChild(el);
+  document.body.style.overflow = 'hidden';
+  let evIdx = startIndex, itemIdx = 0, timer = null, raf = null, muted = false;
+
+  function close(){
+    clearTimeout(timer); cancelAnimationFrame(raf);
+    const v = el.querySelector('video'); if(v){ try{ v.pause(); } catch(e){} }
+    el.remove();
+    document.body.style.overflow = '';
+    renderStoryBar();
+    if(heroClip && heroClip.getBoundingClientRect().height){ heroClip.play().catch(function(){}); }
+  }
+  function next(){ const items = storyItems(events[evIdx]); if(itemIdx < items.length - 1){ itemIdx++; show(); } else if(evIdx < events.length - 1){ evIdx++; itemIdx = 0; show(); } else close(); }
+  function prev(){ if(itemIdx > 0){ itemIdx--; show(); } else if(evIdx > 0){ evIdx--; itemIdx = 0; show(); } else show(); }
+  function show(){
+    clearTimeout(timer); cancelAnimationFrame(raf);
+    const ev = events[evIdx], items = storyItems(ev), it = items[itemIdx];
+    try{ localStorage.setItem('ags_story_' + ev.id, '1'); } catch(e){}
+    const open = ['open', 'limited'].indexOf(ev.guestlistStatus) >= 0;
+    el.innerHTML =
+      '<div class="story-viewer__media">' + (it.video
+        ? '<video src="' + it.video + '"' + (it.poster ? ' poster="' + it.poster + '"' : '') + ' autoplay playsinline' + (muted ? ' muted' : '') + '></video>'
+        : '<img class="is-flyer" src="' + it.image + '" alt="">') + '</div>' +
+      '<div class="story-viewer__bars">' + items.map(function(_, i){ return '<i><b style="width:' + (i < itemIdx ? 100 : 0) + '%"></b></i>'; }).join('') + '</div>' +
+      '<div class="story-viewer__head" style="top:calc(env(safe-area-inset-top, 0px) + 22px)">' +
+        '<span>' + ev.name + '<small>' + formatDate(ev.date) + ' · ' + eventVenueName(ev) + '</small></span>' +
+        (it.video ? '<button type="button" class="story-viewer__btn" data-act="sound">' + (muted ? '🔇' : '🔊') + '</button>' : '') +
+        '<button type="button" class="story-viewer__btn" data-act="close" aria-label="Close">✕</button></div>' +
+      '<div class="story-viewer__tap story-viewer__tap--prev" data-act="prev"></div><div class="story-viewer__tap story-viewer__tap--next" data-act="next"></div>' +
+      '<button type="button" class="story-viewer__cta" data-act="go">' + (open ? 'Get on the guestlist →' : 'View party →') + '</button>';
+    const bar = el.querySelectorAll('.story-viewer__bars b')[itemIdx];
+    const v = el.querySelector('video');
+    if(v){
+      v.play().catch(function(){ muted = true; v.muted = true; const b = el.querySelector('[data-act="sound"]'); if(b) b.textContent = '🔇'; v.play().catch(function(){}); });
+      const tick = function(){ if(v.duration) bar.style.width = Math.min(100, v.currentTime / v.duration * 100) + '%'; raf = requestAnimationFrame(tick); };
+      tick();
+      v.addEventListener('ended', next);
+    } else {
+      const t0 = Date.now();
+      const tick = function(){ bar.style.width = Math.min(100, (Date.now() - t0) / STORY_IMAGE_MS * 100) + '%'; raf = requestAnimationFrame(tick); };
+      tick();
+      timer = setTimeout(next, STORY_IMAGE_MS);
+    }
+  }
+  el.addEventListener('click', function(e){
+    const act = e.target.closest('[data-act]'); if(!act) return;
+    const a = act.dataset.act;
+    if(a === 'close') close();
+    else if(a === 'next') next();
+    else if(a === 'prev') prev();
+    else if(a === 'sound'){ const v = el.querySelector('video'); muted = !muted; if(v){ v.muted = muted; if(v.paused) v.play().catch(function(){}); } act.textContent = muted ? '🔇' : '🔊'; }
+    else if(a === 'go'){
+      const ev = events[evIdx]; const open = ['open', 'limited'].indexOf(ev.guestlistStatus) >= 0;
+      close();
+      if(open) startGuestlistFor(ev, false); else openEventSheet(ev);
+    }
+  });
+  // Swipe down to close.
+  let y0 = null;
+  el.addEventListener('touchstart', function(e){ y0 = e.touches[0].clientY; }, { passive: true });
+  el.addEventListener('touchend', function(e){ if(y0 !== null && e.changedTouches[0].clientY - y0 > 90) close(); y0 = null; });
+  document.addEventListener('keydown', function onKey(e){
+    if(!document.body.contains(el)){ document.removeEventListener('keydown', onKey); return; }
+    if(e.key === 'Escape') close(); else if(e.key === 'ArrowRight') next(); else if(e.key === 'ArrowLeft') prev();
+  });
+  show();
 }
 
 /* ---- Featured video at the top of the home screen (ev.featuredHero + ev.clip) ---- */
@@ -2344,12 +2459,18 @@ async function claimReferralIfAny(){
 // App Store rating: in the iPhone app, the morning after a night someone was
 // on the list (and showed up), ask Apple's rating sheet. Apple decides whether
 // it really appears (max 3x a year); we ask at most once every 120 days.
-async function maybeAskForReview(){
+async function maybeAskForReview(afterGoodRating){
   try{
     const review = IS_NATIVE && window.Capacitor.Plugins && window.Capacitor.Plugins.InAppReview;
     if(!review || !supabaseClient || !currentUser) return;
     let last = 0; try{ last = Number(localStorage.getItem('ags_review_asked') || 0); } catch(e){}
     if(Date.now() - last < 120 * 864e5) return;
+    if(afterGoodRating){
+      // They just gave the night 4-5 stars: the best moment to ask.
+      try{ localStorage.setItem('ags_review_asked', String(Date.now())); } catch(e){}
+      setTimeout(function(){ try{ review.requestReview(); } catch(e){} }, 600);
+      return;
+    }
     const fmt = function(ms){ return new Date(ms).toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' }); };
     const { data } = await supabaseClient.from('guestlist_requests')
       .select('status, event_date, missing_guests')
@@ -2362,9 +2483,96 @@ async function maybeAskForReview(){
     setTimeout(function(){ try{ review.requestReview(); } catch(e){} }, 4000);
   } catch(e){}
 }
+/* ---- Rate your night: the day after a party you were on the list for ----
+   1-5 stars + optional comment, stored in party_ratings (one per party).
+   A 4-5 star night is the moment to ask for an App Store rating. */
+async function maybeAskForPartyRating(force){
+  try{
+    if(!supabaseClient || !currentUser) return false;
+    const fmt = function(ms){ return new Date(ms).toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' }); };
+    const { data: reqs } = await supabaseClient.from('guestlist_requests')
+      .select('event_name, event_date, status, missing_guests')
+      .gte('event_date', fmt(Date.now() - 7 * 864e5)).lte('event_date', fmt(Date.now() - 864e5 + 6 * 36e5));
+    const nights = (reqs || []).filter(function(r){ return String(r.status || '').trim().toLowerCase() === 'approved'; })
+      .sort(function(a, b){ return a.event_date < b.event_date ? 1 : -1; });
+    if(!nights.length) return false;
+    const { data: done } = await supabaseClient.from('party_ratings').select('event_name, event_date');
+    const doneKeys = new Set((done || []).map(function(r){ return r.event_name + '|' + r.event_date; }));
+    const night = nights.find(function(r){
+      const k = r.event_name + '|' + r.event_date;
+      if(doneKeys.has(k)) return false;
+      let skipped = false; try{ skipped = !!localStorage.getItem('ags_rate_skip_' + k); } catch(e){}
+      if(skipped && !force) return false;
+      // Only once the night is really over (default 05:00 the next morning).
+      const ev = EVENTS.find(function(e){ return e.name === r.event_name && e.date === r.event_date; });
+      const end = ev && ev.endTime ? ev.endTime : '05:00';
+      const endMs = new Date(r.event_date + 'T' + end + ':00').getTime() + (parseInt(end, 10) < 12 ? 864e5 : 0);
+      return Date.now() > endMs + 3 * 36e5;
+    });
+    if(!night) return false;
+    showPartyRatingSheet(night);
+    return true;
+  } catch(e){ return false; }
+}
+function showPartyRatingSheet(night){
+  const body = document.getElementById('quickBody');
+  if(!body) return;
+  const key = night.event_name + '|' + night.event_date;
+  const esc = function(v){ return String(v || '').replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
+  body.innerHTML =
+    '<div class="quick-sheet__eyebrow">Rate your night</div>' +
+    '<div class="quick-sheet__title" id="quickTitle">How was ' + esc(night.event_name) + '?</div>' +
+    '<p class="quick-sheet__note" style="margin-top:6px;">' + formatDate(night.event_date) + '. Your rating helps us pick the best parties.</p>' +
+    '<div class="rate-stars" role="radiogroup" aria-label="Rating">' +
+      [1,2,3,4,5].map(function(n){ return '<button type="button" class="rate-star" data-n="' + n + '" aria-label="' + n + ' star' + (n > 1 ? 's' : '') + '">★</button>'; }).join('') +
+    '</div>' +
+    '<textarea id="rateComment" class="rate-comment" maxlength="500" placeholder="Anything to share? (optional)"></textarea>' +
+    '<div class="err" id="rateErr"></div>' +
+    '<div class="quick-sheet__btns">' +
+      '<button type="button" class="btn btn--solid" id="rateSend" disabled>Send rating</button>' +
+      '<button type="button" class="btn" id="rateLater">Not now</button>' +
+    '</div>';
+  openQuickSheet();
+  let stars = 0;
+  const btns = body.querySelectorAll('.rate-star'), send = document.getElementById('rateSend');
+  btns.forEach(function(b){
+    b.addEventListener('click', function(){
+      stars = Number(b.dataset.n);
+      btns.forEach(function(x){ x.classList.toggle('is-on', Number(x.dataset.n) <= stars); });
+      send.disabled = false;
+      if(typeof AppSound !== 'undefined') try{ AppSound.play('tap'); } catch(e){}
+    });
+  });
+  document.getElementById('rateLater').addEventListener('click', function(){
+    try{ localStorage.setItem('ags_rate_skip_' + key, '1'); } catch(e){}
+    closeQuickSheet();
+  });
+  send.addEventListener('click', async function(){
+    send.disabled = true; send.textContent = 'Sending…';
+    const comment = (document.getElementById('rateComment').value || '').trim().slice(0, 500);
+    const { error } = await supabaseClient.from('party_ratings').insert({
+      event_name: night.event_name, event_date: night.event_date, rating: stars, comment: comment || null
+    });
+    if(error && !/duplicate|unique/i.test(error.message || '')){
+      send.disabled = false; send.textContent = 'Send rating';
+      document.getElementById('rateErr').textContent = 'Could not send right now. Please try again.';
+      return;
+    }
+    body.innerHTML =
+      '<div class="quick-sheet__eyebrow">Thank you</div>' +
+      '<div class="quick-sheet__title" id="quickTitle">' + (stars >= 4 ? 'Glad you had a great night 🖤' : 'Thanks for the honest feedback 🖤') + '</div>' +
+      '<p class="quick-sheet__note" style="margin-top:10px;">' + (stars >= 4 ? 'See you on the list again soon.' : 'We read every rating and use it to choose our parties.') + '</p>' +
+      '<div class="quick-sheet__btns"><button type="button" class="btn btn--solid" id="rateDone">Close</button></div>';
+    document.getElementById('rateDone').addEventListener('click', function(){
+      closeQuickSheet();
+      if(stars >= 4) maybeAskForReview(true);
+    });
+  });
+}
+
 function showAccountPanel(user){
   claimReferralIfAny();
-  maybeAskForReview();
+  maybeAskForPartyRating(/[?&]rate=1/.test(window.location.search)).then(function(shown){ if(!shown) maybeAskForReview(); });
   document.getElementById('authPanel').style.display = 'none';
   document.getElementById('accountPanel').style.display = 'block';
   document.getElementById('authHero').hidden = true;

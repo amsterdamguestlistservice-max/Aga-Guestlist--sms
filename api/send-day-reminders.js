@@ -78,14 +78,46 @@ async function sendEveReminders(supabase, opts) {
   return { date: tomorrow, requests: (rows || []).length, pushed: pushed };
 }
 
-async function pushReminder(supabase, r, text) {
+// Afternoon after a party: "How was <party>? Rate your night" to guests who
+// were approved for it (once per request; skipped if they already rated).
+async function sendRatePushes(supabase, opts) {
+  const now = new Date();
+  const hour = Number(now.toLocaleString('en-GB', { timeZone: 'Europe/Amsterdam', hour: '2-digit', hour12: false }));
+  if ((hour < 12 || hour >= 18) && !(opts && opts.force)) return { skipped: 'not_afternoon' };
+  const yesterday = new Date(now.getTime() - 24 * 3600 * 1000).toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
+  const { data: rows, error } = await supabase
+    .from('guestlist_requests')
+    .select('id, user_id, event_name, event_date')
+    .eq('status', 'Approved')
+    .eq('event_date', yesterday)
+    .is('rate_push_sent_at', null);
+  if (error) return { error: error.message };
+  const { data: rated } = await supabase.from('party_ratings').select('user_id, event_name').eq('event_date', yesterday);
+  const done = new Set((rated || []).map(function (x) { return x.user_id + '|' + x.event_name; }));
+  const seen = new Set();
+  const todo = (rows || []).filter(function (r) {
+    const k = r.user_id + '|' + r.event_name;
+    if (!r.user_id || done.has(k) || seen.has(k)) return false;
+    seen.add(k); return true;
+  });
+  if (opts && opts.dryRun) return { date: yesterday, wouldPush: todo.length };
+  let pushed = 0;
+  for (const r of todo) {
+    if (await pushReminder(supabase, r, { title: 'How was ' + r.event_name + '? ⭐', body: 'Rate your night in 5 seconds. It helps us pick the best parties for you.' }, './index.html?rate=1')) pushed++;
+  }
+  const ids = (rows || []).map(function (r) { return r.id; });
+  if (ids.length) await supabase.from('guestlist_requests').update({ rate_push_sent_at: new Date().toISOString() }).in('id', ids);
+  return { date: yesterday, requests: (rows || []).length, pushed: pushed };
+}
+
+async function pushReminder(supabase, r, text, url) {
   if (!r.user_id || !process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return 0;
   const { data: subs } = await supabase
     .from('push_subscriptions')
     .select('endpoint, p256dh, auth')
     .eq('user_id', r.user_id);
   if (!subs || !subs.length) return 0;
-  const payload = JSON.stringify({ title: text.title, body: text.body, url: './index.html' });
+  const payload = JSON.stringify({ title: text.title, body: text.body, url: url || './index.html' });
   let pushed = 0;
   await Promise.all(subs.map(async function (sub) {
     try {
@@ -135,7 +167,8 @@ module.exports = async function handler(req, res) {
       const weeklyPush = await sendWeeklyPush(supabase, { dryRun: true, force: true });
       const newEventsPush = await sendNewEventsPush(supabase, { dryRun: true });
       const eveReminders = await sendEveReminders(supabase, { dryRun: true, force: true });
-      res.status(200).json({ ok: true, dryRun: true, date: today, tonightPush: tonightPush, weeklyPush: weeklyPush, newEventsPush: newEventsPush, eveReminders: eveReminders, wouldRemind: (rows || []).length,
+      const ratePushes = await sendRatePushes(supabase, { dryRun: true, force: true });
+      res.status(200).json({ ok: true, dryRun: true, date: today, tonightPush: tonightPush, weeklyPush: weeklyPush, newEventsPush: newEventsPush, eveReminders: eveReminders, ratePushes: ratePushes, wouldRemind: (rows || []).length,
         guests: (rows || []).map(function (r) { return { event: r.event_name, first_name: r.first_name, party: r.total_guests }; }) });
       return;
     }
@@ -169,8 +202,11 @@ module.exports = async function handler(req, res) {
     // Evening run: "Tomorrow" reminder for guests approved for tomorrow.
     let eveReminders = null;
     try { eveReminders = await sendEveReminders(supabase); } catch (e) { eveReminders = { error: String(e && e.message || e) }; }
+    // Afternoon run: "Rate your night" for yesterday's guests.
+    let ratePushes = null;
+    try { ratePushes = await sendRatePushes(supabase); } catch (e) { ratePushes = { error: String(e && e.message || e) }; }
 
-    res.status(200).json({ ok: true, date: today, requests: (rows || []).length, pushed, emailed, unreachable, waitlistNotified, tonightPush, weeklyPush, newEventsPush, eveReminders });
+    res.status(200).json({ ok: true, date: today, requests: (rows || []).length, pushed, emailed, unreachable, waitlistNotified, tonightPush, weeklyPush, newEventsPush, eveReminders, ratePushes });
   } catch (err) {
     res.status(500).json({ ok: false, error: String(err && err.message || err) });
   }

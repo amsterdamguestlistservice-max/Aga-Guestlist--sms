@@ -139,6 +139,7 @@
     '<div class="adm-sec">All time</div><div class="adm-grid" id="admTotals"></div>' +
     '<div class="adm-sec">New accounts · last 14 days</div><div class="adm-chart" id="admChart"></div>' +
     '<div class="adm-sec">Most guests</div><div id="admTop"></div>' +
+    '<div class="adm-sec">Party ratings</div><div id="admRatings"></div>' +
     '<div class="adm-sec">Instagram</div><div class="adm-tabs" id="admIgTabs"></div>' +
     '<input type="search" id="admIgSearch" class="adm-ig-search" placeholder="Search name or @handle" autocomplete="off">' +
     '<div id="admIg"></div>' +
@@ -186,6 +187,13 @@
     document.getElementById('admTop').innerHTML = top.length ? top.map(function(t, i){
       return '<div class="adm-top">' + (i + 1) + '. ' + esc(t.name) + '<span>' + t.guests + ' guests</span></div>';
     }).join('') : '<div class="adm-empty">No approved guests yet.</div>';
+    const rt = s.ratings || [];
+    document.getElementById('admRatings').innerHTML = rt.length ? rt.map(function(r){
+      const d = new Date(r.date + 'T12:00:00');
+      return '<div class="adm-top">' + esc(r.name) + ' · ' + d.getDate() + '/' + (d.getMonth() + 1) +
+        '<span>' + '★'.repeat(Math.round(r.avg)) + ' ' + r.avg + ' (' + r.count + ')</span></div>' +
+        (r.comments || []).map(function(c){ return '<div class="adm-note" style="margin:2px 0 8px 12px">' + '★'.repeat(c.rating) + ' “' + esc(c.text) + '”</div>'; }).join('');
+    }).join('') : '<div class="adm-empty">No ratings yet. Guests are asked the day after a party.</div>';
     EVS = s.upcoming || [];
     renderEvents();
     renderFilter();
