@@ -1533,6 +1533,8 @@ async function shareEvent(ev){
 
 function openEventSheet(ev){
   if(typeof AppSound !== 'undefined') AppSound.play('open');
+  const heroClip = document.querySelector('#featuredHero video');
+  if(heroClip){ try{ heroClip.pause(); } catch(e){} } // never two videos with sound at once
   const sheetMedia = document.getElementById('sheetMedia');
   sheetMedia.classList.remove('has-clip', 'is-loaded');
   if(ev.clip && ev.clip.mp4){
@@ -1635,9 +1637,9 @@ function renderFeaturedHero(){
   box.hidden = false;
   box.innerHTML =
     '<video class="featured-hero__video" src="' + ev.clip.mp4 + '"' + (ev.clip.poster ? ' poster="' + ev.clip.poster + '"' : '') +
-      ' autoplay muted loop playsinline preload="auto"></video>' +
+      ' autoplay loop playsinline preload="auto"></video>' +
     '<span class="featured-hero__tag">Featured · ' + formatDate(ev.date) + '</span>' +
-    '<button type="button" class="featured-hero__sound" aria-label="Sound on">🔇</button>' +
+    '<button type="button" class="featured-hero__sound" aria-label="Sound off">🔊</button>' +
     '<div class="featured-hero__cta">' + (open ? 'Get on the guestlist →' : 'View party →') + '</div>';
   const v = box.querySelector('video'), snd = box.querySelector('.featured-hero__sound');
   snd.addEventListener('click', function(e){
@@ -1651,7 +1653,27 @@ function renderFeaturedHero(){
     if(typeof AppSound !== 'undefined') AppSound.play('open');
     if(open) startGuestlistFor(ev, false); else openEventSheet(ev);
   };
-  v.play().catch(function(){});
+  // Sound on straight away. Phones only allow that when the browser permits
+  // autoplay with sound; otherwise start muted and switch the sound on at the
+  // first touch anywhere in the app (unless the guest muted it themselves).
+  let userMuted = false;
+  snd.addEventListener('click', function(){ userMuted = v.muted; });
+  const setIcon = function(){ snd.textContent = v.muted ? '🔇' : '🔊'; snd.setAttribute('aria-label', v.muted ? 'Sound on' : 'Sound off'); };
+  v.muted = false;
+  v.play().then(setIcon).catch(function(){
+    v.muted = true; setIcon();
+    v.play().catch(function(){});
+    const unmute = function(e){
+      if(e && e.target && e.target.closest && e.target.closest('#featuredHero')) return; // the hero handles its own taps
+      document.removeEventListener('touchend', unmute, true);
+      document.removeEventListener('click', unmute, true);
+      if(userMuted || box.hidden || !document.body.contains(v)) return;
+      v.muted = false; setIcon();
+      if(v.paused) v.play().catch(function(){});
+    };
+    document.addEventListener('touchend', unmute, true);
+    document.addEventListener('click', unmute, true);
+  });
   // Only play while it's on screen (saves battery and data).
   if('IntersectionObserver' in window){
     new IntersectionObserver(function(entries){
@@ -1665,6 +1687,8 @@ function closeEventSheet(){
   if(clip){ try{ clip.pause(); clip.muted = true; } catch(e){} }
   document.getElementById('sheetOverlay').classList.remove('is-open');
   document.body.style.overflow = '';
+  const hero = document.getElementById('featuredHero'), heroClip = hero && hero.querySelector('video');
+  if(heroClip && !hero.hidden && hero.offsetHeight){ heroClip.play().catch(function(){}); }
 }
 document.getElementById('sheetClose').addEventListener('click', closeEventSheet);
 document.getElementById('sheetOverlay').addEventListener('click', function(e){
