@@ -2035,7 +2035,9 @@ function renderStoryBar(){
   const bar = document.getElementById('storyBar');
   if(!bar) return;
   const list = storyEvents();
-  if(list.length < 2){ bar.hidden = true; bar.innerHTML = ''; return; }
+  const head = document.getElementById('storyHead');
+  if(list.length < 2){ bar.hidden = true; bar.innerHTML = ''; if(head) head.hidden = true; return; }
+  if(head) head.hidden = false;
   const esc = function(v){ return String(v || '').replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
   bar.hidden = false;
   bar.innerHTML = list.map(function(ev){

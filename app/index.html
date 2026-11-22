@@ -800,6 +800,10 @@ body.feed-mode{ overflow:hidden; }
 .rate-comment{ width:100%; min-height:74px; padding:12px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.04); color:#fff; font:inherit; font-size:14px; resize:vertical; margin-bottom:8px; }
 .story-bar{ display:flex; gap:14px; overflow-x:auto; padding:6px 2px 14px; margin:0 -2px 4px; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
 .story-bar::-webkit-scrollbar{ display:none; }
+.story-head{ display:flex; align-items:baseline; justify-content:space-between; margin:6px 2px 8px; }
+.story-head[hidden]{ display:none; }
+.story-head span{ font-size:12px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:#cfae5e; }
+.story-head em{ font-style:normal; font-size:11px; color:rgba(255,255,255,.5); }
 .story-bar[hidden]{ display:none; }
 .story-bubble{ flex:0 0 auto; width:72px; background:none; border:0; padding:0; color:inherit; text-align:center; cursor:pointer; }
 .story-bubble__ring{ display:block; width:68px; height:68px; margin:0 auto; border-radius:50%; padding:3px; background:conic-gradient(#f1dc9c, #c9a24a, #8a6a24, #e9d18b, #f1dc9c); }
@@ -1286,6 +1290,7 @@ body{ background:#020202; }
     <div class="points-strip" id="pointsStrip" hidden><!-- rendered by JS --></div>
     <div class="next-night" id="nextNight" hidden><!-- rendered by JS --></div>
     <div class="push-nudge" id="pushNudge" hidden><!-- rendered by JS --></div>
+    <div class="story-head" id="storyHead" hidden><span>Stories</span><em>Tap to watch</em></div>
     <div class="story-bar" id="storyBar" hidden><!-- rendered by JS --></div>
     <div class="featured-hero" id="featuredHero" hidden role="button" tabindex="0" aria-label="Featured party, open the guestlist"><!-- rendered by JS --></div>
     <div class="venue-filter" id="venueFilter"><!-- rendered by JS --></div>
