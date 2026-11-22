@@ -1152,8 +1152,45 @@ function nightGroupLabel(dateStr){
   if(diff <= 6) return 'This ' + ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()];
   return 'Coming up';
 }
+// Personal greeting on the home screen: "Good evening, Keurten" + what's next for you.
+function myFirstName(){
+  const pick = function(v){ v = String(v || '').trim(); return v ? v.split(/\s+/)[0] : ''; };
+  if(typeof currentUser === 'undefined' || !currentUser) return '';
+  const meta = currentUser.user_metadata || {};
+  return pick(MY_PROFILE && MY_PROFILE.display_name) || pick(meta.first_name) ||
+    pick(((typeof nextNightRows !== 'undefined' && nextNightRows[0]) || {}).first_name) || pick(window.__agsLastFirstName);
+}
+function greetingWord(){
+  const h = Number(new Date().toLocaleString('en-GB', { timeZone: 'Europe/Amsterdam', hour: '2-digit', hour12: false }));
+  if(h >= 5 && h < 12) return 'Good morning';
+  if(h >= 12 && h < 18) return 'Good afternoon';
+  if(h >= 18 && h < 23) return 'Good evening';
+  return 'Late night';
+}
+function personalSubline(){
+  const rows = (typeof nextNightRows !== 'undefined' && nextNightRows) || [];
+  const r = rows[0];
+  if(r){
+    const st = String(r.status || '').trim().toLowerCase();
+    const label = nightGroupLabel(r.event_date);
+    const when = label === 'Tonight' ? 'tonight' : label === 'Tomorrow' ? 'tomorrow' : label === 'Coming up' ? 'on ' + formatDate(r.event_date) : label.replace('This ', 'this ');
+    if(st === 'approved') return 'You\u2019re on the list for <strong>' + escHtml(r.event_name) + '</strong> ' + when + ' 🔑';
+    return 'Your request for <strong>' + escHtml(r.event_name) + '</strong> is in review ⏳';
+  }
+  const week = getSortedEvents().filter(function(ev){ return nightGroupLabel(ev.date) !== 'Coming up'; }).length;
+  return week ? week + ' parties this week. Where are we going?' : 'New parties are coming. Stay tuned 🔑';
+}
 function updateEventsHeadline(){
   const h = document.getElementById('eventsHeadline');
+  const sub = document.getElementById('eventsSub');
+  let name = '';
+  try{ name = myFirstName(); } catch(e){ name = ''; } // early on start-up, before login state exists
+  if(h && name){
+    h.textContent = greetingWord() + ', ' + name;
+    try{ if(sub) sub.innerHTML = personalSubline(); } catch(e){}
+    return;
+  }
+  if(sub) sub.textContent = 'Amsterdam nightlife, curated.';
   const first = getSortedEvents()[0];
   if(!h || !first) return;
   const label = nightGroupLabel(first.date);
@@ -1780,6 +1817,7 @@ async function loadMyProfileCard(){
     p = { display_name: name, instagram: ig, bio: '', avatar_url: '', is_public: false, show_going: false, _new: true };
   }
   MY_PROFILE = p;
+  try{ updateEventsHeadline(); } catch(e){}
   const esc = function(v){ return String(v || '').replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
   card.innerHTML =
     '<div class="profile-card__top">' +
@@ -4299,6 +4337,7 @@ async function loadNextNight(){
     });
   } catch(err){ nextNightRows = []; }
   renderNextNight();
+  try{ updateEventsHeadline(); } catch(e){}
   if(typeof openTonight === 'function') openTonight(false);
 }
 
