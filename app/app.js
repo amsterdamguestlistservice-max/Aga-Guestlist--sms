@@ -773,6 +773,7 @@ const EVENTS = [
     venue: "Soul Kitchen · Amsterdam",
     image: "events/amajoyo-2026-11-27.jpg",
     clip: { mp4: "events/amajoyo-2026-11-27.mp4", poster: "events/amajoyo-2026-11-27-poster.jpg" },
+    featuredHero: true, // big video at the top of the home screen; tap = straight to the guestlist
     description: "Amajoyo at Soul Kitchen with De La Noise, Terrie T (Afroholic), Pascal Morais, Dems . Rezaie and Noah Staal. 23:00 till 04:00. Normally 23+, but on the AGS guestlist you're in from 20+. Discounted BFF tickets via AGS (23+).",
     guestlistStatus: "limited",
     minAge: 20,
@@ -1079,6 +1080,7 @@ function updateEventsHeadline(){
 }
 function renderEventList(){
   const list = document.getElementById('eventList');
+  try{ renderFeaturedHero(); } catch(e){}
   let lastGroup = '';
   updateEventsHeadline();
   list.innerHTML = getSortedEvents().map(function(ev, i){
@@ -1598,21 +1600,66 @@ function openEventSheet(ev){
   if(glBtn){
     glBtn.addEventListener('click', async function(){
       glBtn.disabled = true;
-      const handled = await tryQuickRequest(ev);
+      await startGuestlistFor(ev, true);
       glBtn.disabled = false;
-      closeEventSheet();
-      if(handled){ openQuickSheet(); return; }
-      resetGuestlistFormForNext();
-      switchTab('guestlist');
-      preselectEvent(ev);
-      prefillGuestlistForm();
-      document.getElementById('glSpotNotice').style.display = 'none';
     });
   }
 
   document.getElementById('sheetOverlay').classList.add('is-open');
   document.body.style.overflow = 'hidden';
 }
+// Straight to the guestlist for one party (event sheet button, featured video).
+async function startGuestlistFor(ev, fromSheet){
+  const handled = await tryQuickRequest(ev);
+  if(fromSheet) closeEventSheet();
+  if(handled){ openQuickSheet(); return; }
+  resetGuestlistFormForNext();
+  switchTab('guestlist');
+  preselectEvent(ev);
+  prefillGuestlistForm();
+  document.getElementById('glSpotNotice').style.display = 'none';
+}
+
+/* ---- Featured video at the top of the home screen (ev.featuredHero + ev.clip) ---- */
+function featuredHeroEvent(){
+  return getSortedEvents().find(function(ev){ return ev.featuredHero && ev.clip && ev.clip.mp4; }) || null;
+}
+function renderFeaturedHero(){
+  const box = document.getElementById('featuredHero');
+  if(!box) return;
+  const ev = featuredHeroEvent();
+  if(!ev){ box.hidden = true; box.innerHTML = ''; box.dataset.eventId = ''; return; }
+  if(box.dataset.eventId === ev.id && box.innerHTML) { box.hidden = false; return; }
+  const open = ['open', 'limited'].indexOf(ev.guestlistStatus) >= 0;
+  box.dataset.eventId = ev.id;
+  box.hidden = false;
+  box.innerHTML =
+    '<video class="featured-hero__video" src="' + ev.clip.mp4 + '"' + (ev.clip.poster ? ' poster="' + ev.clip.poster + '"' : '') +
+      ' autoplay muted loop playsinline preload="auto"></video>' +
+    '<span class="featured-hero__tag">Featured · ' + formatDate(ev.date) + '</span>' +
+    '<button type="button" class="featured-hero__sound" aria-label="Sound on">🔇</button>' +
+    '<div class="featured-hero__cta">' + (open ? 'Get on the guestlist →' : 'View party →') + '</div>';
+  const v = box.querySelector('video'), snd = box.querySelector('.featured-hero__sound');
+  snd.addEventListener('click', function(e){
+    e.stopPropagation();
+    v.muted = !v.muted; snd.textContent = v.muted ? '🔇' : '🔊';
+    snd.setAttribute('aria-label', v.muted ? 'Sound on' : 'Sound off');
+    if(v.paused) v.play().catch(function(){});
+  });
+  box.onclick = function(){
+    v.muted = true; snd.textContent = '🔇';
+    if(typeof AppSound !== 'undefined') AppSound.play('open');
+    if(open) startGuestlistFor(ev, false); else openEventSheet(ev);
+  };
+  v.play().catch(function(){});
+  // Only play while it's on screen (saves battery and data).
+  if('IntersectionObserver' in window){
+    new IntersectionObserver(function(entries){
+      entries.forEach(function(en){ if(en.isIntersecting) v.play().catch(function(){}); else v.pause(); });
+    }, { threshold: 0.2 }).observe(v);
+  }
+}
+
 function closeEventSheet(){
   const clip = document.querySelector('#sheetMedia video');
   if(clip){ try{ clip.pause(); clip.muted = true; } catch(e){} }
