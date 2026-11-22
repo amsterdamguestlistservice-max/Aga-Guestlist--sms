@@ -715,6 +715,28 @@ body{ -webkit-font-smoothing:antialiased; }
 .sheet__media{ position:relative; }
 .featured-hero{ position:relative; margin:4px 0 18px; height:min(68vh, 600px); border-radius:20px; overflow:hidden; background:#000; cursor:pointer; box-shadow:0 0 0 1px rgba(201,162,74,.45), 0 24px 60px rgba(0,0,0,.6); }
 .featured-hero[hidden]{ display:none; }
+.req-steps{ list-style:none; display:flex; gap:0; margin:12px 0 6px; padding:0; }
+.req-steps li{ flex:1; position:relative; padding-top:16px; font-size:11px; color:rgba(255,255,255,.45); }
+.req-steps li i{ position:absolute; top:0; left:0; width:10px; height:10px; border-radius:50%; background:rgba(255,255,255,.18); }
+.req-steps li::before{ content:""; position:absolute; top:4px; left:12px; right:4px; height:2px; background:rgba(255,255,255,.12); }
+.req-steps li:last-child::before{ display:none; }
+.req-steps li b{ display:block; font-weight:700; color:rgba(255,255,255,.55); }
+.req-steps li span{ display:block; font-size:10.5px; margin-top:1px; }
+.req-steps li.done i{ background:#c9a24a; } .req-steps li.done::before{ background:rgba(201,162,74,.6); } .req-steps li.done b{ color:#e9d18b; }
+.req-steps li.now i{ background:#e9d18b; box-shadow:0 0 0 4px rgba(233,209,139,.2); animation:reqpulse 1.6s ease-in-out infinite; } .req-steps li.now b{ color:#fff; }
+.req-steps li.bad i{ background:#e0453a; } .req-steps li.bad b{ color:#ff8a80; }
+@keyframes reqpulse{ 50%{ box-shadow:0 0 0 8px rgba(233,209,139,0); } }
+.request-card__actions{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+.request-card__actions .request-card__edit{ margin-top:0; }
+.request-card__edit.is-invite{ border-color:rgba(201,162,74,.6); color:#e9d18b; }
+.gj-form{ display:grid; gap:8px; margin:14px 0 8px; }
+.gj-form input, .gj-form select{ width:100%; padding:12px 14px; border-radius:10px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.04); color:#fff; font:inherit; font-size:14px; }
+.tonight__group{ display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; justify-content:center; }
+.tonight__group span{ font-size:12px; padding:4px 10px; border-radius:999px; border:1px solid rgba(201,162,74,.4); color:#efe6d2; }
+.tonight__info{ margin:14px 0 4px; display:grid; gap:8px; text-align:left; }
+.tonight__info div{ display:flex; gap:12px; font-size:13px; }
+.tonight__info dt{ flex:0 0 82px; color:#cfae5e; font-weight:700; letter-spacing:.06em; text-transform:uppercase; font-size:11px; padding-top:2px; }
+.tonight__info dd{ margin:0; color:rgba(255,255,255,.85); }
 /* ---- Feed (TikTok-style) ---- */
 body.feed-mode .app-header{ display:none; }
 body.feed-mode{ overflow:hidden; }

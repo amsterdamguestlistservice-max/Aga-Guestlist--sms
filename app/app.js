@@ -3036,7 +3036,10 @@ function showPartyRatingSheet(night){
 
 function showAccountPanel(user){
   claimReferralIfAny();
-  maybeAskForPartyRating(/[?&]rate=1/.test(window.location.search)).then(function(shown){ if(!shown) maybeAskForReview(); });
+  maybeShowGroupJoin().then(function(joined){
+    if(joined) return;
+    maybeAskForPartyRating(/[?&]rate=1/.test(window.location.search)).then(function(shown){ if(!shown) maybeAskForReview(); });
+  }).catch(function(){});
   document.getElementById('authPanel').style.display = 'none';
   document.getElementById('accountPanel').style.display = 'block';
   document.getElementById('authHero').hidden = true;
@@ -3640,11 +3643,11 @@ document.getElementById('signOutBtn').addEventListener('click', async function()
 })();
 
 let myRequestsCache = {};
-async function loadMyRequests(){
+async function loadMyRequests(silent){
   const list = document.getElementById('myRequestsList');
   if(!supabaseClient || !currentUser){ list.innerHTML = ''; return; }
 
-  list.innerHTML = '<p class="my-requests__empty">Loading…</p>';
+  if(!silent) list.innerHTML = '<p class="my-requests__empty">Loading…</p>';
   try {
     const { data, error } = await supabaseClient
       .from('guestlist_requests')
@@ -3696,14 +3699,22 @@ async function loadMyRequests(){
       } else {
         note = "We'll confirm your spot soon.";
       }
-      const canEdit = statusLower === 'pending' && !(new Date(r.event_date + 'T23:59:59') < new Date());
+      const openUntil = new Date(r.event_date + 'T23:00:00').getTime();
+      const stillOpen = Date.now() < openUntil;
+      const canEdit = (statusLower === 'pending' || statusLower === 'approved') && stillOpen;
+      if(statusLower === 'approved' && stillOpen) note = "You're on the list — see you there! Friend can't make it? Swap names until the party starts.";
+      const canInvite = canEdit;
       return (
         '<div class="request-card">' +
           '<div class="request-card__event">' + r.event_name + '</div>' +
-          '<div class="request-card__meta">' + r.event_venue + ' · ' + formatDate(r.event_date) + '</div>' +
+          '<div class="request-card__meta">' + r.event_venue + ' · ' + formatDate(r.event_date) + ' · ' + (r.total_guests > 1 ? r.total_guests + ' people' : 'just you') + '</div>' +
           '<span class="request-card__status' + statusClass + '">' + statusRaw + '</span>' +
+          requestTimeline(r) +
           '<div class="request-card__note">' + note + '</div>' +
-          (canEdit ? '<button type="button" class="request-card__edit" data-edit-id="' + r.id + '">Edit request</button>' : '') +
+          ((canEdit || canInvite) ? '<div class="request-card__actions">' +
+            (canEdit ? '<button type="button" class="request-card__edit" data-edit-id="' + r.id + '">' + (statusLower === 'approved' ? 'Change names' : 'Edit request') + '</button>' : '') +
+            (canInvite ? '<button type="button" class="request-card__edit is-invite" data-invite-id="' + r.id + '">🔗 Invite friends</button>' : '') +
+          '</div>' : '') +
         '</div>'
       );
     }).join('');
@@ -3712,12 +3723,122 @@ async function loadMyRequests(){
     list.querySelectorAll('[data-edit-id]').forEach(function(btn){
       btn.addEventListener('click', function(){ openEditRequest(btn.getAttribute('data-edit-id')); });
     });
+    list.querySelectorAll('[data-invite-id]').forEach(function(btn){
+      btn.addEventListener('click', function(){ shareGroupInvite(myRequestsCache[btn.getAttribute('data-invite-id')], btn); });
+    });
+    // Keep the live status fresh while there's something still in review.
+    clearTimeout(window.__agsReqPoll);
+    if(data.some(function(r){ return String(r.status || 'pending').trim().toLowerCase() === 'pending'; })){
+      window.__agsReqPoll = setTimeout(function(){
+        const acc = document.getElementById('tab-account');
+        if(acc && acc.classList.contains('is-active') && document.visibilityState === 'visible') loadMyRequests(true);
+      }, 30000);
+    }
   } catch(err){
     console.warn('Could not load requests.', err);
     list.innerHTML = '<p class="my-requests__empty">Could not load your requests.</p>';
   }
 }
 
+
+/* ---- Live status of a request (2): Received → In review → On the list ---- */
+function requestTimeline(r){
+  const st = String(r.status || 'pending').trim().toLowerCase();
+  const t = function(iso){ if(!iso) return ''; const d = new Date(iso); return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Amsterdam' }) + (new Date().toDateString() === d.toDateString() ? '' : ' · ' + d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })); };
+  let steps;
+  if(st === 'declined') steps = [['Received', t(r.created_at), 'done'], ['Reviewed', t(r.status_changed_at), 'done'], ['Not this time', '', 'bad']];
+  else if(st === 'cancelled') steps = [['Received', t(r.created_at), 'done'], ['Cancelled', t(r.status_changed_at), 'bad']];
+  else if(st === 'pending') steps = [['Received', t(r.created_at), 'done'], ['In review', 'usually within a few hours', 'now'], ['On the list', '', '']];
+  else steps = [['Received', t(r.created_at), 'done'], ['Reviewed', '', 'done'], [st === 'no-show' ? 'No-show' : 'On the list ✅', t(r.approved_at || r.status_changed_at), st === 'no-show' ? 'bad' : 'done']];
+  return '<ol class="req-steps">' + steps.map(function(s){
+    return '<li class="' + s[2] + '"><i></i><b>' + s[0] + '</b>' + (s[1] ? '<span>' + s[1] + '</span>' : '') + '</li>';
+  }).join('') + '</ol>';
+}
+
+/* ---- Group invite link (4): friends add their own details to your request ---- */
+async function shareGroupInvite(r, btn){
+  if(!r || !supabaseClient) return;
+  const label = btn ? btn.textContent : '';
+  if(btn){ btn.disabled = true; btn.textContent = 'Creating link…'; }
+  try{
+    const { data: token, error } = await supabaseClient.rpc('create_group_invite', { p_request_id: r.id });
+    if(error || !token) throw error || new Error('no token');
+    const link = SITE_URL + '/app/?join=' + token + (MY_REF_CODE ? '&ref=' + MY_REF_CODE : '');
+    const text = 'Join my group for ' + r.event_name + ' on ' + formatDate(r.event_date) + ' 🔑 Add your name in 10 seconds and you\u2019re on the guestlist with us:';
+    if(navigator.share){
+      try{ await navigator.share({ title: r.event_name + ' · guestlist', text: text, url: link }); } catch(e){}
+    } else {
+      try{ await navigator.clipboard.writeText(text + ' ' + link); if(btn) btn.textContent = 'Link copied ✓'; setTimeout(function(){ if(btn) btn.textContent = label; }, 2200); if(btn) btn.disabled = false; return; }
+      catch(e){ window.open('https://wa.me/?text=' + encodeURIComponent(text + ' ' + link), '_blank', 'noopener'); }
+    }
+  } catch(e){
+    if(btn){ btn.textContent = 'Could not create link'; setTimeout(function(){ btn.textContent = label; }, 2200); }
+  }
+  if(btn){ btn.disabled = false; if(btn.textContent === 'Creating link…') btn.textContent = label; }
+}
+// Opening /app/?join=<token>: remember it, and after login show the join sheet.
+(function(){
+  try{
+    const tok = new URLSearchParams(window.location.search).get('join');
+    if(tok && /^[a-f0-9]{8,40}$/.test(tok)) localStorage.setItem('ags_join_token', tok);
+  } catch(e){}
+})();
+async function maybeShowGroupJoin(){
+  let tok = null; try{ tok = localStorage.getItem('ags_join_token'); } catch(e){}
+  if(!tok || !supabaseClient || !currentUser) return false;
+  const { data: info } = await supabaseClient.rpc('group_invite_info', { p_token: tok });
+  const body = document.getElementById('quickBody');
+  if(!body) return false;
+  const esc = function(v){ return String(v || '').replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
+  const done = function(){ try{ localStorage.removeItem('ags_join_token'); } catch(e){} };
+  if(!info || info.is_host){ done(); return false; }
+  if(!info.open){
+    body.innerHTML = '<div class="quick-sheet__eyebrow">Group invite</div><div class="quick-sheet__title" id="quickTitle">This group is closed</div>' +
+      '<p class="quick-sheet__note" style="margin-top:8px;">The guestlist for ' + esc(info.event_name) + ' is closed for changes. Check the app for other parties.</p>' +
+      '<div class="quick-sheet__btns"><button type="button" class="btn btn--solid" id="gjClose">OK</button></div>';
+    openQuickSheet(); document.getElementById('gjClose').addEventListener('click', closeQuickSheet); done(); return true;
+  }
+  const meta = currentUser.user_metadata || {};
+  const ev = EVENTS.find(function(e){ return e.name === info.event_name && e.date === info.event_date; });
+  const minA = eventMinAge(ev);
+  body.innerHTML =
+    '<div class="quick-sheet__eyebrow">Group invite</div>' +
+    '<div class="quick-sheet__title" id="quickTitle">Join ' + esc(info.host || 'your friend') + '\u2019s group</div>' +
+    '<p class="quick-sheet__note" style="margin-top:6px;">' + esc(info.event_name) + ' · ' + formatDate(info.event_date) + ' · ' + esc(String(info.event_venue || '').split(' · ')[0]) + '. Add your details and you\u2019re on the list with them.</p>' +
+    '<div class="gj-form">' +
+      '<input type="text" id="gjFirst" placeholder="First name" value="' + esc(meta.first_name || (MY_PROFILE && MY_PROFILE.display_name ? String(MY_PROFILE.display_name).split(' ')[0] : '')) + '">' +
+      '<input type="text" id="gjLast" placeholder="Last name" value="' + esc(meta.last_name || '') + '">' +
+      '<input type="number" id="gjAge" placeholder="Age (' + minA + '+)" inputmode="numeric">' +
+      '<input type="text" id="gjIg" placeholder="@instagram (optional)" value="' + esc(MY_PROFILE && MY_PROFILE.instagram ? MY_PROFILE.instagram : '') + '">' +
+      '<select id="gjGender"><option value="">Man / woman (optional)</option><option value="man">Man</option><option value="woman">Woman</option></select>' +
+    '</div><div class="err" id="gjErr"></div>' +
+    '<div class="quick-sheet__btns"><button type="button" class="btn btn--solid" id="gjGo">Join the group</button><button type="button" class="btn" id="gjNo">Not now</button></div>';
+  openQuickSheet();
+  document.getElementById('gjNo').addEventListener('click', function(){ done(); closeQuickSheet(); });
+  document.getElementById('gjGo').addEventListener('click', async function(){
+    const go = this, err = document.getElementById('gjErr');
+    const first = document.getElementById('gjFirst').value.trim(), last = document.getElementById('gjLast').value.trim(), age = document.getElementById('gjAge').value.trim();
+    if(!first || !last){ err.textContent = 'Please fill in your first and last name.'; return; }
+    if(!age || parseInt(age, 10) < minA){ err.textContent = 'You must be ' + minA + ' or older for this party.'; return; }
+    go.disabled = true; go.textContent = 'Joining…'; err.textContent = '';
+    const { data, error } = await supabaseClient.rpc('join_group_invite', { p_token: tok, p_first: first, p_last: last, p_age: age,
+      p_instagram: document.getElementById('gjIg').value.trim().replace(/^@+/, ''), p_gender: document.getElementById('gjGender').value });
+    if(error || !data || !data.ok){
+      go.disabled = false; go.textContent = 'Join the group';
+      err.textContent = (error && noShowBlockMessage(error)) || (error && /AGS_BLOCKED\|([^\n]+)/.test(error.message || '') ? error.message.split('AGS_BLOCKED|')[1] : '') ||
+        (data && data.reason === 'full' ? 'This group is full.' : data && data.reason === 'closed' ? 'This group is closed for changes.' : 'Could not join right now. Please try again.');
+      return;
+    }
+    done();
+    body.innerHTML = '<div class="quick-sheet__eyebrow">You\u2019re in</div><div class="quick-sheet__title" id="quickTitle">You joined ' + esc(info.host || 'the') + '\u2019s group ✅</div>' +
+      '<p class="quick-sheet__note" style="margin-top:8px;">You\u2019re on the request for ' + esc(info.event_name) + ' · ' + formatDate(info.event_date) + '. ' +
+      (String(info.status).toLowerCase() === 'approved' ? 'The group is already on the list. Bring your ID!' : 'You\u2019ll be on the list as soon as the group is approved.') + '</p>' +
+      '<div class="quick-sheet__btns"><button type="button" class="btn btn--solid" id="gjDone">Nice</button></div>';
+    if(typeof AppSound !== 'undefined') try{ AppSound.play('success'); } catch(e){}
+    document.getElementById('gjDone').addEventListener('click', closeQuickSheet);
+  });
+  return true;
+}
 
 /* ================================================================
    EDIT A PENDING REQUEST — only while its status is still Pending.
@@ -3767,13 +3888,20 @@ function openEditRequest(id){
   document.getElementById('erGenderWrap').style.display = (flags.gender || r.gender) ? '' : 'none';
   document.getElementById('erGender').value = r.gender || '';
   editGuests = (Array.isArray(r.additional_guests) ? r.additional_guests : []).map(function(g){
-    return { firstName: g.firstName || '', lastName: g.lastName || '', age: g.age || '', email: g.email || '', gender: g.gender || '' };
+    return { firstName: g.firstName || '', lastName: g.lastName || '', age: g.age || '', email: g.email || '', gender: g.gender || '', _orig: g };
   });
+  // Approved: only the friends can change (swap names); your own details are locked.
+  const approvedMode = String(r.status || '').trim().toLowerCase() === 'approved';
+  editingRequest._approvedMode = approvedMode;
+  ['erFirst','erLast','erAge','erInstagram','erPhone','erEmail','erGender'].forEach(function(id){ const el = document.getElementById(id); if(el) el.disabled = approvedMode; });
+  const t = document.getElementById('editReqEvent');
+  if(t && approvedMode) t.textContent = r.event_name + ' · swap or add friends';
   renderEditGuests();
   document.getElementById('erError').style.display = 'none';
   document.getElementById('editReqOverlay').classList.add('is-open');
 }
 function closeEditRequest(){
+  ['erFirst','erLast','erAge','erInstagram','erPhone','erEmail','erGender'].forEach(function(id){ const el = document.getElementById(id); if(el) el.disabled = false; });
   document.getElementById('editReqOverlay').classList.remove('is-open');
   editingRequest = null;
 }
@@ -3862,9 +3990,23 @@ async function saveEditRequest(){
       if(!g.gender){ editError('Guest ' + (i + 1) + ': please select man or woman.'); return; }
       out.gender = g.gender;
     }
+    // Keep what we don't edit here (Instagram, joined-by-link marker) when the name stays the same.
+    const o = g._orig;
+    if(o && String(o.firstName || '').trim().toLowerCase() === gf.toLowerCase() && String(o.lastName || '').trim().toLowerCase() === gl.toLowerCase()){
+      ['instagram', 'uid', 'joined'].forEach(function(k){ if(o[k] !== undefined && out[k] === undefined) out[k] = o[k]; });
+    }
     guests.push(out);
   }
   const btn = document.getElementById('erSave'); btn.disabled = true;
+  if(editingRequest._approvedMode){
+    const { data, error } = await supabaseClient.rpc('update_my_guests', { p_request_id: editingRequest.id, p_guests: guests });
+    btn.disabled = false;
+    if(error){ editError(noShowBlockMessage(error) || ((error.message || '').indexOf('AGS_BLOCKED|') >= 0 ? error.message.split('AGS_BLOCKED|')[1] : 'Could not save right now. Please try again.')); return; }
+    if(!data || !data.ok){ editError(data && data.reason === 'too_late' ? 'The party has started, names can\u2019t change anymore.' : 'Could not save right now. Please try again.'); return; }
+    closeEditRequest();
+    await loadMyRequests();
+    return;
+  }
   const upd = {
     first_name: first, last_name: last, age: age, instagram: insta || 'None', phone: phone, email: email,
     additional_guests: guests, total_guests: 1 + guests.length
@@ -4109,6 +4251,31 @@ function todayAmsterdam(){
 function findEventFor(name, date){
   return EVENTS.find(function(e){ return e.name === name && e.date === String(date).slice(0, 10); }) || null;
 }
+// Tonight screen extras (9): your group, dresscode and line-up from the party info.
+function tonightGroupHtml(r){
+  const g = Array.isArray(r.additional_guests) ? r.additional_guests : [];
+  if(!g.length) return '';
+  return '<div class="tonight__group">' + g.map(function(x){ return '<span>' + escHtml(((x.firstName || '') + ' ' + (x.lastName || '')).trim()) + '</span>'; }).join('') + '</div>';
+}
+function tonightInfoHtml(ev){
+  if(!ev) return '';
+  const d = String(ev.description || '');
+  const dress = ev.dresscode || ((d.match(/dress\s*code[:\s]+([^.]+)/i) || [])[1] || '');
+  const line = ev.lineup || ((d.match(/\bwith ([^.]+)/i) || [])[1] || '');
+  const until = (d.match(/(\d{1,2}:\d{2})\s*(?:till|until|-|–)\s*(\d{1,2}:\d{2})/i) || []);
+  const rows = [];
+  if(until[1]) rows.push(['Time', until[1] + ' – ' + until[2]]);
+  if(line) rows.push(['Line-up', line.trim()]);
+  if(dress) rows.push(['Dresscode', dress.trim()]);
+  if(eventGenres(ev).length) rows.push(['Music', eventGenres(ev).join(' · ')]);
+  if(!rows.length) return '';
+  return '<dl class="tonight__info">' + rows.map(function(x){ return '<div><dt>' + x[0] + '</dt><dd>' + escHtml(x[1]) + '</dd></div>'; }).join('') + '</dl>';
+}
+function uberLinkFor(venue){
+  const parts = String(venue || '').split('·');
+  const place = (parts[0] || '').trim() + ', ' + ((parts[1] || 'Amsterdam').trim());
+  return 'https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=' + encodeURIComponent(place) + '&dropoff[nickname]=' + encodeURIComponent((parts[0] || '').trim());
+}
 function mapsLinkFor(venue){
   const parts = String(venue || '').split('·');
   return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent((parts[0] || '').trim() + ', ' + ((parts[1] || 'Amsterdam').trim()));
@@ -4122,7 +4289,7 @@ async function loadNextNight(){
   try{
     const { data } = await supabaseClient
       .from('guestlist_requests')
-      .select('id,event_name,event_venue,event_date,status,total_guests')
+      .select('id,event_name,event_venue,event_date,status,total_guests,first_name,last_name,additional_guests')
       .eq('user_id', currentUser.id)
       .gte('event_date', todayAmsterdam())
       .order('event_date', { ascending: true });
@@ -4585,12 +4752,16 @@ function openTonight(force){
       '<div class="tonight__count" id="tonightCount"></div>' +
       '<div class="tonight__pass">' +
         '<div class="tonight__label">Name on the list</div>' +
-        '<div class="tonight__guest">' + escHtml(name) + '</div>' +
+        '<div class="tonight__guest">' + escHtml(((r.first_name || '') + ' ' + (r.last_name || '')).trim() || name) + '</div>' +
         '<div class="tonight__label">' + ((r.total_guests || 1) > 1 ? r.total_guests + ' people' : 'Just you') + '</div>' +
+        tonightGroupHtml(r) +
       '</div>' +
-      '<ul class="tonight__rules"><li>Bring a valid photo ID for everyone</li><li>Arrive on time — the list closes when the room is full</li><li>Give the name above at the door</li></ul>' +
+      tonightInfoHtml(ev) +
+      '<ul class="tonight__rules"><li>Bring a valid photo ID for everyone</li><li>' + (ev && ev.entryUntil ? 'Be inside before <strong>' + escHtml(ev.entryUntil) + '</strong>' : 'Arrive on time — the list closes when the room is full') + '</li><li>Give the name above at the door</li></ul>' +
       '<div class="tonight__btns">' +
         '<a class="btn btn--solid" href="' + mapsLinkFor(r.event_venue) + '" target="_blank" rel="noopener">Route to the club</a>' +
+        '<a class="btn" href="' + uberLinkFor(r.event_venue) + '" target="_blank" rel="noopener">Get a ride 🚕</a>' +
+        '<button type="button" class="btn" id="tonightInvite">🔗 Add a friend</button>' +
         (ev ? '<button type="button" class="btn" id="tonightShare">Share to your story</button>' : '') +
       '</div>' +
     '</div>';
@@ -4600,6 +4771,7 @@ function openTonight(force){
   AppSound.play('open');
   ov.querySelector('.tonight__close').addEventListener('click', closeTonight);
   const sh = document.getElementById('tonightShare'); if(sh) sh.addEventListener('click', function(){ shareStory(ev, sh); });
+  const inv = document.getElementById('tonightInvite'); if(inv) inv.addEventListener('click', function(){ shareGroupInvite(r, inv); });
   function tick(){
     const el = document.getElementById('tonightCount'); if(!el) return;
     const ms = ev ? eventStartTime(ev) - Date.now() : 0;
