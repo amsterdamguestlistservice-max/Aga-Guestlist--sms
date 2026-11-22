@@ -983,7 +983,8 @@ async function loadMemberAccess(){
 const GENRES_BY_NAME = {
   'Amajoyo': ['Afro house'],
   'NEMA': ['Afro house'],
-  'Club Fair': ['Hits & house']
+  'Club Fair': ['Hits & house'],
+  'Behind Closed Doors': ['Amapiano', 'House', 'Afro house', 'New wave']
 };
 function eventGenres(ev){ return (ev && (ev.genres || GENRES_BY_NAME[ev.name])) || []; }
 
