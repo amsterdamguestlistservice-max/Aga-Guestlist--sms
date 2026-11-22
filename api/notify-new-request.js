@@ -21,7 +21,7 @@
 
 const reviewToken = require('./_review-token');
 const webpush = require('web-push');
-const { sendPush: sendAnyPush } = require('./_push');
+const { sendPush: sendAnyPush, saveInbox } = require('./_push');
 const { createClient } = require('@supabase/supabase-js');
 
 
@@ -32,6 +32,8 @@ const { pushToAdmins } = require('./_admin-push');
 
 async function pushToGuest(record) {
   if (!record.user_id) return 0;
+  await saveInbox(record.user_id, { title: 'Amsterdam Guestlist Service', body: 'Request received for ' + (record.event_name || 'your event') +
+    '! We\'ll review it and let you know as soon as it\'s approved.', url: './index.html' });
   const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY } = process.env;
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) return 0;
 

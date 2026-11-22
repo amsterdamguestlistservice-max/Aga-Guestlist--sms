@@ -104,6 +104,18 @@ async function logInbox(endpoint, payloadString) {
   } catch (e) { /* optional */ }
 }
 
+// Save a personal message in someone's in-app inbox, also when they have no
+// push turned on. Same pid as the push itself, so it's never there twice.
+async function saveInbox(userId, payload) {
+  try {
+    if (!userId) return;
+    const db = inboxDb(); if (!db) return;
+    const p = JSON.parse(withPid(JSON.stringify(payload || {})));
+    await db.from('inbox').upsert({ user_id: userId, pid: p.pid, title: p.title || '', body: p.body || '', url: p.url || './index.html' },
+      { onConflict: 'user_id,pid', ignoreDuplicates: true });
+  } catch (e) { /* optional */ }
+}
+
 async function sendPush(webpush, sub, payloadString) {
   payloadString = withPid(payloadString);
   const endpoint = String((sub && sub.endpoint) || '');
@@ -118,4 +130,4 @@ async function sendPush(webpush, sub, payloadString) {
   return result;
 }
 
-module.exports = { sendPush };
+module.exports = { sendPush, saveInbox };

@@ -34,7 +34,7 @@
 // package.json for the push notification feature.
 
 const webpush = require('web-push');
-const { sendPush: sendAnyPush } = require('./_push');
+const { sendPush: sendAnyPush, saveInbox } = require('./_push');
 const { createClient } = require('@supabase/supabase-js');
 
 const POINTS_PER_APPROVAL = 10;
@@ -72,6 +72,7 @@ async function addPoints(supabase, userId, amount) {
 }
 
 async function sendPush(supabase, userId, title, body) {
+  await saveInbox(userId, { title: title, body: body, url: './index.html' });
   if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return 0;
 
   const { data: subs } = await supabase

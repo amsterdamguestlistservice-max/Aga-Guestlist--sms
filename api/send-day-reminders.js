@@ -21,7 +21,7 @@
 // optional RESEND_API_KEY + RESEND_GUEST_FROM.
 
 const webpush = require('web-push');
-const { sendPush: sendAnyPush } = require('./_push');
+const { sendPush: sendAnyPush, saveInbox } = require('./_push');
 const { createClient } = require('@supabase/supabase-js');
 const { sendGuestEmail } = require('./_guest-email');
 const { notifyForEvent } = require('./waitlist-notify');
@@ -147,6 +147,7 @@ async function sendRatePushes(supabase, opts) {
 }
 
 async function pushReminder(supabase, r, text, url) {
+  if (r.user_id) await saveInbox(r.user_id, { title: text.title, body: text.body, url: url || './index.html' });
   if (!r.user_id || !process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return 0;
   const { data: subs } = await supabase
     .from('push_subscriptions')

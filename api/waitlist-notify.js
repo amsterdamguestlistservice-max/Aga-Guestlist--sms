@@ -11,13 +11,14 @@
 // so one free spot doesn't alert the whole waitlist at once.
 
 const webpush = require('web-push');
-const { sendPush: sendAnyPush } = require('./_push');
+const { sendPush: sendAnyPush, saveInbox } = require('./_push');
 const { createClient } = require('@supabase/supabase-js');
 const { sendGuestEmail } = require('./_guest-email');
 
 const HOLD_MS = 2 * 60 * 60 * 1000;
 
 async function pushTo(supabase, userId, title, body) {
+  await saveInbox(userId, { title: title, body: body, url: './index.html' });
   if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return 0;
   const { data: subs } = await supabase.from('push_subscriptions').select('endpoint, p256dh, auth').eq('user_id', userId);
   if (!subs || !subs.length) return 0;
