@@ -6,6 +6,17 @@
 // on guestlist_requests with record + old_record. Never throws.
 
 const { pushToAdmins } = require('./_admin-push');
+const { createClient } = require('@supabase/supabase-js');
+
+// Every cancel/edit is also logged in request_changes, so the admin
+// dashboard can show what changed (not only the push).
+async function logChange(record, kind, summary, before, after) {
+  try {
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY || !record.id) return;
+    const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    await sb.from('request_changes').insert({ request_id: record.id, user_id: record.user_id || null, kind: kind, summary: summary, size_before: before, size_after: after });
+  } catch (e) { /* the log is optional */ }
+}
 
 // Fields a guest can change in the app's "Edit request" sheet. Gender is
 // left out on purpose: the admin dashboard sets it in bulk.
@@ -55,6 +66,7 @@ async function notifyRequestChange(record, old) {
     const size = Number(record.total_guests) || 1;
 
     if (now === 'cancelled' && was !== 'cancelled') {
+      await logChange(record, 'cancelled', was === 'approved' ? 'Cancelled (was on the list)' : 'Cancelled (was pending)', size, size);
       const pushed = await pushToAdmins({
         title: '❌ Cancelled — ' + event,
         body: nameOf(record) + (size > 1 ? ' +' + (size - 1) : '') + (when ? ' · ' + when : '') +
@@ -71,6 +83,7 @@ async function notifyRequestChange(record, old) {
     const parts = describeEdit(record, old);
     const oldSize = Number(old.total_guests) || 1;
     const sizeNote = size !== oldSize ? ' (' + oldSize + ' → ' + size + ' people)' : '';
+    await logChange(record, 'edited', (parts.join('; ') || 'details changed') + sizeNote, oldSize, size);
     const pushed = await pushToAdmins({
       title: '✏️ Request edited — ' + event,
       body: nameOf(record) + (when ? ' · ' + when : '') + ': ' + (parts.join('; ') || 'details changed') + sizeNote,

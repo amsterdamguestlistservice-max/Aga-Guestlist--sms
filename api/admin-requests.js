@@ -57,7 +57,17 @@ module.exports = async function handler(req, res) {
         }
         rows.forEach(function (r) { r.points = pts[r.user_id] || 0; });
       } catch (e) { /* optional */ }
-      res.status(200).json({ requests: rows });
+      // Changes guests made themselves (edits / cancellations), newest first.
+      let changes = [];
+      try {
+        const { data: ch } = await supabase.from('request_changes').select('id, request_id, kind, summary, size_before, size_after, created_at')
+          .gte('created_at', new Date(Date.now() - 30 * 864e5).toISOString()).order('created_at', { ascending: false }).limit(200);
+        changes = ch || [];
+        const byReq = {};
+        changes.forEach(function (c) { (byReq[c.request_id] = byReq[c.request_id] || []).push(c); });
+        rows.forEach(function (r) { if (byReq[r.id]) r.changes = byReq[r.id]; });
+      } catch (e) { /* optional */ }
+      res.status(200).json({ requests: rows, changes: changes });
     } catch (err) {
       res.status(500).json({ error: err.message || 'Unknown error' });
     }

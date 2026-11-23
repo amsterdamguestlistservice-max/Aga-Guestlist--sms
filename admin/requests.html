@@ -89,6 +89,7 @@ p.sub{ font-size:12.5px; color:var(--muted); margin:0 0 22px; }
       <button type="button" data-filter="Approved">Approved</button>
       <button type="button" data-filter="Declined">Declined</button>
       <button type="button" data-filter="No-Show">No-Show</button>
+      <button type="button" data-filter="Changed">Changed</button>
       <button type="button" data-filter="All">All</button>
     </div>
 
@@ -156,6 +157,8 @@ function formatDate(dateStr){
 function render(){
   const filtered = CURRENT_FILTER === 'All'
     ? ALL_REQUESTS
+    : CURRENT_FILTER === 'Changed'
+    ? ALL_REQUESTS.filter(r => r.changes && r.changes.length).sort((a, b) => Date.parse(b.changes[0].created_at) - Date.parse(a.changes[0].created_at))
     : ALL_REQUESTS.filter(r => (r.status || 'Pending') === CURRENT_FILTER);
 
   if(!filtered.length){
@@ -186,6 +189,9 @@ function render(){
           renderAdditionalGuests(r.additional_guests) +
           '<span>Party size:</span> ' + extraGuests +
         '</div>' +
+        (r.changes && r.changes.length
+          ? '<div class="card__missing" style="background:rgba(212,175,55,.12);color:#d4af37">' + r.changes.map(function(c){ return (c.kind === 'cancelled' ? '❌ ' : '✏️ ') + escapeHtml(c.summary || c.kind) + ' · ' + new Date(c.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }).join('<br>') + '</div>'
+          : '') +
         (r.missing_guests > 0
           ? '<div class="card__missing">Partial no-show: ' + r.missing_guests + ' of ' + r.total_guests + ' did not come (-' + (r.missing_guests * 2) + ' points)</div>'
           : '') +

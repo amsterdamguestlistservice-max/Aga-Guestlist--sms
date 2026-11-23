@@ -121,6 +121,16 @@
   .adm-push button.arm{background:#b3261e;color:#fff}
   .adm-note{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5}
   .adm-err{color:#ff8a80;font-size:13px;margin:10px 0}
+  .adm-chg{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;margin-bottom:8px;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:rgba(255,255,255,.03);cursor:pointer}
+  .adm-chg__ic{font-size:18px;line-height:1.2}
+  .adm-chg__tx{flex:1;min-width:0;font-size:13px;line-height:1.45}
+  .adm-chg__tx b{display:block;font-size:14px}
+  .adm-chg__tx em{display:block;font-style:normal;color:var(--muted);font-size:12px}
+  .adm-chg.is-new{border-color:var(--gold)}
+  .adm-edited{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:999px;background:rgba(212,175,55,.15);color:var(--gold);font-size:10px;font-weight:700;letter-spacing:.06em;vertical-align:middle}
+  .adm-hist{margin:14px 0;padding:12px 14px;border-radius:14px;background:rgba(212,175,55,.07);border:1px solid rgba(212,175,55,.25);font-size:13px;line-height:1.5}
+  .adm-hist div+div{margin-top:6px}
+  .adm-hist small{color:var(--muted)}
   `;
   document.head.appendChild(css);
 
@@ -136,6 +146,7 @@
     '<div class="adm-sec">Today</div><div class="adm-grid" id="admStats"></div>' +
     '<div class="adm-sec">Filter by party</div><div class="adm-filter" id="admFilter"></div>' +
     '<div class="adm-sec">Requests to review</div><div id="admReqs"></div>' +
+    '<div class="adm-sec">Changed by guests</div><div id="admChanges"></div>' +
     '<div class="adm-sec">All time</div><div class="adm-grid" id="admTotals"></div>' +
     '<div class="adm-sec">New accounts · last 14 days</div><div class="adm-chart" id="admChart"></div>' +
     '<div class="adm-sec">Most guests</div><div id="admTop"></div>' +
@@ -256,7 +267,7 @@
       return '<button type="button" data-party="' + esc(n) + '" class="' + (PARTY === n ? 'on' : '') + '">' + esc(n) + '</button>';
     })).join('');
   }
-  function setParty(n){ PARTY = n; renderFilter(); renderEvents(); renderReqs(); }
+  function setParty(n){ PARTY = n; renderFilter(); renderEvents(); renderReqs(); renderChanges(); }
   async function loadOutfitsAdmin(){
     const box = document.getElementById('admOutfits');
     if(!box) return;
@@ -362,12 +373,39 @@
   async function loadReqs(){
     const r = await api('/api/admin-requests');
     REQS = r.requests || [];
+    CHANGES = r.changes || [];
+    try{ CHG_SEEN = Number(localStorage.getItem('ags_adm_changes_seen')) || 0; localStorage.setItem('ags_adm_changes_seen', String(Date.now())); } catch(e){}
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
     PENDING = (r.requests || []).filter(function(x){ return String(x.status || 'pending').trim().toLowerCase() === 'pending' && String(x.event_date) >= today; });
     renderFilter();
     renderReqs();
+    renderChanges();
     renderEvents();
     renderIg();
+  }
+  let CHANGES = [], CHG_SEEN = 0;
+  function ago(iso){
+    const m = Math.round((Date.now() - Date.parse(iso)) / 6e4);
+    if(m < 1) return 'just now'; if(m < 60) return m + ' min ago';
+    const h = Math.round(m / 60); if(h < 24) return h + 'h ago';
+    return new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  }
+  // Edits and cancellations guests made themselves, for parties that are still coming up.
+  function renderChanges(){
+    const box = document.getElementById('admChanges'); if(!box) return;
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
+    const byId = {}; REQS.forEach(function(r){ byId[r.id] = r; });
+    const seen = CHG_SEEN;
+    const list = CHANGES.filter(function(c){ const r = byId[c.request_id]; return r && String(r.event_date) >= today && (!PARTY || r.event_name === PARTY); }).slice(0, 20);
+    if(!list.length){ box.innerHTML = '<div class="adm-empty">No changes by guests for upcoming parties.</div>'; return; }
+    box.innerHTML = list.map(function(c){
+      const r = byId[c.request_id];
+      const isNew = Date.parse(c.created_at) > seen;
+      return '<div class="adm-chg' + (isNew ? ' is-new' : '') + '" data-rid="' + esc(c.request_id) + '"><span class="adm-chg__ic">' + (c.kind === 'cancelled' ? '❌' : '✏️') + '</span>' +
+        '<div class="adm-chg__tx"><b>' + esc(((r.first_name || '') + ' ' + (r.last_name || '')).trim() || 'Guest') + '</b>' +
+        esc(c.summary || (c.kind === 'cancelled' ? 'Cancelled' : 'Edited')) +
+        '<em>' + esc(r.event_name) + ' · ' + esc(day(r.event_date)) + ' · ' + esc(ago(c.created_at)) + '</em></div></div>';
+    }).join('');
   }
   function renderReqs(){
     // Silver+ members are reviewed first (a Silver perk), then by name.
@@ -382,7 +420,8 @@
         ? '<br>+ ' + x.additional_guests.map(function(g){ return esc(((g.firstName || g.first_name || g.name || '') + ' ' + (g.lastName || g.last_name || '')).trim()); }).join(', ') : '';
       const tier = x.points >= 300 ? 'VIP' : x.points >= 150 ? 'Gold' : x.points >= 50 ? 'Silver' : '';
       return '<div class="adm-req" data-id="' + esc(x.id) + '"><h4>' + esc((x.first_name || '') + ' ' + (x.last_name || '')) +
-        (tier ? ' <span class="adm-tier adm-tier--' + tier.toLowerCase() + '">★ ' + tier + '</span>' : '') + '</h4>' +
+        (tier ? ' <span class="adm-tier adm-tier--' + tier.toLowerCase() + '">★ ' + tier + '</span>' : '') +
+        (x.changes && x.changes.length ? '<span class="adm-edited">✏️ EDITED</span>' : '') + '</h4>' +
         '<div class="ev">' + esc(x.event_name) + ' · ' + esc(day(x.event_date)) + '</div>' +
         '<div class="meta">' + (x.total_guests || 1) + ' guest' + ((x.total_guests || 1) > 1 ? 's' : '') +
         (x.age ? ' · ' + esc(x.age) + ' y' : '') + (x.gender ? ' · ' + esc(x.gender) : '') +
@@ -452,6 +491,11 @@
         ['Email', x.email ? '<a href="mailto:' + esc(x.email) + '">' + esc(x.email) + '</a>' : ''],
         ['Requested', esc(created)]
       ]);
+    if(x.changes && x.changes.length){
+      html += '<div class="adm-hist"><b>Changed by the guest</b>' + x.changes.map(function(c){
+        return '<div>' + (c.kind === 'cancelled' ? '❌ ' : '✏️ ') + esc(c.summary || c.kind) + ' <small>· ' + esc(ago(c.created_at)) + '</small></div>';
+      }).join('') + '</div>';
+    }
     const c = [];
     if(x.phone) c.push('<a href="https://wa.me/' + waNumber(x.phone) + '" target="_blank" rel="noopener">WhatsApp</a>');
     if(x.phone) c.push('<a href="tel:' + esc(x.phone) + '">Call</a>');
@@ -601,6 +645,8 @@
     if(wf){ setWhen(wf.getAttribute('data-when')); return; }
     const pf = e.target.closest('#admFilter button[data-party]');
     if(pf){ setParty(pf.getAttribute('data-party')); return; }
+    const chg = e.target.closest('.adm-chg[data-rid]');
+    if(chg){ openDetail(chg.getAttribute('data-rid')); return; }
     const b = e.target.closest('.adm-req button[data-act]');
     if(b){ act(b.closest('.adm-req'), b.getAttribute('data-act')); return; }
     if(e.target.closest('a')) return;
