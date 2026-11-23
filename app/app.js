@@ -2826,6 +2826,7 @@ async function openInbox(){
 function openInboxLink(url){
   const u = String(url || '');
   if(/[?&]rate=1/.test(u)){ maybeAskForPartyRating(true); return; }
+  if(/[?&]perks=1/.test(u)){ openRewardsSheet(); return; }
   if(/[?&]event=/.test(u)){ openEventFromLink(u); return; }
   switchTab(/guestlist|request/i.test(u) ? 'account' : 'events');
 }
@@ -5561,3 +5562,6 @@ function renderSheetMusic(ev){
     const clip = document.querySelector('#sheetMedia video'); if(clip){ clip.muted = true; }
   });
 }
+
+// Deep link ./?perks=1 (from the perks push) opens Rewards & Perks; also from the inbox.
+(function(){ try{ if(/[?&]perks=1/.test(location.search)) setTimeout(function(){ if(!document.body.classList.contains('is-gated')) openRewardsSheet(); }, 1500); } catch(e){} })();
