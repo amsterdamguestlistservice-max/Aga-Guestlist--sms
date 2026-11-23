@@ -304,7 +304,7 @@ async function sendNewEventsPush(supabase, opts) {
         (fans || []).forEach(function (f) {
           followPayload[f.user_id] = JSON.stringify({
             title: 'New Year\'s Eve: ' + nye.name + ' just dropped 🎆',
-            body: venue(nye) + ' · ' + shortDate(nye.date) + '. You asked to hear first, so you\'re early. Get on the list now.',
+            body: venue(nye) + ' · ' + shortDate(nye.date) + '. You asked to hear first, so you\'re early. Grab your discounted tickets.',
             url: './index.html?event=' + encodeURIComponent(nye.id)
           });
         });

@@ -5439,7 +5439,7 @@ function renderNyeBanner(){
   }
   const c = nyeCountdown(), n = nyeEvents().length;
   b.innerHTML = '<span class="nye-banner__fx">🎆</span><span class="nye-banner__txt"><small>New Year’s Eve</small><b>' +
-    (c.done ? 'Happy New Year! 🥂' : c.d + ' days to go') + '</b><em>' + (n ? n + ' NYE ' + (n === 1 ? 'party' : 'parties') + ' on the list' : 'Be the first to hear about NYE parties') + '</em></span><span class="nye-banner__go">→</span>';
+    (c.done ? 'Happy New Year! 🥂' : c.d + ' days to go') + '</b><em>' + (n ? n + ' NYE ' + (n === 1 ? 'party' : 'parties') + ' · discounted tickets' : 'Discounted NYE tickets, hear it first') + '</em></span><span class="nye-banner__go">→</span>';
 }
 let NYE_TIMER = null;
 async function openNye(){
@@ -5464,14 +5464,17 @@ async function openNye(){
       (list.length
         ? '<div class="nye__list">' + list.map(function(ev){
             const open = ['open', 'limited'].indexOf(ev.guestlistStatus) >= 0;
+            const tix = ev.ticketUrl && ev.ticketUrl !== '#';
             return '<div class="nye__item" data-id="' + esc(ev.id) + '">' + (ev.image ? '<div class="nye__img" style="background-image:url(\'' + esc(webpOf(ev.image) || ev.image) + '\')"></div>' : '<div class="nye__img nye__img--fx">🎆</div>') +
               '<div class="nye__meta"><b>' + esc(ev.name) + '</b><span>' + esc(eventVenueName(ev)) + ' · ' + esc(ev.time || '') + '</span>' +
-              '<button type="button" class="btn btn--solid" data-a="go" data-id="' + esc(ev.id) + '">' + (open ? '🔑 Get on the list' : 'View party') + '</button></div></div>';
+              (tix ? '<a class="btn btn--solid" href="' + esc(ev.ticketUrl) + '" target="_blank" rel="noopener">🎟️ Discounted tickets</a>' : '') +
+              (open ? '<button type="button" class="btn' + (tix ? '' : ' btn--solid') + '" data-a="go" data-id="' + esc(ev.id) + '">🔑 Get on the list</button>' : (tix ? '' : '<button type="button" class="btn btn--solid" data-a="go" data-id="' + esc(ev.id) + '">View party</button>')) +
+              '</div></div>';
           }).join('') + '</div>'
-        : '<div class="nye__soon"><b>The NYE line-up drops soon</b><p>The best New Year’s Eve parties in Amsterdam, with free guestlist and early access for members. Get a notification the moment they’re live.</p></div>') +
+        : '<div class="nye__soon"><b>The NYE line-up drops soon</b><p>The best New Year’s Eve parties in Amsterdam, with discounted tickets through AGS and early access for members. Get a notification the moment they’re live.</p></div>') +
       '<button type="button" class="btn ' + (subscribed ? '' : 'btn--solid') + ' nye__notify" data-a="notify"' + (subscribed ? ' disabled' : '') + '>' + (subscribed ? '✓ You’ll hear first' : '🔔 Notify me first') + '</button>' +
       (count >= 10 ? '<div class="nye__count-note">' + count + ' people are waiting for the NYE line-up</div>' : '') +
-      '<ul class="nye__perks"><li><b>⚡ Members first</b>Silver members see NYE parties 48 hours early.</li><li><b>🔑 Free guestlist</b>Where the club allows it, as always.</li><li><b>🛡️ Safe night</b>Ride home and your trusted contact, one tap away.</li></ul>' +
+      '<ul class="nye__perks"><li><b>⚡ Members first</b>Silver members see NYE parties 48 hours early.</li><li><b>🎟️ Discounted tickets</b>NYE tickets for less, only through AGS.</li><li><b>🛡️ Safe night</b>Ride home and your trusted contact, one tap away.</li></ul>' +
     '</div>';
   }
   render();
