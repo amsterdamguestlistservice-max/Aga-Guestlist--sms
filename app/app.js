@@ -3996,6 +3996,10 @@ function openEditRequest(id){
   ['erFirst','erLast','erAge','erInstagram','erPhone','erEmail','erGender'].forEach(function(id){ const el = document.getElementById(id); if(el) el.disabled = approvedMode; });
   const t = document.getElementById('editReqEvent');
   if(t && approvedMode) t.textContent = r.event_name + ' · swap or add friends';
+  // Adding or renaming a friend sends the list back to AGS for a quick re-check.
+  let rn = document.getElementById('erReviewNote');
+  if(!rn && t){ rn = document.createElement('p'); rn.id = 'erReviewNote'; rn.className = 'quick-sheet__note'; rn.style.margin = '6px 0 0'; t.insertAdjacentElement('afterend', rn); }
+  if(rn){ rn.textContent = 'New or changed names are checked by AGS again. You\u2019ll get a message once your updated list is approved.'; rn.hidden = !approvedMode; }
   renderEditGuests();
   document.getElementById('erError').style.display = 'none';
   document.getElementById('editReqOverlay').classList.add('is-open');

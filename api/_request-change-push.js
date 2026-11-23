@@ -76,17 +76,20 @@ async function notifyRequestChange(record, old) {
       return { cancelled: true, pushed: pushed };
     }
 
-    if (now !== was || (now !== 'pending' && now !== 'approved')) return { skipped: 'no_guest_edit' };
+    // An approved request that goes back to review after the guest added/renamed someone.
+    const backToReview = was === 'approved' && now === 'pending' && record.reapproval === true;
+    if ((now !== was && !backToReview) || (now !== 'pending' && now !== 'approved')) return { skipped: 'no_guest_edit' };
     const touched = GUEST_FIELDS.some(function (f) { return !same(record[f], old[f]); });
     if (!touched) return { skipped: 'no_guest_edit' };
 
     const parts = describeEdit(record, old);
     const oldSize = Number(old.total_guests) || 1;
     const sizeNote = size !== oldSize ? ' (' + oldSize + ' → ' + size + ' people)' : '';
-    await logChange(record, 'edited', (parts.join('; ') || 'details changed') + sizeNote, oldSize, size);
+    const reviewNote = backToReview ? ' · back to review, approve again' : '';
+    await logChange(record, 'edited', (parts.join('; ') || 'details changed') + sizeNote + reviewNote, oldSize, size);
     const pushed = await pushToAdmins({
       title: '✏️ Request edited — ' + event,
-      body: nameOf(record) + (when ? ' · ' + when : '') + ': ' + (parts.join('; ') || 'details changed') + sizeNote,
+      body: nameOf(record) + (when ? ' · ' + when : '') + ': ' + (parts.join('; ') || 'details changed') + sizeNote + reviewNote,
       url: '/admin/requests.html'
     });
     return { edited: true, pushed: pushed };

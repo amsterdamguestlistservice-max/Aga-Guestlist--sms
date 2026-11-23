@@ -54,6 +54,12 @@ function formatDate(isoDate) {
   return d.getUTCDate() + ' ' + months[d.getUTCMonth()] + ' ' + d.getUTCFullYear();
 }
 
+function shortDay(isoDate) {
+  const d = new Date(String(isoDate).slice(0, 10) + 'T12:00:00Z');
+  if (isNaN(d)) return '';
+  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+}
+
 async function addPoints(supabase, userId, amount) {
   const { data: existing } = await supabase
     .from('profiles')
@@ -142,6 +148,38 @@ module.exports = async function handler(req, res) {
 
   // Guest cancelled or edited the request? Tell the AGS team (admin push).
   const changeNotice = await notifyRequestChange(record, oldRecord);
+
+  // Guest changed an approved list (added/renamed someone): it went back to review.
+  const backToReview = oldStatus === 'approved' && newStatus === 'pending' && record.reapproval === true;
+  // AGS approved that updated list again: no new points, a different message.
+  const reApproved = justApproved && record.reapproval === true;
+
+  if (backToReview && record.user_id) {
+    try {
+      const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+      const pushed = await sendPush(sb, record.user_id, 'Changes received ✏️',
+        'We got your changes for ' + (record.event_name || 'your event') + '. Your updated list is being reviewed, you\'ll hear from us soon.');
+      res.status(200).json({ backToReview: true, pushed: pushed, changeNotice: changeNotice });
+    } catch (err) { res.status(500).json({ error: err.message || 'Unknown error' }); }
+    return;
+  }
+
+  if (reApproved && record.user_id) {
+    try {
+      const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+      await sb.from('guestlist_requests').update({ reapproval: false }).eq('id', record.id);
+      const names = [[record.first_name, record.last_name].filter(Boolean).join(' ')]
+        .concat((Array.isArray(record.additional_guests) ? record.additional_guests : []).map(function (g) {
+          return [g && (g.firstName || g.first_name), g && (g.lastName || g.last_name)].filter(Boolean).join(' ');
+        })).filter(Boolean);
+      const pushed = await sendPush(sb, record.user_id, 'Your updated list is approved ✅',
+        (record.event_name || 'Your event') + ' · ' + shortDay(record.event_date) + '. Everyone\'s on the list: ' + names.join(', ') +
+        '. Don\'t forget your ID. See you there!');
+      const emailed = await sendGuestEmail('approved', record);
+      res.status(200).json({ reApproved: true, pushed: pushed, emailed: emailed });
+    } catch (err) { res.status(500).json({ error: err.message || 'Unknown error' }); }
+    return;
+  }
 
   if (!justApproved && !justMarkedNoShow && !partialChange) {
     res.status(200).json({ skipped: true, changeNotice: changeNotice });
