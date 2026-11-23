@@ -666,6 +666,21 @@ const EVENTS = [
     countdownEnabled: false
   },
   {
+    id: "behind-closed-doors-nye-2026-12-31",
+    name: "Behind Closed Doors · New Year’s Eve",
+    date: "2026-12-31",
+    venue: "Jimmy Woo · Amsterdam",
+    image: "events/behind-closed-doors-nye-2026-12-31.jpg",
+    description: "Behind Closed Doors New Year’s Eve Nº27 at Jimmy Woo. Tickets through AGS.",
+    guestlistStatus: "none", // NYE = tickets only
+    ticketUrl: "https://shop.celebratix.io/?t=36fcxh",
+    badgeLabel: "NYE · Tickets",
+    guestlistUrl: "#guestlist",
+    publicFrom: "2026-11-25T21:00:00+01:00", // members (Silver+) see it 48h early
+    featured: false,
+    countdownEnabled: false
+  },
+  {
     id: "huisfissa-2026-12-11",
     name: "Huisfissa",
     date: "2026-12-11",
@@ -948,7 +963,7 @@ function buildTicketWhatsappLink(ev){
   return 'https://wa.me/31644948562?text=' + encodeURIComponent(message);
 }
 function isPastEvent(ev){
-  return new Date(ev.date + 'T' + ev.time).getTime() < Date.now();
+  return new Date(ev.date + 'T' + (ev.time || '22:00')).getTime() < Date.now();
 }
 /* ---- Members (Silver+, 50 points): secret parties + 48h early access ----
    ev.secret     → only members see it (loaded from Supabase, never in this file)
@@ -5468,7 +5483,7 @@ async function openNye(){
             const open = ['open', 'limited'].indexOf(ev.guestlistStatus) >= 0;
             const tix = ev.ticketUrl && ev.ticketUrl !== '#';
             return '<div class="nye__item" data-id="' + esc(ev.id) + '">' + (ev.image ? '<div class="nye__img" style="background-image:url(\'' + esc(webpOf(ev.image) || ev.image) + '\')"></div>' : '<div class="nye__img nye__img--fx">🎆</div>') +
-              '<div class="nye__meta"><b>' + esc(ev.name) + '</b><span>' + esc(eventVenueName(ev)) + ' · ' + esc(ev.time || '') + '</span>' +
+              '<div class="nye__meta"><b>' + esc(ev.name) + '</b><span>' + esc(eventVenueName(ev)) + (ev.time ? ' · ' + esc(ev.time) : '') + '</span>' +
               (tix ? '<a class="btn btn--solid" href="' + esc(ev.ticketUrl) + '" target="_blank" rel="noopener">🎟️ Discounted tickets</a>' : '') +
               (open ? '<button type="button" class="btn' + (tix ? '' : ' btn--solid') + '" data-a="go" data-id="' + esc(ev.id) + '">🔑 Get on the list</button>' : (tix ? '' : '<button type="button" class="btn btn--solid" data-a="go" data-id="' + esc(ev.id) + '">View party</button>')) +
               '</div></div>';
