@@ -263,7 +263,7 @@ async function sendNewEventsPush(supabase, opts) {
     if (fresh.length === 1) {
       const ev = fresh[0];
       title = 'New: ' + ev.name + ' 🔑';
-      body = shortDate(ev.date) + (venue(ev) ? ' at ' + venue(ev) : '') + (ev.guestlistStatus === 'none' ? '. Tickets are live in the app.' : '. Get on the guestlist in one tap.');
+      body = shortDate(ev.date) + (venue(ev) ? ' at ' + venue(ev) : '') + (ev.guestlistStatus === 'none' ? (ev.discount ? '. Discounted tickets are live in the app.' : '. Tickets are live in the app.') : '. Get on the guestlist in one tap.');
       url = './index.html?event=' + encodeURIComponent(ev.id);
     } else {
       title = fresh.length + ' new parties on AGS 🔑';
@@ -304,7 +304,7 @@ async function sendNewEventsPush(supabase, opts) {
         (fans || []).forEach(function (f) {
           followPayload[f.user_id] = JSON.stringify({
             title: 'New Year\'s Eve: ' + nye.name + ' just dropped 🎆',
-            body: venue(nye) + ' · ' + shortDate(nye.date) + '. You asked to hear first, so you\'re early. Grab your tickets in the app.',
+            body: venue(nye) + ' · ' + shortDate(nye.date) + '. You asked to hear first, so you\'re early. ' + (nye.discount ? 'Grab your discounted tickets.' : 'Grab your tickets in the app.'),
             url: './index.html?event=' + encodeURIComponent(nye.id)
           });
         });
@@ -343,7 +343,7 @@ async function announceEarlyToMembers(supabase, earlyEvents) {
     const venue = String(ev.venue || '').split(' · ')[0];
     const payload = JSON.stringify(fresh.length === 1 ? {
       title: 'Early access: ' + ev.name + ' ⚡',
-      body: shortDate(ev.date) + (venue ? ' at ' + venue : '') + '. Members see it 48 hours before everyone else. ' + (ev.guestlistStatus === 'none' ? 'Grab your tickets first.' : 'Get on the list first.'),
+      body: shortDate(ev.date) + (venue ? ' at ' + venue : '') + '. Members see it 48 hours before everyone else. ' + (ev.guestlistStatus === 'none' ? (ev.discount ? 'Grab your discounted tickets first.' : 'Grab your tickets first.') : 'Get on the list first.'),
       url: './index.html?event=' + encodeURIComponent(ev.id)
     } : {
       title: fresh.length + ' new parties, early access ⚡',

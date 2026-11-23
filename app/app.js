@@ -673,10 +673,11 @@ const EVENTS = [
     endTime: "04:00",
     venue: "Jimmy Woo · Amsterdam",
     image: "events/behind-closed-doors-nye-2026-12-31.jpg",
-    description: "Behind Closed Doors New Year’s Eve Nº27 at Jimmy Woo. 23:00 till 04:00. Tickets through AGS.",
+    description: "Behind Closed Doors New Year’s Eve Nº27 at Jimmy Woo. 23:00 till 04:00. Discounted tickets through AGS.",
     guestlistStatus: "none", // NYE = tickets only
     ticketUrl: "https://shop.celebratix.io/?t=36fcxh",
-    badgeLabel: "NYE · Tickets",
+    badgeLabel: "NYE · Discount Tickets",
+    discount: true,
     guestlistUrl: "#guestlist",
     publicFrom: "2026-11-25T21:00:00+01:00", // members (Silver+) see it 48h early
     featured: false,
