@@ -46,7 +46,18 @@ module.exports = async function handler(req, res) {
         res.status(500).json({ error: error.message });
         return;
       }
-      res.status(200).json({ requests: data || [] });
+      // Member tier per requester, so Silver+ can be reviewed first.
+      const rows = data || [];
+      try {
+        const ids = Array.from(new Set(rows.map(function (r) { return r.user_id; }).filter(Boolean)));
+        const pts = {};
+        for (let i = 0; i < ids.length; i += 300) {
+          const { data: pr } = await supabase.from('profiles').select('user_id, points').in('user_id', ids.slice(i, i + 300));
+          (pr || []).forEach(function (p) { pts[p.user_id] = p.points || 0; });
+        }
+        rows.forEach(function (r) { r.points = pts[r.user_id] || 0; });
+      } catch (e) { /* optional */ }
+      res.status(200).json({ requests: rows });
     } catch (err) {
       res.status(500).json({ error: err.message || 'Unknown error' });
     }

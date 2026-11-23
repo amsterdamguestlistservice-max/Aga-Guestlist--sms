@@ -94,7 +94,7 @@
   .adm-layer.is-open{display:block}
   #admDetail{z-index:9200}
   .adm-pill{display:inline-block;padding:6px 10px;font:700 10px/1 var(--sans);letter-spacing:.18em;text-transform:uppercase;border:1px solid var(--line);color:var(--muted)}
-  .adm-pill.approved{border-color:#3f8f5a;color:#7fd39a}.adm-pill.pending{border-color:var(--gold);color:var(--gold-light)}
+  .adm-tier{font-size:10px;font-weight:800;letter-spacing:.08em;padding:2px 7px;border-radius:999px;border:1px solid #c7cbd1;color:#e4e7ea;vertical-align:middle}.adm-tier--gold{border-color:#e6c875;color:#f1dc9c}.adm-tier--vip{border-color:#d9a6f5;color:#e9c8fb}.adm-pill.approved{border-color:#3f8f5a;color:#7fd39a}.adm-pill.pending{border-color:var(--gold);color:var(--gold-light)}
   .adm-pill.declined,.adm-pill.no-show,.adm-pill.cancelled{border-color:#7a3b36;color:#ff9a8f}
   .adm-dl{border:1px solid var(--line);background:var(--charcoal);margin-top:12px}
   .adm-dl div{display:flex;justify-content:space-between;gap:14px;padding:12px 14px;border-bottom:1px solid rgba(201,162,74,.12);font-size:14px}
@@ -329,14 +329,19 @@
     renderIg();
   }
   function renderReqs(){
-    const pending = PENDING.filter(function(x){ return !PARTY || x.event_name === PARTY; }).slice().sort(byName);
+    // Silver+ members are reviewed first (a Silver perk), then by name.
+    const pending = PENDING.filter(function(x){ return !PARTY || x.event_name === PARTY; }).slice().sort(function(a, b){
+      return ((b.points >= 50 ? 1 : 0) - (a.points >= 50 ? 1 : 0)) || byName(a, b);
+    });
     const box = document.getElementById('admReqs');
     if(!pending.length){ box.innerHTML = '<div class="adm-empty">' + (PARTY ? 'No requests waiting for ' + esc(PARTY) + '.' : 'All caught up. No requests waiting.') + '</div>'; return; }
     box.innerHTML = pending.map(function(x){
       const ig = String(x.instagram || '').replace(/^@/, '');
       const extra = Array.isArray(x.additional_guests) && x.additional_guests.length
         ? '<br>+ ' + x.additional_guests.map(function(g){ return esc(((g.firstName || g.first_name || g.name || '') + ' ' + (g.lastName || g.last_name || '')).trim()); }).join(', ') : '';
-      return '<div class="adm-req" data-id="' + esc(x.id) + '"><h4>' + esc((x.first_name || '') + ' ' + (x.last_name || '')) + '</h4>' +
+      const tier = x.points >= 300 ? 'VIP' : x.points >= 150 ? 'Gold' : x.points >= 50 ? 'Silver' : '';
+      return '<div class="adm-req" data-id="' + esc(x.id) + '"><h4>' + esc((x.first_name || '') + ' ' + (x.last_name || '')) +
+        (tier ? ' <span class="adm-tier adm-tier--' + tier.toLowerCase() + '">★ ' + tier + '</span>' : '') + '</h4>' +
         '<div class="ev">' + esc(x.event_name) + ' · ' + esc(day(x.event_date)) + '</div>' +
         '<div class="meta">' + (x.total_guests || 1) + ' guest' + ((x.total_guests || 1) > 1 ? 's' : '') +
         (x.age ? ' · ' + esc(x.age) + ' y' : '') + (x.gender ? ' · ' + esc(x.gender) : '') +
