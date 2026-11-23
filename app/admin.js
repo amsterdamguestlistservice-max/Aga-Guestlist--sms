@@ -259,7 +259,11 @@
       }).join('') : '<div class="adm-empty">No past parties' + (PARTY ? ' for ' + esc(PARTY) : '') + '.</div>';
       return;
     }
-    const evs = upcomingEvs.filter(function(e){ return !PARTY || baseName(e.name) === PARTY; }).slice().sort(byName);
+    // Soonest first, so every party of this week is at the top (not 8 weeks of the same party).
+    const evs = upcomingEvs.filter(function(e){ return !PARTY || baseName(e.name) === PARTY; }).slice().sort(function(a, b){
+      const d1 = String(a.date), d2 = String(b.date);
+      return d1 !== d2 ? (d1 < d2 ? -1 : 1) : byName(a, b);
+    });
     document.getElementById('admEvents').innerHTML = evs.length ? evs.map(function(e){
       const pct = e.capacity ? Math.min(100, Math.round(e.claimed / e.capacity * 100)) : 0;
       return '<div class="adm-ev" data-name="' + esc(e.name) + '" data-date="' + esc(e.date) + '"><div class="adm-ev__top"><span>' + esc(e.name) + '</span><i>' + esc(day(e.date)) + '</i></div>' +
