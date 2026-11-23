@@ -4849,6 +4849,7 @@ function openTonight(force){
         '<a class="btn" href="' + uberLinkFor(r.event_venue) + '" target="_blank" rel="noopener">Get a ride 🚕</a>' +
         '<button type="button" class="btn" id="tonightInvite">🔗 Add a friend</button>' +
         (ev ? '<button type="button" class="btn" id="tonightShare">Share to your story</button>' : '') +
+        '<button type="button" class="btn safe-btn" id="tonightSafe">🛡️ Safe night</button>' +
       '</div>' +
     '</div>';
   // A points celebration already on screen waits until the pass closes.
@@ -4858,6 +4859,7 @@ function openTonight(force){
   ov.querySelector('.tonight__close').addEventListener('click', closeTonight);
   const sh = document.getElementById('tonightShare'); if(sh) sh.addEventListener('click', function(){ shareStory(ev, sh); });
   const inv = document.getElementById('tonightInvite'); if(inv) inv.addEventListener('click', function(){ shareGroupInvite(r, inv); });
+  const sf = document.getElementById('tonightSafe'); if(sf) sf.addEventListener('click', function(){ openSafeNight(r.event_venue); });
   function tick(){
     const el = document.getElementById('tonightCount'); if(!el) return;
     const ms = ev ? eventStartTime(ev) - Date.now() : 0;
@@ -5339,3 +5341,166 @@ function showOnboarding(existing, key){
   swipeToClose('sheetOverlay', closeEventSheet);
   swipeToClose('quickOverlay', closeQuickSheet);
 })();
+
+
+/* =====================================================================
+   SAFE NIGHT — share your location, a ride home, your trusted contact
+   and 112, one tap away. The trusted contact stays on this phone only.
+   ===================================================================== */
+function safeContact(){ try{ return JSON.parse(localStorage.getItem('ags_safe_contact') || 'null'); } catch(e){ return null; } }
+function openSafeNight(venue){
+  const old = document.getElementById('safeNight'); if(old) old.remove();
+  const el = document.createElement('div'); el.className = 'safe'; el.id = 'safeNight';
+  document.body.appendChild(el); document.body.style.overflow = 'hidden';
+  const esc = function(v){ return String(v || '').replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
+  const telOf = function(n){ return String(n || '').replace(/[^0-9+]/g, ''); };
+  function render(){
+    const c = safeContact();
+    el.innerHTML = '<div class="safe__inner">' +
+      '<button type="button" class="safe__close" data-a="close" aria-label="Close">✕</button>' +
+      '<div class="safe__shield">🛡️</div><h2>Safe night</h2><p>Everything to get home safe, one tap away.</p>' +
+      '<div class="safe__grid">' +
+        '<button type="button" class="safe__tile" data-a="loc"><b>📍</b><span>Share my location</span><small>Send where you are to a friend</small></button>' +
+        '<a class="safe__tile" href="https://m.uber.com/ul/?action=setPickup&pickup=my_location" target="_blank" rel="noopener"><b>🚕</b><span>Ride home</span><small>Uber from where you are</small></a>' +
+        '<button type="button" class="safe__tile" data-a="home"><b>🏠</b><span>I’m home safe</span><small>Let your friends know</small></button>' +
+        (venue ? '<a class="safe__tile" href="' + mapsLinkFor(venue) + '" target="_blank" rel="noopener"><b>🗺️</b><span>Back to the club</span><small>Lost your group? Route there</small></a>' : '<button type="button" class="safe__tile" data-a="friends"><b>👯</b><span>Stay together</span><small>Agree a meeting point</small></button>') +
+      '</div>' +
+      '<div class="safe__contact">' + (c && c.phone
+        ? '<div><small>Trusted contact</small><b>' + esc(c.name || 'My contact') + '</b></div><a class="btn btn--solid" href="tel:' + telOf(c.phone) + '">Call</a><button type="button" class="btn" data-a="textc">Text location</button><button type="button" class="safe__edit" data-a="edit">Edit</button>'
+        : '<div><small>Trusted contact</small><b>Not set yet</b><em>Someone you can always call. Saved on this phone only.</em></div><button type="button" class="btn btn--solid" data-a="edit">Add contact</button>') +
+      '</div>' +
+      '<div class="safe__form" id="safeForm" hidden><input type="text" id="safeName" placeholder="Name (e.g. Mom, Lisa)" value="' + esc(c && c.name) + '"><input type="tel" id="safePhone" placeholder="Phone number" value="' + esc(c && c.phone) + '"><button type="button" class="btn btn--solid" data-a="savec">Save</button></div>' +
+      '<a class="safe__sos" href="tel:112"><b>Emergency · 112</b><span>Police, ambulance, fire</span></a>' +
+      '<a class="safe__non" href="tel:09008844">Police, no emergency · 0900 8844</a>' +
+      '<ul class="safe__tips"><li>Watch your drink, never take one from a stranger.</li><li>Feeling unwell or unsafe inside? Tell security or the bar staff right away.</li><li>Agree a meeting point with your group in case phones die.</li></ul>' +
+    '</div>';
+  }
+  function getLink(cb){
+    if(!navigator.geolocation){ cb(null); return; }
+    navigator.geolocation.getCurrentPosition(function(p){ cb('https://maps.google.com/?q=' + p.coords.latitude.toFixed(5) + ',' + p.coords.longitude.toFixed(5)); },
+      function(){ cb(null); }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+  }
+  function shareText(text, phone){
+    if(phone){ window.location.href = 'sms:' + telOf(phone) + (/iPhone|iPad/.test(navigator.userAgent) ? '&' : '?') + 'body=' + encodeURIComponent(text); return; }
+    if(navigator.share){ navigator.share({ text: text }).catch(function(){}); return; }
+    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank', 'noopener');
+  }
+  el.addEventListener('click', function(e){
+    const b = e.target.closest('[data-a]'); if(!b) return;
+    const a = b.dataset.a, c = safeContact();
+    if(a === 'close'){ el.remove(); document.body.style.overflow = ''; return; }
+    if(a === 'loc' || a === 'textc'){
+      const label = b.innerHTML; b.classList.add('is-busy');
+      getLink(function(link){
+        b.classList.remove('is-busy');
+        const text = link ? 'Here’s where I am right now 📍 ' + link : 'I’m out tonight' + (venue ? ' at ' + String(venue).split(' · ')[0] : '') + '. Can you keep an eye on your phone? 🖤';
+        shareText(text, a === 'textc' && c ? c.phone : null);
+        b.innerHTML = label;
+      });
+      return;
+    }
+    if(a === 'home'){ shareText('Home safe 🏠🖤 Thanks for tonight!', null); return; }
+    if(a === 'friends'){ shareText('Let’s agree: if we lose each other or phones die, we meet at the entrance at 03:00 🖤', null); return; }
+    if(a === 'edit'){ const f = el.querySelector('#safeForm'); f.hidden = false; el.querySelector('#safeName').focus(); return; }
+    if(a === 'savec'){
+      const n = el.querySelector('#safeName').value.trim(), ph = el.querySelector('#safePhone').value.trim();
+      try{ if(ph) localStorage.setItem('ags_safe_contact', JSON.stringify({ name: n, phone: ph })); else localStorage.removeItem('ags_safe_contact'); } catch(err){}
+      render(); return;
+    }
+  });
+  render();
+}
+
+/* =====================================================================
+   NEW YEAR'S EVE — home banner with countdown, full page with the NYE
+   parties, and "notify me" so they hear first when a NYE party drops.
+   ===================================================================== */
+const NYE = { year: 2026, topic: 'nye-2026' };
+function nyeDates(){ return [NYE.year + '-12-31', (NYE.year + 1) + '-01-01']; }
+function nyeEvents(){ const d = nyeDates(); return EVENTS.filter(function(ev){ return d.indexOf(ev.date) >= 0 && eventVisible(ev); }); }
+function nyeMidnight(){ return new Date((NYE.year + 1) + '-01-01T00:00:00+01:00').getTime(); }
+function nyeActive(){ const now = Date.now(); return now > new Date(NYE.year + '-11-15T00:00:00+01:00').getTime() && now < nyeMidnight() + 8 * 36e5; }
+function nyeCountdown(){
+  const ms = nyeMidnight() - Date.now();
+  if(ms <= 0) return { d: 0, h: 0, m: 0, s: 0, done: true };
+  return { d: Math.floor(ms / 864e5), h: Math.floor(ms / 36e5) % 24, m: Math.floor(ms / 6e4) % 60, s: Math.floor(ms / 1e3) % 60, done: false };
+}
+function renderNyeBanner(){
+  let b = document.getElementById('nyeBanner');
+  if(!nyeActive()){ if(b) b.remove(); return; }
+  if(!b){
+    b = document.createElement('button'); b.type = 'button'; b.id = 'nyeBanner'; b.className = 'nye-banner';
+    const anchor = document.getElementById('featuredHero');
+    if(!anchor || !anchor.parentNode) return;
+    anchor.parentNode.insertBefore(b, anchor);
+    b.addEventListener('click', openNye);
+  }
+  const c = nyeCountdown(), n = nyeEvents().length;
+  b.innerHTML = '<span class="nye-banner__fx">🎆</span><span class="nye-banner__txt"><small>New Year’s Eve</small><b>' +
+    (c.done ? 'Happy New Year! 🥂' : c.d + ' days to go') + '</b><em>' + (n ? n + ' NYE ' + (n === 1 ? 'party' : 'parties') + ' on the list' : 'Be the first to hear about NYE parties') + '</em></span><span class="nye-banner__go">→</span>';
+}
+let NYE_TIMER = null;
+async function openNye(){
+  if(document.getElementById('nyePage')) return;
+  const el = document.createElement('div'); el.className = 'nye'; el.id = 'nyePage';
+  document.body.appendChild(el); document.body.style.overflow = 'hidden';
+  let subscribed = false, count = 0;
+  try{
+    if(supabaseClient && currentUser){
+      const { data } = await supabaseClient.from('alert_signups').select('topic').eq('user_id', currentUser.id).eq('topic', NYE.topic).maybeSingle();
+      subscribed = !!data;
+    }
+    if(supabaseClient){ const r = await supabaseClient.rpc('alert_count', { p_topic: NYE.topic }); count = Number(r.data) || 0; }
+  } catch(e){}
+  const esc = function(v){ return String(v || '').replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
+  function render(){
+    const list = nyeEvents(), c = nyeCountdown();
+    el.innerHTML = '<div class="nye__sky"></div><div class="nye__inner">' +
+      '<button type="button" class="safe__close" data-a="close" aria-label="Close">✕</button>' +
+      '<small class="nye__kicker">Amsterdam · ' + NYE.year + ' → ' + (NYE.year + 1) + '</small><h2>New Year’s Eve</h2>' +
+      '<div class="nye__count">' + [['d', 'days'], ['h', 'hrs'], ['m', 'min'], ['s', 'sec']].map(function(u){ return '<div><b data-u="' + u[0] + '">' + String(c[u[0]]).padStart(2, '0') + '</b><span>' + u[1] + '</span></div>'; }).join('') + '</div>' +
+      (list.length
+        ? '<div class="nye__list">' + list.map(function(ev){
+            const open = ['open', 'limited'].indexOf(ev.guestlistStatus) >= 0;
+            return '<div class="nye__item" data-id="' + esc(ev.id) + '">' + (ev.image ? '<div class="nye__img" style="background-image:url(\'' + esc(webpOf(ev.image) || ev.image) + '\')"></div>' : '<div class="nye__img nye__img--fx">🎆</div>') +
+              '<div class="nye__meta"><b>' + esc(ev.name) + '</b><span>' + esc(eventVenueName(ev)) + ' · ' + esc(ev.time || '') + '</span>' +
+              '<button type="button" class="btn btn--solid" data-a="go" data-id="' + esc(ev.id) + '">' + (open ? '🔑 Get on the list' : 'View party') + '</button></div></div>';
+          }).join('') + '</div>'
+        : '<div class="nye__soon"><b>The NYE line-up drops soon</b><p>The best New Year’s Eve parties in Amsterdam, with free guestlist and early access for members. Get a notification the moment they’re live.</p></div>') +
+      '<button type="button" class="btn ' + (subscribed ? '' : 'btn--solid') + ' nye__notify" data-a="notify"' + (subscribed ? ' disabled' : '') + '>' + (subscribed ? '✓ You’ll hear first' : '🔔 Notify me first') + '</button>' +
+      (count >= 10 ? '<div class="nye__count-note">' + count + ' people are waiting for the NYE line-up</div>' : '') +
+      '<ul class="nye__perks"><li><b>⚡ Members first</b>Silver members see NYE parties 48 hours early.</li><li><b>🔑 Free guestlist</b>Where the club allows it, as always.</li><li><b>🛡️ Safe night</b>Ride home and your trusted contact, one tap away.</li></ul>' +
+    '</div>';
+  }
+  render();
+  clearInterval(NYE_TIMER);
+  NYE_TIMER = setInterval(function(){
+    if(!document.body.contains(el)){ clearInterval(NYE_TIMER); return; }
+    const c = nyeCountdown();
+    el.querySelectorAll('[data-u]').forEach(function(b){ b.textContent = String(c[b.dataset.u]).padStart(2, '0'); });
+  }, 1000);
+  el.addEventListener('click', async function(e){
+    const b = e.target.closest('[data-a]'); if(!b) return;
+    const a = b.dataset.a;
+    if(a === 'close'){ el.remove(); document.body.style.overflow = ''; clearInterval(NYE_TIMER); return; }
+    if(a === 'go'){ const ev = EVENTS.find(function(x){ return x.id === b.dataset.id; }); el.remove(); document.body.style.overflow = ''; clearInterval(NYE_TIMER);
+      if(ev){ const open = ['open', 'limited'].indexOf(ev.guestlistStatus) >= 0; if(open) startGuestlistFor(ev, false); else openEventSheet(ev); } return; }
+    if(a === 'notify'){
+      if(!currentUser){ el.remove(); document.body.style.overflow = ''; lockAppBehindGate(); return; }
+      b.disabled = true;
+      const r = await supabaseClient.from('alert_signups').upsert({ user_id: currentUser.id, topic: NYE.topic }, { onConflict: 'user_id,topic', ignoreDuplicates: true });
+      if(r.error){ b.disabled = false; return; }
+      subscribed = true; count++; haptic('success');
+      try{ if(pushSupported && !(await isPushOn())) await subscribeToPush(); } catch(err){}
+      render();
+    }
+  });
+}
+// Banner on the home screen; deep link ./?nye=1 opens the page.
+(function(){
+  try{ renderNyeBanner(); } catch(e){}
+  setInterval(function(){ try{ renderNyeBanner(); } catch(e){} }, 60000);
+  try{ if(/[?&]nye=1/.test(location.search)) setTimeout(openNye, 1200); } catch(e){}
+})();
+
+(function(){ const b = document.getElementById('openSafeBtn'); if(b) b.addEventListener('click', function(){ openSafeNight(null); }); })();

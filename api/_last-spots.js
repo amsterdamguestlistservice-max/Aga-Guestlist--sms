@@ -296,6 +296,19 @@ async function sendNewEventsPush(supabase, opts) {
           });
         });
       }
+      // New Year's Eve: people who tapped "Notify me first" get their own version.
+      const nye = fresh.find(function (e) { return /-12-31$/.test(e.date) || /-01-01$/.test(e.date); });
+      if (nye) {
+        const topic = 'nye-' + (/-01-01$/.test(nye.date) ? Number(nye.date.slice(0, 4)) - 1 : nye.date.slice(0, 4));
+        const { data: fans } = await supabase.from('alert_signups').select('user_id').eq('topic', topic);
+        (fans || []).forEach(function (f) {
+          followPayload[f.user_id] = JSON.stringify({
+            title: 'New Year\'s Eve: ' + nye.name + ' just dropped 🎆',
+            body: venue(nye) + ' · ' + shortDate(nye.date) + '. You asked to hear first, so you\'re early. Get on the list now.',
+            url: './index.html?event=' + encodeURIComponent(nye.id)
+          });
+        });
+      }
     } catch (e) { /* follower version is optional */ }
     let pushed = 0;
     await Promise.all((subs || []).map(async function (sub) {

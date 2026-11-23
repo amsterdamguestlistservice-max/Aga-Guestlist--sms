@@ -1207,6 +1207,65 @@ body{ background:#020202; }
 #tab-feed.is-active{ animation:none; }
 @keyframes tab-in{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:none; } }
 @media (prefers-reduced-motion: reduce){ .tab-panel.is-active{ animation:none; } }
+/* Safe night */
+.safe, .nye{ position:fixed; inset:0; z-index:9300; overflow-y:auto; background:#060505; }
+.safe__inner, .nye__inner{ position:relative; max-width:460px; margin:0 auto; padding:calc(env(safe-area-inset-top,0px) + 26px) 18px calc(env(safe-area-inset-bottom,0px) + 30px); }
+.safe__close{ position:absolute; top:calc(env(safe-area-inset-top,0px) + 14px); right:14px; width:40px; height:40px; border-radius:50%; border:1px solid rgba(255,255,255,.2); background:rgba(0,0,0,.4); color:#fff; font-size:17px; z-index:2; }
+.safe__shield{ font-size:46px; margin-top:12px; }
+.safe h2, .nye h2{ font-family:var(--serif); font-size:40px; margin:6px 0 4px; }
+.safe p{ color:rgba(255,255,255,.7); margin:0 0 18px; font-size:14.5px; }
+.safe__grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.safe__tile{ display:flex; flex-direction:column; align-items:flex-start; gap:3px; padding:14px; min-height:112px; border-radius:16px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.04); color:#fff; text-decoration:none; text-align:left; font:inherit; cursor:pointer; }
+.safe__tile b{ font-size:24px; margin-bottom:4px; }
+.safe__tile span{ font-weight:700; font-size:14.5px; }
+.safe__tile small{ font-size:11.5px; color:rgba(255,255,255,.55); line-height:1.35; }
+.safe__tile.is-busy{ opacity:.55; }
+.safe__contact{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:14px 0 8px; padding:14px; border-radius:16px; border:1px solid rgba(201,162,74,.4); background:rgba(201,162,74,.07); }
+.safe__contact > div{ flex:1 1 100%; }
+.safe__contact small{ display:block; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:#cfae5e; }
+.safe__contact b{ display:block; font-size:17px; margin-top:2px; }
+.safe__contact em{ display:block; font-style:normal; font-size:12px; color:rgba(255,255,255,.55); margin-top:2px; }
+.safe__contact .btn{ flex:1; min-width:0; }
+.safe__edit{ background:none; border:0; color:rgba(255,255,255,.55); text-decoration:underline; font-size:12px; }
+.safe__form{ display:grid; gap:8px; margin-bottom:10px; }
+.safe__form input{ padding:13px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.04); color:#fff; font:inherit; font-size:16px; }
+.safe__sos{ display:flex; flex-direction:column; align-items:center; margin-top:14px; padding:16px; border-radius:16px; background:#c62828; color:#fff; text-decoration:none; box-shadow:0 10px 30px -8px rgba(198,40,40,.7); }
+.safe__sos b{ font-size:18px; } .safe__sos span{ font-size:12px; opacity:.85; }
+.safe__non{ display:block; text-align:center; margin:10px 0 4px; color:rgba(255,255,255,.65); font-size:13px; }
+.safe__tips{ margin:18px 0 0; padding:0 0 0 18px; color:rgba(255,255,255,.6); font-size:12.5px; line-height:1.6; }
+.safe-btn{ border-color:rgba(120,200,255,.45) !important; }
+/* New Year's Eve */
+.nye{ background:radial-gradient(90% 55% at 50% 0%, rgba(201,162,74,.32), transparent 70%), #050403; }
+.nye__sky{ position:absolute; inset:0 0 auto 0; height:320px; pointer-events:none; background:radial-gradient(2px 2px at 20% 30%, #fff8, transparent), radial-gradient(2px 2px at 70% 20%, #fff6, transparent), radial-gradient(1.5px 1.5px at 40% 60%, #fff5, transparent), radial-gradient(2px 2px at 85% 50%, #f1dc9c99, transparent), radial-gradient(1.5px 1.5px at 10% 70%, #fff4, transparent); animation:nye-twinkle 3s ease-in-out infinite alternate; }
+@keyframes nye-twinkle{ to{ opacity:.45; } }
+.nye__kicker{ display:block; margin-top:18px; font-size:11px; font-weight:700; letter-spacing:.24em; text-transform:uppercase; color:#cfae5e; }
+.nye h2{ font-size:48px; line-height:1; background:linear-gradient(100deg,#9c7a2e,#e9d18b 35%,#fff3cf 50%,#d9b65e 65%,#8a6a24); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.nye__count{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:18px 0 20px; }
+.nye__count div{ text-align:center; padding:12px 0; border-radius:14px; border:1px solid rgba(201,162,74,.35); background:rgba(0,0,0,.35); }
+.nye__count b{ display:block; font-family:var(--serif); font-size:34px; color:#f1dc9c; font-variant-numeric:tabular-nums; }
+.nye__count span{ font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:rgba(255,255,255,.55); }
+.nye__soon{ padding:18px; border-radius:16px; border:1px dashed rgba(201,162,74,.45); margin-bottom:14px; }
+.nye__soon b{ font-family:var(--serif); font-size:24px; }
+.nye__soon p{ font-size:13.5px; color:rgba(255,255,255,.7); margin:6px 0 0; line-height:1.5; }
+.nye__list{ display:grid; gap:12px; margin-bottom:14px; }
+.nye__item{ display:flex; gap:12px; padding:10px; border-radius:16px; border:1px solid rgba(255,255,255,.1); background:rgba(255,255,255,.03); }
+.nye__img{ width:96px; flex:0 0 96px; aspect-ratio:4/5; border-radius:10px; background:#15120c center/cover; display:flex; align-items:center; justify-content:center; font-size:34px; }
+.nye__meta{ display:flex; flex-direction:column; gap:4px; min-width:0; flex:1; }
+.nye__meta b{ font-family:var(--serif); font-size:22px; line-height:1.05; }
+.nye__meta span{ font-size:12.5px; color:rgba(255,255,255,.6); }
+.nye__meta .btn{ margin-top:auto; padding:10px; font-size:11.5px; }
+.nye__notify{ width:100%; }
+.nye__count-note{ text-align:center; font-size:12.5px; color:#e9d18b; margin-top:8px; }
+.nye__perks{ list-style:none; padding:0; margin:20px 0 0; display:grid; gap:10px; }
+.nye__perks li{ font-size:13px; color:rgba(255,255,255,.65); }
+.nye__perks b{ display:block; color:#fff; font-size:14px; margin-bottom:2px; }
+.nye-banner{ width:100%; display:flex; align-items:center; gap:12px; margin:0 0 16px; padding:14px 16px; border-radius:18px; border:1px solid rgba(201,162,74,.5); background:radial-gradient(80% 140% at 0% 0%, rgba(201,162,74,.28), transparent 60%), linear-gradient(120deg,#120e07,#060505); color:#fff; text-align:left; font:inherit; cursor:pointer; box-shadow:0 14px 34px -16px rgba(201,162,74,.5); }
+.nye-banner__fx{ font-size:30px; }
+.nye-banner__txt{ flex:1; min-width:0; }
+.nye-banner__txt small{ display:block; font-size:10.5px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:#cfae5e; }
+.nye-banner__txt b{ display:block; font-family:var(--serif); font-size:24px; line-height:1.05; }
+.nye-banner__txt em{ display:block; font-style:normal; font-size:12px; color:rgba(255,255,255,.6); }
+.nye-banner__go{ font-size:20px; color:#e9d18b; }
 /* 1. Splash */
 .splash{ position:fixed; inset:0; z-index:10000; background:#050403; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; transition:opacity .5s ease, visibility .5s; }
 .splash.is-gone{ opacity:0; visibility:hidden; }
@@ -1738,6 +1797,7 @@ body{ background:#020202; }
       </div>
 
       <button type="button" class="account-link" id="openContactBtn"><span>Tables, Inner Circle &amp; contact</span><span aria-hidden="true">→</span></button>
+      <button type="button" class="account-link" id="openSafeBtn"><span>🛡️ Safe night</span><span aria-hidden="true">→</span></button>
       <button type="button" class="sound-toggle" id="soundToggle" aria-pressed="true"><span class="sound-toggle__icon" aria-hidden="true">♪</span><span id="soundToggleLabel">App sounds: On</span></button>
       <button type="button" class="account-signout" id="signOutBtn">Sign Out</button>
       <nav class="legal-links" aria-label="Legal">
