@@ -1711,6 +1711,7 @@ function openEventSheet(ev){
   document.getElementById('sheetVenue').textContent = ev.venue;
   renderSheetExtras(ev);
   applyPartyColor(ev);
+  renderSheetMusic(ev);
   if(supabaseClient && currentUser && ev.id){
     supabaseClient.rpc('log_event_view', { p_event_id: ev.id, p_event_name: ev.name, p_event_date: ev.date, p_venue: eventVenueName(ev) }).then(function(){}, function(){});
   }
@@ -5504,3 +5505,59 @@ async function openNye(){
 })();
 
 (function(){ const b = document.getElementById('openSafeBtn'); if(b) b.addEventListener('click', function(){ openSafeNight(null); }); })();
+
+
+/* =====================================================================
+   MUSIC PER PARTY — hear the vibe before you go.
+   A Spotify / SoundCloud / YouTube link per party series (MUSIC_BY_NAME)
+   or per date (ev.music) plays inline; every DJ in the line-up gets a
+   quick link to their music.
+   ===================================================================== */
+const MUSIC_BY_NAME = {
+  // 'Amajoyo': 'https://open.spotify.com/playlist/…',
+};
+function partyMusicUrl(ev){ return (ev && (ev.music || MUSIC_BY_NAME[ev.name])) || ''; }
+function musicEmbed(url){
+  const u = String(url || '');
+  let m = u.match(/open\.spotify\.com\/(?:intl-[a-z]+\/)?(playlist|album|track|artist|episode|show)\/([A-Za-z0-9]+)/);
+  if(m) return { src: 'https://open.spotify.com/embed/' + m[1] + '/' + m[2] + '?theme=0', h: m[1] === 'track' ? 152 : 232 };
+  if(/soundcloud\.com\//.test(u)) return { src: 'https://w.soundcloud.com/player/?url=' + encodeURIComponent(u) + '&color=%23c9a24a&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&visual=true', h: 180 };
+  m = u.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([A-Za-z0-9_-]{6,})/);
+  if(m) return { src: 'https://www.youtube-nocookie.com/embed/' + m[1], h: 200 };
+  return null;
+}
+function partyLineup(ev){
+  if(ev && Array.isArray(ev.lineup)) return ev.lineup;
+  const d = String((ev && ev.description) || '');
+  const m = d.match(/\bwith (.+?\S)\.(?:\s|$)/i);
+  if(!m) return [];
+  return m[1].replace(/\([^)]*\)/g, '').split(/\s*(?:,|&|\band\b|\s\.\s)\s*/i)
+    .map(function(x){ return x.trim(); }).filter(function(x){ return x && x.length < 40 && !/^more$/i.test(x); });
+}
+function renderSheetMusic(ev){
+  const host = document.getElementById('sheetExtras');
+  if(!host) return;
+  const old = document.getElementById('sheetMusic'); if(old) old.remove();
+  const url = partyMusicUrl(ev), emb = musicEmbed(url), djs = partyLineup(ev);
+  if(!emb && !djs.length) return;
+  const esc = function(v){ return String(v || '').replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
+  const box = document.createElement('div'); box.id = 'sheetMusic'; box.className = 'music';
+  box.innerHTML = '<div class="music__head"><span>🎧 Hear the vibe</span>' + (url && !emb ? '<a href="' + esc(url) + '" target="_blank" rel="noopener">Open ↗</a>' : '') + '</div>' +
+    (emb ? '<div class="music__player"><button type="button" class="music__load" data-src="' + esc(emb.src) + '" data-h="' + emb.h + '">▶ Play the ' + esc(ev.name) + ' set</button></div>' : '') +
+    (djs.length ? '<div class="music__djs">' + djs.map(function(n){
+      return '<div class="music__dj"><b>' + esc(n) + '</b>' +
+        '<a href="https://open.spotify.com/search/' + encodeURIComponent(n) + '" target="_blank" rel="noopener" aria-label="' + esc(n) + ' on Spotify">Spotify</a>' +
+        '<a href="https://soundcloud.com/search?q=' + encodeURIComponent(n) + '" target="_blank" rel="noopener" aria-label="' + esc(n) + ' on SoundCloud">SoundCloud</a></div>';
+    }).join('') + '</div>' : '');
+  host.parentNode.insertBefore(box, host.nextSibling);
+  const load = box.querySelector('.music__load');
+  // The player only loads on tap: keeps the sheet fast and nothing plays by itself.
+  if(load) load.addEventListener('click', function(){
+    const f = document.createElement('iframe');
+    f.src = load.dataset.src; f.height = load.dataset.h; f.loading = 'lazy';
+    f.allow = 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture';
+    f.setAttribute('frameborder', '0'); f.className = 'music__frame';
+    load.replaceWith(f);
+    const clip = document.querySelector('#sheetMedia video'); if(clip){ clip.muted = true; }
+  });
+}

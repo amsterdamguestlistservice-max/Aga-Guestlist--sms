@@ -1266,6 +1266,19 @@ body{ background:#020202; }
 .nye-banner__txt b{ display:block; font-family:var(--serif); font-size:24px; line-height:1.05; }
 .nye-banner__txt em{ display:block; font-style:normal; font-size:12px; color:rgba(255,255,255,.6); }
 .nye-banner__go{ font-size:20px; color:#e9d18b; }
+/* Music per party */
+.music{ margin:2px 0 16px; padding:14px; border-radius:16px; border:1px solid rgba(255,255,255,.1); background:rgba(255,255,255,.03); }
+.music__head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; font-size:12px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:#cfae5e; }
+.music__head a{ color:#e9d18b; letter-spacing:.04em; text-transform:none; font-weight:600; text-decoration:none; }
+.music__load{ width:100%; padding:14px; border-radius:12px; border:1px solid rgba(30,215,96,.45); background:rgba(30,215,96,.08); color:#fff; font:700 13px/1 var(--sans, Inter, sans-serif); cursor:pointer; }
+.music__frame{ width:100%; border-radius:12px; display:block; }
+.music__player{ margin-bottom:10px; }
+.music__djs{ display:grid; gap:6px; }
+.music__dj{ display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:10px; background:rgba(0,0,0,.25); }
+.music__dj b{ flex:1; min-width:0; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.music__dj a{ font-size:11px; font-weight:700; padding:5px 9px; border-radius:999px; text-decoration:none; border:1px solid rgba(255,255,255,.2); color:#fff; }
+.music__dj a:first-of-type{ border-color:rgba(30,215,96,.55); color:#7ee3a0; }
+.music__dj a:last-of-type{ border-color:rgba(255,120,40,.55); color:#ffb07a; }
 /* 1. Splash */
 .splash{ position:fixed; inset:0; z-index:10000; background:#050403; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; transition:opacity .5s ease, visibility .5s; }
 .splash.is-gone{ opacity:0; visibility:hidden; }
