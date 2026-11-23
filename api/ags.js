@@ -19,7 +19,8 @@ const ROUTES = {
   'calendar': require('./_calendar'),
   'admin-stats': require('./_admin-stats'),
   'announce-new': require('./_announce-new'),
-  'broadcast': require('./_broadcast')
+  'broadcast': require('./_broadcast'),
+  'notify-alert-signup': require('./_notify-alert-signup')
 };
 
 module.exports = function handler(req, res) {
