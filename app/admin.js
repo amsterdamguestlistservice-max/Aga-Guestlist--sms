@@ -94,7 +94,7 @@
   .adm-layer.is-open{display:block}
   #admDetail{z-index:9200}
   .adm-pill{display:inline-block;padding:6px 10px;font:700 10px/1 var(--sans);letter-spacing:.18em;text-transform:uppercase;border:1px solid var(--line);color:var(--muted)}
-  .adm-tier{font-size:10px;font-weight:800;letter-spacing:.08em;padding:2px 7px;border-radius:999px;border:1px solid #c7cbd1;color:#e4e7ea;vertical-align:middle}.adm-tier--gold{border-color:#e6c875;color:#f1dc9c}.adm-tier--vip{border-color:#d9a6f5;color:#e9c8fb}.adm-pill.approved{border-color:#3f8f5a;color:#7fd39a}.adm-pill.pending{border-color:var(--gold);color:var(--gold-light)}
+  .adm-act__nums{display:flex;gap:10px;margin-bottom:10px}.adm-act__nums div{flex:1;text-align:center;padding:10px 4px;border:1px solid rgba(201,162,74,.3);border-radius:12px}.adm-act__nums b{display:block;font-size:22px;color:#f1dc9c}.adm-act__nums span{font-size:10px;letter-spacing:.1em;text-transform:uppercase;opacity:.6}.adm-act__bars{display:flex;align-items:flex-end;gap:3px;height:110px}.adm-act__bar{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}.adm-act__bar i{display:block;width:100%;min-height:2px;border-radius:3px 3px 0 0;background:linear-gradient(#e9d18b,#8a6a24)}.adm-act__bar.is-we i{background:linear-gradient(#fff3cf,#c9a24a)}.adm-act__bar span{font-size:8px;opacity:.5;margin-top:3px}.adm-tier{font-size:10px;font-weight:800;letter-spacing:.08em;padding:2px 7px;border-radius:999px;border:1px solid #c7cbd1;color:#e4e7ea;vertical-align:middle}.adm-tier--gold{border-color:#e6c875;color:#f1dc9c}.adm-tier--vip{border-color:#d9a6f5;color:#e9c8fb}.adm-pill.approved{border-color:#3f8f5a;color:#7fd39a}.adm-pill.pending{border-color:var(--gold);color:var(--gold-light)}
   .adm-pill.declined,.adm-pill.no-show,.adm-pill.cancelled{border-color:#7a3b36;color:#ff9a8f}
   .adm-dl{border:1px solid var(--line);background:var(--charcoal);margin-top:12px}
   .adm-dl div{display:flex;justify-content:space-between;gap:14px;padding:12px 14px;border-bottom:1px solid rgba(201,162,74,.12);font-size:14px}
@@ -139,6 +139,7 @@
     '<div class="adm-sec">All time</div><div class="adm-grid" id="admTotals"></div>' +
     '<div class="adm-sec">New accounts · last 14 days</div><div class="adm-chart" id="admChart"></div>' +
     '<div class="adm-sec">Most guests</div><div id="admTop"></div>' +
+    '<div class="adm-sec">People in the app per day</div><div id="admActives"></div>' +
     '<div class="adm-sec">Party ratings</div><div id="admRatings"></div>' +
     '<div class="adm-sec">Instagram</div><div class="adm-tabs" id="admIgTabs"></div>' +
     '<input type="search" id="admIgSearch" class="adm-ig-search" placeholder="Search name or @handle" autocomplete="off">' +
@@ -187,6 +188,18 @@
     document.getElementById('admTop').innerHTML = top.length ? top.map(function(t, i){
       return '<div class="adm-top">' + (i + 1) + '. ' + esc(t.name) + '<span>' + t.guests + ' guests</span></div>';
     }).join('') : '<div class="adm-empty">No approved guests yet.</div>';
+    const ac = s.actives || [];
+    const acEl = document.getElementById('admActives');
+    if(acEl){
+      const max = Math.max(1, ...ac.map(function(d){ return d.total; }));
+      const today = ac[ac.length - 1] || { total: 0, members: 0 };
+      const week = ac.slice(-7).reduce(function(n, d){ return n + d.total; }, 0);
+      acEl.innerHTML = ac.length ? '<div class="adm-act__nums"><div><b>' + today.total + '</b><span>today</span></div><div><b>' + today.members + '</b><span>logged in</span></div><div><b>' + Math.round(week / 7) + '</b><span>avg / day (7d)</span></div></div>' +
+        '<div class="adm-act__bars">' + ac.map(function(d){
+          const dt = new Date(d.day + 'T12:00:00'), wd = ['S','M','T','W','T','F','S'][dt.getDay()];
+          return '<div class="adm-act__bar' + (dt.getDay() === 5 || dt.getDay() === 6 ? ' is-we' : '') + '" title="' + d.day + ': ' + d.total + '"><i style="height:' + Math.round(d.total / max * 100) + '%"></i><span>' + wd + '</span></div>';
+        }).join('') + '</div><div class="adm-note" style="margin-top:6px">Counted from 23 Nov. Each person counts once per day.</div>' : '<div class="adm-empty">No data yet.</div>';
+    }
     const rt = s.ratings || [];
     document.getElementById('admRatings').innerHTML = rt.length ? rt.map(function(r){
       const d = new Date(r.date + 'T12:00:00');

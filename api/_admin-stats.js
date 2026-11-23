@@ -105,8 +105,22 @@ module.exports = async function handler(req, res) {
         .sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 20);
     } catch (e) { ratings = []; }
 
+    // Daily actives, last 30 days (Amsterdam days).
+    let actives = [];
+    try {
+      const since = new Date(Date.now() - 29 * 864e5).toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
+      const { data: da } = await sb.from('daily_actives').select('day, user_id').gte('day', since).limit(50000);
+      const by = {};
+      (da || []).forEach(function (r) { const o = by[r.day] || (by[r.day] = { day: r.day, total: 0, members: 0 }); o.total++; if (r.user_id) o.members++; });
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(Date.now() - i * 864e5).toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
+        actives.push(by[d] || { day: d, total: 0, members: 0 });
+      }
+    } catch (e) { actives = []; }
+
     res.status(200).json({
       ok: true,
+      actives: actives,
       ratings: ratings,
       email: who.email || null,
       members: members.count || 0,

@@ -3142,6 +3142,7 @@ function showAccountPanel(user){
   loadMyPrefs();
   loadMyBadges();
   loadMyProfileCard();
+  setTimeout(logOpen, 800);
   if(notifyBtn) notifyBtn.hidden = false;
   loadInbox();
   linkPushSubscriptionToAccount();
@@ -5568,3 +5569,20 @@ function renderSheetMusic(ev){
 
 // Deep link ./?perks=1 (from the perks push) opens Rewards & Perks; also from the inbox.
 (function(){ try{ if(/[?&]perks=1/.test(location.search)) setTimeout(function(){ if(!document.body.classList.contains('is-gated')) openRewardsSheet(); }, 1500); } catch(e){} })();
+
+
+/* ---- Daily actives: one ping per person per day (for the admin chart) ---- */
+function logOpen(){
+  try{
+    if(!supabaseClient) return;
+    const day = todayAmsterdam();
+    const who = currentUser ? currentUser.id : 'anon';
+    const k = 'ags_open_' + day + '_' + who;
+    if(localStorage.getItem(k)) return;
+    let vid = localStorage.getItem('ags_vid');
+    if(!vid){ vid = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('ags_vid', vid); }
+    supabaseClient.rpc('log_open', { p_visitor: vid }).then(function(r){ if(!r.error) try{ localStorage.setItem(k, '1'); } catch(e){} }, function(){});
+  } catch(e){}
+}
+setTimeout(logOpen, 3000);
+document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible') setTimeout(logOpen, 1500); });
