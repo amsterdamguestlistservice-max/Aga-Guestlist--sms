@@ -94,7 +94,7 @@
   .adm-layer.is-open{display:block}
   #admDetail{z-index:9200}
   .adm-pill{display:inline-block;padding:6px 10px;font:700 10px/1 var(--sans);letter-spacing:.18em;text-transform:uppercase;border:1px solid var(--line);color:var(--muted)}
-  .adm-act__nums{display:flex;gap:10px;margin-bottom:10px}.adm-act__nums div{flex:1;text-align:center;padding:10px 4px;border:1px solid rgba(201,162,74,.3);border-radius:12px}.adm-act__nums b{display:block;font-size:22px;color:#f1dc9c}.adm-act__nums span{font-size:10px;letter-spacing:.1em;text-transform:uppercase;opacity:.6}.adm-act__bars{display:flex;align-items:flex-end;gap:3px;height:110px}.adm-act__bar{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}.adm-act__bar i{display:block;width:100%;min-height:2px;border-radius:3px 3px 0 0;background:linear-gradient(#e9d18b,#8a6a24)}.adm-act__bar.is-we i{background:linear-gradient(#fff3cf,#c9a24a)}.adm-act__bar span{font-size:8px;opacity:.5;margin-top:3px}.adm-tier{font-size:10px;font-weight:800;letter-spacing:.08em;padding:2px 7px;border-radius:999px;border:1px solid #c7cbd1;color:#e4e7ea;vertical-align:middle}.adm-tier--gold{border-color:#e6c875;color:#f1dc9c}.adm-tier--vip{border-color:#d9a6f5;color:#e9c8fb}.adm-pill.approved{border-color:#3f8f5a;color:#7fd39a}.adm-pill.pending{border-color:var(--gold);color:var(--gold-light)}
+  .adm-of{display:grid;grid-template-columns:1fr 1fr;gap:10px}.adm-of__item{border:1px solid rgba(255,255,255,.1);border-radius:12px;overflow:hidden;padding-bottom:8px}.adm-of__img{display:block;aspect-ratio:3/4;background:#111 center/cover}.adm-of__who{font-size:12px;font-weight:700;padding:6px 8px 0}.adm-of__cap{font-size:11px;opacity:.7;padding:2px 8px}.adm-of__item .acts{padding:6px 8px 0}.adm-act__nums{display:flex;gap:10px;margin-bottom:10px}.adm-act__nums div{flex:1;text-align:center;padding:10px 4px;border:1px solid rgba(201,162,74,.3);border-radius:12px}.adm-act__nums b{display:block;font-size:22px;color:#f1dc9c}.adm-act__nums span{font-size:10px;letter-spacing:.1em;text-transform:uppercase;opacity:.6}.adm-act__bars{display:flex;align-items:flex-end;gap:3px;height:110px}.adm-act__bar{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}.adm-act__bar i{display:block;width:100%;min-height:2px;border-radius:3px 3px 0 0;background:linear-gradient(#e9d18b,#8a6a24)}.adm-act__bar.is-we i{background:linear-gradient(#fff3cf,#c9a24a)}.adm-act__bar span{font-size:8px;opacity:.5;margin-top:3px}.adm-tier{font-size:10px;font-weight:800;letter-spacing:.08em;padding:2px 7px;border-radius:999px;border:1px solid #c7cbd1;color:#e4e7ea;vertical-align:middle}.adm-tier--gold{border-color:#e6c875;color:#f1dc9c}.adm-tier--vip{border-color:#d9a6f5;color:#e9c8fb}.adm-pill.approved{border-color:#3f8f5a;color:#7fd39a}.adm-pill.pending{border-color:var(--gold);color:var(--gold-light)}
   .adm-pill.declined,.adm-pill.no-show,.adm-pill.cancelled{border-color:#7a3b36;color:#ff9a8f}
   .adm-dl{border:1px solid var(--line);background:var(--charcoal);margin-top:12px}
   .adm-dl div{display:flex;justify-content:space-between;gap:14px;padding:12px 14px;border-bottom:1px solid rgba(201,162,74,.12);font-size:14px}
@@ -139,6 +139,7 @@
     '<div class="adm-sec">All time</div><div class="adm-grid" id="admTotals"></div>' +
     '<div class="adm-sec">New accounts · last 14 days</div><div class="adm-chart" id="admChart"></div>' +
     '<div class="adm-sec">Most guests</div><div id="admTop"></div>' +
+    '<div class="adm-sec">Outfit check</div><div id="admOutfits"></div>' +
     '<div class="adm-sec">People in the app per day</div><div id="admActives"></div>' +
     '<div class="adm-sec">Party ratings</div><div id="admRatings"></div>' +
     '<div class="adm-sec">Instagram</div><div class="adm-tabs" id="admIgTabs"></div>' +
@@ -188,6 +189,7 @@
     document.getElementById('admTop').innerHTML = top.length ? top.map(function(t, i){
       return '<div class="adm-top">' + (i + 1) + '. ' + esc(t.name) + '<span>' + t.guests + ' guests</span></div>';
     }).join('') : '<div class="adm-empty">No approved guests yet.</div>';
+    loadOutfitsAdmin();
     const ac = s.actives || [];
     const acEl = document.getElementById('admActives');
     if(acEl){
@@ -255,6 +257,28 @@
     })).join('');
   }
   function setParty(n){ PARTY = n; renderFilter(); renderEvents(); renderReqs(); }
+  async function loadOutfitsAdmin(){
+    const box = document.getElementById('admOutfits');
+    if(!box) return;
+    let d; try{ d = await api('/api/ags?fn=outfit-admin'); } catch(e){ box.innerHTML = '<div class="adm-empty">Could not load outfits.</div>'; return; }
+    const pend = (d && d.pending) || [], top = (d && d.top) || [];
+    box.innerHTML =
+      (pend.length ? '<div class="adm-note" style="margin-bottom:8px">' + pend.length + ' waiting for approval</div><div class="adm-of">' + pend.map(function(o){
+        return '<div class="adm-of__item" data-id="' + esc(o.id) + '"><a href="' + esc(o.image_url) + '" target="_blank" rel="noopener" class="adm-of__img" style="background-image:url(\'' + esc(o.image_url) + '\')"></a>' +
+          '<div class="adm-of__who">' + esc(o.name) + (o.instagram ? ' · @' + esc(o.instagram) : '') + '</div>' + (o.caption ? '<div class="adm-of__cap">' + esc(o.caption) + '</div>' : '') +
+          '<div class="acts"><button type="button" data-of="rejected">Reject</button><button type="button" class="ok" data-of="approved">Approve</button></div></div>';
+      }).join('') + '</div>' : '<div class="adm-empty">No outfits waiting.</div>') +
+      (top.length ? '<div class="adm-note" style="margin:12px 0 6px">Top this week 👑</div>' + top.slice(0, 5).map(function(o, i){
+        return '<div class="adm-top">' + (i === 0 ? '👑 ' : (i + 1) + '. ') + esc(o.name) + (o.instagram ? ' · @' + esc(o.instagram) : '') + ' <a href="' + esc(o.image_url) + '" target="_blank" rel="noopener">photo</a><span>🔥 ' + o.fires + '</span></div>';
+      }).join('') : '');
+    box.querySelectorAll('[data-of]').forEach(function(btn){
+      btn.addEventListener('click', async function(){
+        const item = btn.closest('.adm-of__item'); item.querySelectorAll('button').forEach(function(x){ x.disabled = true; });
+        try{ await api('/api/ags?fn=outfit-admin', { method: 'POST', body: { id: item.dataset.id, status: btn.dataset.of } }); item.remove(); }
+        catch(e){ item.querySelectorAll('button').forEach(function(x){ x.disabled = false; }); }
+      });
+    });
+  }
   function renderEvents(){
     const past = pastEvents();
     const upcomingEvs = EVS.filter(function(e){ return !isOver(e.name, e.date); });

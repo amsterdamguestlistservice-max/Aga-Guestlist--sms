@@ -2827,6 +2827,7 @@ function openInboxLink(url){
   const u = String(url || '');
   if(/[?&]rate=1/.test(u)){ maybeAskForPartyRating(true); return; }
   if(/[?&]perks=1/.test(u)){ openRewardsSheet(); return; }
+  if(/[?&]outfits=1/.test(u)){ openOutfits(); return; }
   if(/[?&]event=/.test(u)){ openEventFromLink(u); return; }
   switchTab(/guestlist|request/i.test(u) ? 'account' : 'events');
 }
@@ -5586,3 +5587,112 @@ function logOpen(){
 }
 setTimeout(logOpen, 3000);
 document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible') setTimeout(logOpen, 1500); });
+
+
+/* =====================================================================
+   OUTFIT CHECK — members post their fit, everyone gives 🔥, the most
+   🔥 of the week wins 👑. Every photo is approved by AGS first.
+   ===================================================================== */
+function renderOutfitEntry(){
+  let b = document.getElementById('outfitEntry');
+  if(!b){
+    b = document.createElement('button'); b.type = 'button'; b.id = 'outfitEntry'; b.className = 'outfit-entry';
+    const anchor = document.getElementById('featuredHero');
+    if(!anchor || !anchor.parentNode) return;
+    anchor.parentNode.insertBefore(b, anchor);
+    b.addEventListener('click', openOutfits);
+  }
+  b.innerHTML = '<span class="outfit-entry__icon">👗</span><span class="outfit-entry__txt"><small>Outfit check</small><b>Vote the fit of the week 🔥</b><em>Post yours, the winner gets featured on AGS</em></span><span class="outfit-entry__go">→</span>';
+}
+async function openOutfits(){
+  if(document.getElementById('outfitPage')) return;
+  const el = document.createElement('div'); el.className = 'outfits'; el.id = 'outfitPage';
+  document.body.appendChild(el); document.body.style.overflow = 'hidden';
+  const esc = function(v){ return String(v || '').replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
+  let wall = [], mine = [];
+  async function load(){
+    try{ const r = await supabaseClient.rpc('outfit_wall'); wall = r.data || []; } catch(e){ wall = []; }
+    mine = [];
+    if(currentUser){ try{ const r = await supabaseClient.from('outfits').select('id, image_url, status, created_at').eq('user_id', currentUser.id).eq('status', 'pending').order('created_at', { ascending: false }); mine = r.data || []; } catch(e){} }
+  }
+  function render(){
+    el.innerHTML = '<div class="outfits__inner">' +
+      '<button type="button" class="safe__close" data-a="close" aria-label="Close">✕</button>' +
+      '<small class="nye__kicker">This week</small><h2>Outfit check</h2>' +
+      '<p class="outfits__intro">Give 🔥 to the best fits. Most 🔥 by Sunday wins 👑 and gets featured on AGS Instagram.</p>' +
+      '<button type="button" class="btn btn--solid outfits__post" data-a="post">📸 Post your outfit</button>' +
+      '<input type="file" id="ofFile" accept="image/*" hidden>' +
+      '<div id="ofForm"></div>' +
+      (mine.length ? '<div class="outfits__pending">⏳ ' + (mine.length > 1 ? mine.length + ' of your outfits are' : 'Your outfit is') + ' waiting for approval</div>' : '') +
+      (wall.length ? '<div class="outfits__grid">' + wall.map(function(o, i){
+        return '<div class="ofit" data-id="' + esc(o.id) + '">' +
+          '<div class="ofit__img" style="background-image:url(\'' + esc(o.image_url) + '\')">' + (i === 0 && o.fires > 0 ? '<span class="ofit__crown">👑</span>' : '') + '</div>' +
+          '<div class="ofit__meta"><span class="ofit__name">' + esc(o.name) + '</span>' +
+          '<button type="button" class="ofit__fire' + (o.fired ? ' on' : '') + '" data-a="fire" data-id="' + esc(o.id) + '">🔥 <b>' + o.fires + '</b></button></div>' +
+          (o.caption ? '<div class="ofit__cap">' + esc(o.caption) + '</div>' : '') +
+          (o.mine ? '' : '<button type="button" class="ofit__more" data-a="report" data-id="' + esc(o.id) + '">Report</button>') +
+        '</div>';
+      }).join('') + '</div>' : emptyStateHtml('👗', 'Be the first', 'No outfits yet this week. Post yours and set the bar.', '', '')) +
+    '</div>';
+  }
+  function showForm(previewUrl, blob){
+    el.querySelector('#ofForm').innerHTML = '<div class="ofform"><div class="ofform__img" style="background-image:url(\'' + previewUrl + '\')"></div>' +
+      '<input type="text" id="ofCap" maxlength="80" placeholder="Caption (optional) e.g. Black & gold for Roza">' +
+      '<label class="ofform__ok"><input type="checkbox" id="ofOk"> AGS may feature this photo on Instagram and in the app</label>' +
+      '<div class="onb__err" id="ofErr"></div>' +
+      '<button type="button" class="btn btn--solid" data-a="send">Send for approval</button><button type="button" class="onb__skip" data-a="cancel">Cancel</button></div>';
+    el._blob = blob;
+  }
+  render();
+  await load(); render();
+  const file = el.querySelector('#ofFile');
+  el.addEventListener('change', async function(e){
+    if(e.target.id !== 'ofFile' || !e.target.files || !e.target.files[0]) return;
+    try{
+      const blob = await new Promise(function(res, rej){ const img = new Image(), url = URL.createObjectURL(e.target.files[0]); img.onload = function(){
+        const sc = Math.min(1, 1080 / img.naturalWidth), c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * sc); c.height = Math.round(img.naturalHeight * sc);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); c.toBlob(function(b){ b ? res(b) : rej(); }, 'image/jpeg', 0.85); }; img.onerror = rej; img.src = url; });
+      showForm(URL.createObjectURL(blob), blob);
+    } catch(err){}
+  });
+  el.addEventListener('click', async function(e){
+    const b = e.target.closest('[data-a]'); if(!b) return;
+    const a = b.dataset.a;
+    if(a === 'close'){ el.remove(); document.body.style.overflow = ''; return; }
+    if(!currentUser && a !== 'close'){ el.remove(); document.body.style.overflow = ''; lockAppBehindGate(); return; }
+    if(a === 'post'){ el.querySelector('#ofFile').click(); return; }
+    if(a === 'cancel'){ el.querySelector('#ofForm').innerHTML = ''; el._blob = null; return; }
+    if(a === 'send'){
+      const err = el.querySelector('#ofErr');
+      if(!el.querySelector('#ofOk').checked){ err.textContent = 'Please tick the box to post.'; return; }
+      b.disabled = true; b.textContent = 'Uploading…';
+      try{
+        const path = currentUser.id + '/outfit-' + Date.now() + '.jpg';
+        const up = await supabaseClient.storage.from('outfits').upload(path, el._blob, { contentType: 'image/jpeg' });
+        if(up.error) throw up.error;
+        const url = supabaseClient.storage.from('outfits').getPublicUrl(path).data.publicUrl;
+        const ins = await supabaseClient.from('outfits').insert({ image_url: url, caption: (el.querySelector('#ofCap').value || '').trim().slice(0, 80) || null });
+        if(ins.error) throw ins.error;
+        haptic('success');
+        await load(); render();
+        const p = el.querySelector('.outfits__pending'); if(p) p.textContent = '✅ Sent! We’ll put it live after a quick check.';
+      } catch(x){ b.disabled = false; b.textContent = 'Send for approval'; err.textContent = /row-level/i.test((x && x.message) || '') ? 'You can post 3 outfits per day.' : 'Upload failed. Please try again.'; }
+      return;
+    }
+    if(a === 'fire'){
+      const r = await supabaseClient.rpc('toggle_fire', { p_outfit: b.dataset.id });
+      if(r.data && r.data.ok){ b.classList.toggle('on', r.data.fired); b.querySelector('b').textContent = r.data.fires; if(r.data.fired) haptic('light'); }
+      return;
+    }
+    if(a === 'report'){
+      const o = wall.find(function(x){ return x.id === b.dataset.id; });
+      if(o && o.user_id){ try{ await supabaseClient.from('salon_reports').insert({ reporter_id: currentUser.id, reported_id: o.user_id, reason: 'Outfit check photo ' + o.id }); } catch(x){} }
+      b.textContent = 'Reported ✓'; b.disabled = true;
+      return;
+    }
+  });
+}
+(function(){
+  try{ renderOutfitEntry(); } catch(e){}
+  try{ if(/[?&]outfits=1/.test(location.search)) setTimeout(openOutfits, 1300); } catch(e){}
+})();

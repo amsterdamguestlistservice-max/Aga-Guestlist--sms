@@ -1,7 +1,7 @@
 // Minimal service worker — enables "Add to Home Screen" installability
 // and basic offline support (cache-first for the app shell, since the
 // event data is embedded directly in index.html rather than fetched).
-const CACHE_NAME = 'ags-app-v170';
+const CACHE_NAME = 'ags-app-v171';
 const APP_SHELL = [
   './index.html',
   './manifest.json',
@@ -108,7 +108,7 @@ self.addEventListener('notificationclick', function(event){
       for(const client of clientList){
         if('focus' in client){
           // Open the linked event (e.g. a "last spots" push) in the open app.
-          if(/[?&](event|perks|nye|rate)=/.test(targetUrl) && 'navigate' in client){
+          if(/[?&](event|perks|nye|rate|outfits)=/.test(targetUrl) && 'navigate' in client){
             return client.navigate(new URL(targetUrl, self.registration.scope).href).then(function(c){ return (c || client).focus(); }).catch(function(){ return client.focus(); });
           }
           return client.focus();

@@ -20,7 +20,9 @@ const ROUTES = {
   'admin-stats': require('./_admin-stats'),
   'announce-new': require('./_announce-new'),
   'broadcast': require('./_broadcast'),
-  'notify-alert-signup': require('./_notify-alert-signup')
+  'notify-alert-signup': require('./_notify-alert-signup'),
+  'outfit-admin': require('./_outfits').admin,
+  'notify-outfit': require('./_outfits').notify
 };
 
 module.exports = function handler(req, res) {
