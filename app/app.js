@@ -6007,7 +6007,15 @@ function openConcierge(){
   const esc = function(v){ return String(v == null ? '' : v).replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
   const first = (currentUser && currentUser.user_metadata && currentUser.user_metadata.first_name) || '';
   const ans = { when: null, genres: [], size: null };
-  let step = 0;
+  let step = 0, sessionId = null, asked = false, lastPicks = [];
+  // Every finished session is logged (the AGS team gets a notification).
+  async function logSession(picks, message){
+    if(!supabaseClient || !currentUser) return null;
+    try{
+      const { data } = await supabaseClient.rpc('concierge_log', { p_answers: { when: ans.when, genres: ans.genres, size: ans.size }, p_picks: picks.map(function(p){ return p.ev.name + ' (' + p.ev.date.slice(5) + ')'; }), p_message: message || null });
+      return data || null;
+    } catch(e){ return null; }
+  }
   const bot = function(t){ return '<div class="cc-msg cc-msg--bot"><span class="cc-av">AGS</span><p>' + t + '</p></div>'; };
   const me = function(t){ return '<div class="cc-msg cc-msg--me"><p>' + esc(t) + '</p></div>'; };
   const WHEN = [['tonight', 'Tonight'], ['tomorrow', 'Tomorrow'], ['weekend', 'This weekend'], ['any', 'Any night']];
@@ -6033,6 +6041,7 @@ function openConcierge(){
         else {
           h += me(SIZE.find(function(s){ return s[0] === ans.size; })[1]);
           const picks = conciergePick(ans);
+          if(!sessionId && !asked){ asked = true; lastPicks = picks; logSession(picks).then(function(id){ sessionId = id; }); }
           if(!picks.length){
             h += bot('Nothing open that matches right now. Try another night or vibe, and turn on notifications so you hear first when new parties drop.') +
               '<button type="button" class="btn cc-next" data-a="restart">Start over</button>';
@@ -6047,11 +6056,20 @@ function openConcierge(){
                 '<div class="cc-pick__act"><button type="button" class="btn btn--solid" data-a="req" data-id="' + esc(ev.id) + '">Request access</button><button type="button" class="cc-link" data-a="view" data-id="' + esc(ev.id) + '">View party</button></div></div></div>';
             }).join('') + '</div><button type="button" class="cc-link cc-again" data-a="restart">Ask again</button>';
           }
+          h += askBox();
         }
       }
     }
     el.innerHTML = h + '</div></div>';
     const last = el.querySelector('.cc-thread > :last-child'); if(last && step > 0) last.scrollIntoView({ block: 'end', behavior: 'smooth' });
+  }
+  let sentQ = null;
+  function askBox(){
+    if(sentQ) return me(sentQ) + bot('Got it. Someone from AGS will answer you personally in your inbox' + (('Notification' in window && Notification.permission === 'granted') ? ' and with a notification.' : '.'));
+    return '<div class="cc-ask"><b>Still unsure? Ask our team.</b><span>A birthday, a big group, a table, a dress code question… we answer personally.</span>' +
+      (currentUser
+        ? '<textarea id="ccQ" maxlength="600" rows="3" placeholder="Type your question…"></textarea><button type="button" class="btn btn--solid" data-a="ask">Send to AGS</button>'
+        : '<button type="button" class="btn" data-a="login">Log in to ask</button>') + '</div>';
   }
   function close(){ el.remove(); document.body.style.overflow = ''; }
   el.addEventListener('click', function(e){
@@ -6063,12 +6081,24 @@ function openConcierge(){
     if(a === 'close') return close();
     if(a === 'anyvibe'){ ans.genres = []; step = 2; return render(); }
     if(a === 'vibe'){ step = 2; return render(); }
-    if(a === 'restart'){ ans.when = null; ans.genres = []; ans.size = null; step = 0; return render(); }
+    if(a === 'restart'){ ans.when = null; ans.genres = []; ans.size = null; step = 0; sessionId = null; asked = false; sentQ = null; return render(); }
+    if(a === 'login'){ close(); switchTab('account'); return; }
+    if(a === 'ask'){
+      const q = (document.getElementById('ccQ') || {}).value || '';
+      if(!q.trim()) return;
+      t.disabled = true; t.textContent = 'Sending…';
+      logSession(lastPicks, q.trim()).then(function(id){
+        if(!id){ t.disabled = false; t.textContent = 'Send to AGS'; return; }
+        sentQ = q.trim(); try{ haptic('success'); } catch(x){} render();
+      });
+      return;
+    }
     const ev = EVENTS.find(function(x){ return x.id === t.getAttribute('data-id'); }); if(!ev) return;
     close();
     if(a === 'view') return openEventSheet(ev);
     if(a === 'req'){
       if(!currentUser){ switchTab('account'); return; }
+      if(sessionId){ try{ supabaseClient.rpc('concierge_choose', { p_id: sessionId, p_event: ev.name + ' (' + ev.date.slice(5) + ')' }); } catch(x){} }
       if(ans.size > 1) return goToFullForm(ev, ans.size === 3 ? 2 : ans.size === 5 ? 4 : 1);
       tryQuickRequest(ev).then(function(took){ if(!took) goToFullForm(ev, 0); });
     }

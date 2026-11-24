@@ -26,7 +26,9 @@ const ROUTES = {
   'wallet-status': require('./_wallet').status,
   'wallet-link': require('./_wallet').link,
   'wallet': require('./_wallet').pass,
-  'admin-members': require('./_admin-members')
+  'admin-members': require('./_admin-members'),
+  'notify-concierge': require('./_concierge').notify,
+  'concierge-admin': require('./_concierge').admin
 };
 
 module.exports = function handler(req, res) {

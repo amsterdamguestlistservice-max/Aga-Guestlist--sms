@@ -90,6 +90,14 @@
   .adm-ig .g button.on{border-color:var(--gold);background:var(--gold);color:#000}
   .adm-ig-more{display:block;width:100%;min-height:40px;margin-top:4px;border:1px solid var(--line);background:transparent;color:var(--white);font:600 12px/1 var(--sans);cursor:pointer}
   .adm-ev__more{font-size:11px;color:var(--gold);letter-spacing:.14em;text-transform:uppercase;margin-top:8px}
+  .adm-cc{padding:12px 14px;margin-bottom:8px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);font-size:13px;line-height:1.45}
+  .adm-cc.is-q{border-color:var(--gold)}
+  .adm-cc__top{display:flex;justify-content:space-between;gap:10px}.adm-cc__top span{color:var(--muted);font-size:12px}
+  .adm-cc__sum{color:#fff;margin-top:2px}.adm-cc__picks{color:var(--muted);font-size:12px}.adm-cc__chosen{color:#7ee3a6;font-size:12px}
+  .adm-cc__q{margin-top:8px;padding:10px 12px;border-radius:12px;background:rgba(212,175,55,.1);color:#f6ecd0;font-size:14px}
+  .adm-cc__a{margin-top:8px;color:var(--muted);font-size:12px}
+  .adm-cc__reply{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+  .adm-cc__reply textarea{width:100%;min-height:64px;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:#0b0a08;color:#fff;font:14px/1.4 var(--sans);resize:vertical}
   .adm-acc-open{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-radius:14px;border:1px solid rgba(212,175,55,.35);background:rgba(212,175,55,.06);color:#fff;font:inherit;text-align:left;cursor:pointer}
   .adm-acc-open b{display:block;font-size:15px}.adm-acc-open em{display:block;font-style:normal;font-size:12px;color:var(--muted);margin-top:2px}
   .adm-acc-filters{display:flex;gap:6px;overflow-x:auto;margin:10px 0 12px;scrollbar-width:none}
@@ -161,6 +169,7 @@
     '<div class="adm-sec">All time</div><div class="adm-grid" id="admTotals"></div>' +
     '<div class="adm-sec">New accounts · last 14 days</div><div class="adm-chart" id="admChart"></div>' +
     '<div class="adm-sec">Most guests</div><div id="admTop"></div>' +
+    '<div class="adm-sec" id="admConciergeSec">Concierge</div><div id="admConcierge"></div>' +
     '<div class="adm-sec">Outfit check</div><div id="admOutfits"></div>' +
     '<div class="adm-sec">People in the app per day</div><div id="admActives"></div>' +
     '<div class="adm-sec">Party ratings</div><div id="admRatings"></div>' +
@@ -214,6 +223,7 @@
       return '<div class="adm-top">' + (i + 1) + '. ' + esc(t.name) + '<span>' + t.guests + ' guests</span></div>';
     }).join('') : '<div class="adm-empty">No approved guests yet.</div>';
     loadOutfitsAdmin();
+    loadConciergeAdmin();
     const ac = s.actives || [];
     const acEl = document.getElementById('admActives');
     if(acEl){
@@ -281,6 +291,41 @@
     })).join('');
   }
   function setParty(n){ PARTY = n; renderFilter(); renderEvents(); renderReqs(); renderChanges(); }
+  // ---------- concierge ----------
+  let CC = [], CC_SHOW = 8;
+  async function loadConciergeAdmin(){
+    const box = document.getElementById('admConcierge'); if(!box) return;
+    try{ CC = (await api('/api/ags?fn=concierge-admin')).sessions || []; } catch(e){ box.innerHTML = '<div class="adm-err">' + esc(e.message) + '</div>'; return; }
+    renderConcierge();
+  }
+  function renderConcierge(){
+    const box = document.getElementById('admConcierge'); if(!box) return;
+    if(!CC.length){ box.innerHTML = '<div class="adm-empty">Nobody used the concierge yet.</div>'; return; }
+    const ago = function(iso){ const m = Math.round((Date.now() - Date.parse(iso)) / 6e4); return m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + 'h ago' : new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); };
+    const open = CC.filter(function(c){ return c.message && !c.reply; }).length;
+    box.innerHTML = (open ? '<div class="adm-note" style="color:var(--gold)">' + open + ' question' + (open > 1 ? 's' : '') + ' waiting for your answer</div>' : '') +
+      CC.slice(0, CC_SHOW).map(function(c){
+        return '<div class="adm-cc' + (c.message && !c.reply ? ' is-q' : '') + '"><div class="adm-cc__top"><b>' + esc(c.name || 'Guest') + '</b><span>' + esc(ago(c.created_at)) + '</span></div>' +
+          '<div class="adm-cc__sum">' + esc(c.summary) + '</div>' +
+          (c.picks && c.picks.length ? '<div class="adm-cc__picks">Shown: ' + esc(c.picks.join(', ')) + '</div>' : '<div class="adm-cc__picks">Nothing matched</div>') +
+          (c.chosen ? '<div class="adm-cc__chosen">✓ Tapped request: ' + esc(c.chosen) + '</div>' : '') +
+          (c.message ? '<div class="adm-cc__q">“' + esc(c.message) + '”</div>' : '') +
+          (c.reply ? '<div class="adm-cc__a">You: ' + esc(c.reply) + '</div>'
+            : c.message ? '<div class="adm-cc__reply" data-ccid="' + c.id + '"><textarea placeholder="Answer ' + esc((c.name || 'guest').split(' ')[0]) + '…" maxlength="600"></textarea><button type="button" class="adm-btn" data-ccsend="' + c.id + '">Send answer</button></div>' : '') +
+          '</div>';
+      }).join('') + (CC.length > CC_SHOW ? '<button type="button" class="adm-btn" id="admCcMore" style="width:100%">Show more (' + (CC.length - CC_SHOW) + ')</button>' : '');
+  }
+  async function sendConciergeReply(btn){
+    const id = btn.getAttribute('data-ccsend');
+    const ta = btn.parentNode.querySelector('textarea'); const reply = (ta.value || '').trim();
+    if(!reply) return;
+    btn.disabled = true; btn.textContent = 'Sending…';
+    try{
+      await api('/api/ags?fn=concierge-admin', { method: 'POST', body: { id: Number(id), reply: reply } });
+      const c = CC.find(function(x){ return String(x.id) === String(id); }); if(c){ c.reply = reply; }
+      renderConcierge();
+    } catch(e){ btn.disabled = false; btn.textContent = 'Send answer'; showErr(e.message); }
+  }
   async function loadOutfitsAdmin(){
     const box = document.getElementById('admOutfits');
     if(!box) return;
@@ -743,6 +788,8 @@
     const pf = e.target.closest('#admFilter button[data-party]');
     if(pf){ setParty(pf.getAttribute('data-party')); return; }
     if(e.target.closest('#admAccOpen')){ openAccounts(); return; }
+    const ccs = e.target.closest('[data-ccsend]'); if(ccs){ if(!ccs.disabled) sendConciergeReply(ccs); return; }
+    if(e.target.closest('#admCcMore')){ CC_SHOW += 10; renderConcierge(); return; }
     const chg = e.target.closest('.adm-chg[data-rid]');
     if(chg){ openDetail(chg.getAttribute('data-rid')); return; }
     const b = e.target.closest('.adm-req button[data-act]');
@@ -796,6 +843,9 @@
     try{
       const s = await api('/api/admin-stats');
       isAdminUser = true; b.hidden = false; updateBadge(s.pending);
+      if(/[?&]admin=concierge/.test(location.search) && !sheet.classList.contains('is-open')){
+        open(); setTimeout(function(){ const sec = document.getElementById('admConciergeSec'); if(sec) sec.scrollIntoView({ block: 'start' }); }, 900);
+      }
     } catch(e){ isAdminUser = false; b.hidden = true; }
   };
   // app.js may have shown the account before this file loaded
