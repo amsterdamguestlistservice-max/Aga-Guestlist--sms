@@ -223,7 +223,6 @@
       return '<div class="adm-top">' + (i + 1) + '. ' + esc(t.name) + '<span>' + t.guests + ' guests</span></div>';
     }).join('') : '<div class="adm-empty">No approved guests yet.</div>';
     loadOutfitsAdmin();
-    loadConciergeAdmin();
     const ac = s.actives || [];
     const acEl = document.getElementById('admActives');
     if(acEl){
@@ -717,6 +716,7 @@
 
   async function refresh(){
     showErr('');
+    loadConciergeAdmin();
     try{ await Promise.all([loadStats(), loadReqs()]); }
     catch(e){ showErr(e.message === 'Unauthorized' ? 'This account has no admin access.' : e.message); }
   }
