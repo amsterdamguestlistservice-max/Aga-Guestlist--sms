@@ -697,6 +697,20 @@ const EVENTS = [
     countdownEnabled: false
   },
   {
+    id: "desire-2026-12-12",
+    name: "Desire",
+    date: "2026-12-12",
+    time: "23:59",
+    venue: "Chin Chin Club · Amsterdam",
+    description: "Desire at Chin Chin Club, Rozengracht 133. Guestlist only. Line-up coming soon.",
+    guestlistStatus: "limited",
+    ticketUrl: "#",
+    guestlistUrl: "#guestlist",
+    flyerPending: true, // add the flyer when it's in
+    featured: false,
+    countdownEnabled: false
+  },
+  {
     id: "club-fair-2026-12-18",
     name: "Club Fair",
     date: "2026-12-18",
