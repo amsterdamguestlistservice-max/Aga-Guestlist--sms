@@ -5758,3 +5758,141 @@ async function addToWallet(requestId, btn){
     if(btn){ setTimeout(function(){ btn.disabled = false; btn.classList.remove('is-busy'); }, 1500); }
   }
 }
+
+/* ---------- Weekend planner ----------
+   "Plan your weekend": the parties of the coming Fri/Sat/Sun with an open
+   guestlist, grouped per night. Pick one per night and request them all in
+   one tap with your saved details (just you). Bringing friends, or no saved
+   details yet, goes through the normal form. Card on the home screen from
+   Wednesday till Saturday; push on Thursday evening; deep link ./?plan=1. */
+function weekendDates(){
+  const today = todayAmsterdam();
+  const d = new Date(today + 'T12:00:00Z');
+  const dow = d.getUTCDay(); // 0 Sun .. 6 Sat
+  const toFri = dow === 0 ? -2 : dow === 6 ? -1 : 5 - dow;
+  const out = [];
+  for(let i = 0; i < 3; i++){
+    const x = new Date(d.getTime() + (toFri + i) * 864e5).toISOString().slice(0, 10);
+    if(x >= today) out.push(x);
+  }
+  return out;
+}
+function plannerEvents(date){
+  return EVENTS.filter(function(ev){
+    if(ev.date !== date || !eventVisible(ev) || isPastEvent(ev)) return false;
+    if(ev.guestlistStatus === 'none' || ev.guestlistStatus === 'closed' || ev.flyerPending) return false;
+    const st = GUESTLIST_STATE[ev.id];
+    if(st && guestlistUrgencyInfo(st).locked) return false;
+    return true;
+  });
+}
+function plannerDayLabel(iso){
+  return new Date(iso + 'T12:00:00Z').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' });
+}
+function renderPlannerEntry(){
+  const dow = new Date(todayAmsterdam() + 'T12:00:00Z').getUTCDay();
+  const days = weekendDates();
+  const n = days.reduce(function(s, d){ return s + plannerEvents(d).length; }, 0);
+  let b = document.getElementById('plannerEntry');
+  if(!(dow >= 3 && dow <= 6) || !n){ if(b) b.remove(); return; }
+  if(!b){
+    const anchor = document.getElementById('outfitEntry') || document.getElementById('featuredHero');
+    if(!anchor || !anchor.parentNode) return;
+    b = document.createElement('button'); b.type = 'button'; b.id = 'plannerEntry'; b.className = 'outfit-entry planner-entry';
+    anchor.parentNode.insertBefore(b, anchor);
+    b.addEventListener('click', openPlanner);
+  }
+  b.innerHTML = '<span class="outfit-entry__icon">🗓️</span><span class="outfit-entry__txt"><small>This weekend</small><b>Plan your weekend</b><em>' + n + ' parties · pick your nights, one tap for all</em></span><span class="outfit-entry__go">→</span>';
+}
+async function openPlanner(){
+  if(document.getElementById('plannerPage')) return;
+  const el = document.createElement('div'); el.className = 'outfits planner'; el.id = 'plannerPage';
+  document.body.appendChild(el); document.body.style.overflow = 'hidden';
+  const esc = function(v){ return String(v == null ? '' : v).replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
+  const days = weekendDates();
+  const pick = {}; // date -> event id
+  let details = null, sent = null;
+  if(currentUser){ try{ details = await savedGuestDetails(); } catch(e){} }
+  const mine = function(ev){ return (nextNightRows || []).find(function(r){ return r.event_name === ev.name && String(r.event_date).slice(0, 10) === ev.date; }); };
+  function tag(ev){
+    const st = GUESTLIST_STATE[ev.id];
+    const info = st ? guestlistUrgencyInfo(st) : null;
+    return info && info.label ? info.label : 'Limited places';
+  }
+  function card(ev){
+    const r = mine(ev), on = pick[ev.date] === ev.id;
+    const state = r ? (String(r.status || '').toLowerCase() === 'approved' ? '✓ You’re on the list' : '⏳ Requested') : '';
+    return '<button type="button" class="pl-card' + (on ? ' on' : '') + (r ? ' is-mine' : '') + '" data-a="pick" data-id="' + esc(ev.id) + '"' + (r ? ' disabled' : '') + '>' +
+      '<span class="pl-card__img" style="background-image:url(\'' + esc(webpOf(ev.image) || ev.image || '') + '\')">' + (on ? '<i class="pl-card__tick">✓</i>' : '') + '</span>' +
+      '<span class="pl-card__txt"><b>' + esc(ev.name) + '</b><span>' + esc(eventVenueName(ev)) + (ev.time ? ' · ' + esc(ev.time) : '') + '</span>' +
+      '<em class="' + (state ? 'is-state' : '') + '">' + esc(state || tag(ev)) + '</em></span></button>';
+  }
+  function render(){
+    const chosen = days.map(function(d){ return pick[d] ? EVENTS.find(function(e){ return e.id === pick[d]; }) : null; }).filter(Boolean);
+    if(sent){
+      el.innerHTML = '<div class="outfits__inner"><button type="button" class="safe__close" data-a="close" aria-label="Close">✕</button>' +
+        '<small class="nye__kicker">This weekend</small><h2>You’re set 🔑</h2>' +
+        '<p class="outfits__intro">We review your requests and let you know per night as soon as you’re on the list.</p>' +
+        '<div class="pl-done">' + sent.map(function(s){ return '<div class="pl-done__row ' + (s.ok ? 'ok' : 'err') + '"><b>' + esc(s.ev.name) + '</b><span>' + esc(plannerDayLabel(s.ev.date)) + '</span><em>' + (s.ok ? 'Requested ✓' : esc(s.msg || 'Could not send')) + '</em></div>'; }).join('') + '</div>' +
+        '<button type="button" class="btn btn--solid pl-cta" data-a="close">Done</button></div>';
+      return;
+    }
+    const any = days.some(function(d){ return plannerEvents(d).length; });
+    el.innerHTML = '<div class="outfits__inner"><button type="button" class="safe__close" data-a="close" aria-label="Close">✕</button>' +
+      '<small class="nye__kicker">This weekend</small><h2>Plan your weekend</h2>' +
+      '<p class="outfits__intro">Pick one party per night. One tap and you’re requested for all of them.</p>' +
+      (any ? days.map(function(d){
+        const list = plannerEvents(d);
+        if(!list.length) return '';
+        return '<div class="pl-day"><div class="pl-day__head"><b>' + esc(plannerDayLabel(d)) + '</b>' + (pick[d] ? '<button type="button" class="pl-day__skip" data-a="skip" data-d="' + d + '">Skip this night</button>' : '<span>' + list.length + ' part' + (list.length > 1 ? 'ies' : 'y') + '</span>') + '</div>' +
+          '<div class="pl-row">' + list.map(card).join('') + '</div></div>';
+      }).join('') : emptyStateHtml('🗓️', 'Nothing open yet', 'No guestlists open for this weekend yet. We’ll let you know when they drop.', '', '')) +
+      '<div class="pl-bar">' +
+        (chosen.length
+          ? '<div class="pl-bar__sum">' + chosen.map(function(e){ return '<span>' + esc(plannerDayLabel(e.date).split(' ')[0].slice(0, 3)) + ' · ' + esc(e.name) + '</span>'; }).join('') + '</div>'
+          : '<div class="pl-bar__sum is-empty">Tap a party to add it to your weekend</div>') +
+        '<button type="button" class="btn btn--solid pl-cta" data-a="send"' + (chosen.length ? '' : ' disabled') + '>' +
+          (chosen.length ? 'Request ' + (chosen.length === 1 ? '1 night' : chosen.length + ' nights') : 'Request') + '</button>' +
+        '<div class="pl-bar__who">' + (details ? 'As ' + esc(details.first_name + ' ' + details.last_name) + ' · just you · <button type="button" class="pl-link" data-a="friends">Bringing friends?</button>' : 'We’ll ask your details once, then it’s one tap.') + '</div>' +
+        '<div class="err" id="plErr"></div>' +
+      '</div></div>';
+  }
+  async function send(btn){
+    const chosen = days.map(function(d){ return pick[d] ? EVENTS.find(function(e){ return e.id === pick[d]; }) : null; }).filter(Boolean);
+    if(!chosen.length) return;
+    if(!currentUser){ closePlanner(); switchTab('account'); return; }
+    if(!details){ closePlanner(); goToFullForm(chosen[0], 0); return; }
+    btn.disabled = true; btn.textContent = 'Sending…';
+    const res = [];
+    for(const ev of chosen){
+      if(parseInt(details.age, 10) < eventMinAge(ev, details.gender) || (eventNeedsGender(ev) && !details.gender) || eventNeedsGuestEmails(ev)){
+        res.push({ ev: ev, ok: false, msg: 'Needs the full form' }); continue;
+      }
+      const ok = await saveRequestToAccount({
+        event: { name: ev.name, venue: ev.venue, date: ev.date },
+        mainGuest: { firstName: details.first_name, lastName: details.last_name, age: String(details.age), instagram: details.instagram || 'None', phone: details.phone, email: details.email, gender: eventNeedsGender(ev) ? (details.gender || '') : '' },
+        additionalGuests: [], totalGuests: 1, consent: true
+      });
+      res.push({ ev: ev, ok: !!ok, msg: ok ? '' : (lastSaveBlockMessage || 'Could not send') });
+    }
+    if(res.some(function(x){ return x.ok; })){ try{ AppSound.play('success'); } catch(e){} try{ haptic('success'); } catch(e){} }
+    sent = res; render();
+    try{ loadNextNight(); } catch(e){}
+    try{ if(typeof loadMyRequests === 'function') loadMyRequests(); } catch(e){}
+  }
+  function closePlanner(){ el.remove(); document.body.style.overflow = ''; }
+  el.addEventListener('click', function(e){
+    const t = e.target.closest('[data-a]'); if(!t) return;
+    const a = t.getAttribute('data-a');
+    if(a === 'close') return closePlanner();
+    if(a === 'pick'){ const ev = EVENTS.find(function(x){ return x.id === t.getAttribute('data-id'); }); if(!ev) return; pick[ev.date] = pick[ev.date] === ev.id ? null : ev.id; try{ haptic('light'); } catch(x){} render(); return; }
+    if(a === 'skip'){ pick[t.getAttribute('data-d')] = null; render(); return; }
+    if(a === 'friends'){ const ev = days.map(function(d){ return pick[d] && EVENTS.find(function(x){ return x.id === pick[d]; }); }).filter(Boolean)[0] || plannerEvents(days[0])[0]; closePlanner(); if(ev) goToFullForm(ev, 1); return; }
+    if(a === 'send') return send(t);
+  });
+  render();
+}
+(function(){
+  try{ setTimeout(renderPlannerEntry, 1500); } catch(e){}
+  try{ if(/[?&]plan=1/.test(location.search)) setTimeout(openPlanner, 1400); } catch(e){}
+})();
