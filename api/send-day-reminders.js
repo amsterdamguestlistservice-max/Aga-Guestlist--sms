@@ -248,7 +248,9 @@ module.exports = async function handler(req, res) {
     try { ratePushes = await sendRatePushes(supabase); } catch (e) { ratePushes = { error: String(e && e.message || e) }; }
     // Evening run: one nudge for people who looked at tomorrow's party but didn't request.
     let stillThinking = null;
-    try { stillThinking = await sendStillThinking(supabase); } catch (e) { stillThinking = { error: String(e && e.message || e) }; }
+    // Thursday: the "Plan your weekend" push already asks everyone, so no second nudge.
+    if (plannerPush && (plannerPush.queued || plannerPush.skipped === 'already_sent')) stillThinking = { skipped: 'planner_push_today' };
+    else { try { stillThinking = await sendStillThinking(supabase); } catch (e) { stillThinking = { error: String(e && e.message || e) }; } }
 
     res.status(200).json({ ok: true, date: today, requests: (rows || []).length, pushed, emailed, unreachable, waitlistNotified, tonightPush, weeklyPush, newEventsPush, plannerPush, eveReminders, ratePushes, stillThinking });
   } catch (err) {
