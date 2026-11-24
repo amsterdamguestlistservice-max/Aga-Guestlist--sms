@@ -1315,7 +1315,7 @@ function renderPastEventList(){
   wrap.style.display = 'block';
 
   list.innerHTML = pastEvents.map(function(ev){
-    const mediaContent = ev.image ? '<img src="' + ev.image + '" alt="' + ev.name + '" loading="lazy" decoding="async">' : '';
+    const mediaContent = ev.image ? '<img src="' + (webpOf(ev.image) || ev.image) + '"' + (webpOf(ev.image) ? ' data-fallback="' + ev.image + '" onerror="if(this.dataset.fallback){this.src=this.dataset.fallback;this.removeAttribute(\'data-fallback\');}"' : '') + ' alt="' + ev.name + '" loading="lazy" decoding="async">' : '';
     return (
       '<article class="past-event-card" data-event-id="' + (ev.id || '') + '">' +
         '<div class="past-event-card__media">' + mediaContent + '</div>' +
@@ -1535,7 +1535,9 @@ function startGuestlistTicker(){
 
   // Refresh actual spot counts periodically, so a spot someone else just
   // claimed shows up here too — the countdown itself ticks locally above.
-  setInterval(loadLiveGuestlists, 20000);
+  // Skip the refresh while the app is in the background, and catch up when it comes back.
+  setInterval(function(){ if(!document.hidden) loadLiveGuestlists(); }, 20000);
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) loadLiveGuestlists(); });
 }
 
 document.getElementById('eventList').addEventListener('click', async function(e){
