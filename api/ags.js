@@ -22,7 +22,10 @@ const ROUTES = {
   'broadcast': require('./_broadcast'),
   'notify-alert-signup': require('./_notify-alert-signup'),
   'outfit-admin': require('./_outfits').admin,
-  'notify-outfit': require('./_outfits').notify
+  'notify-outfit': require('./_outfits').notify,
+  'wallet-status': require('./_wallet').status,
+  'wallet-link': require('./_wallet').link,
+  'wallet': require('./_wallet').pass
 };
 
 module.exports = function handler(req, res) {

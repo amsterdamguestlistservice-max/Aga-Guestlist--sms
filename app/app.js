@@ -4437,6 +4437,7 @@ function renderNextNight(){
       (ev ? '<button type="button" class="btn" id="nextNightCal">Calendar</button>' : '') +
       (ev ? '<button type="button" class="btn" id="nextNightDetails">Details</button>' : '') +
     '</div>' +
+    (approved && walletAvailable() ? '<button type="button" class="wallet-btn" id="nextNightWallet" aria-label="Add to Apple Wallet"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="3" fill="#fff"/><rect x="2.5" y="7.5" width="19" height="3" fill="#36a7e0"/><rect x="2.5" y="10" width="19" height="3" fill="#f6b63c"/><rect x="2.5" y="12.5" width="19" height="3" fill="#ef5a5a"/><path d="M2.5 15h6.5a3 3 0 006 0h6.5v1a3 3 0 01-3 3h-13a3 3 0 01-3-3z" fill="#fff"/></svg><span><small>Add to</small>Apple Wallet</span></button>' : '') +
     (ev ? '<button type="button" class="next-night__share" id="nextNightShare">Share to your story ↗</button>' : '') +
     (approved && ev && MY_REF_CODE ? '<button type="button" class="next-night__share" id="nextNightInvite">Bring a friend · you both get bonus points ↗</button>' : '') +
     '<button type="button" class="next-night__release" id="nextNightRelease">Can’t make it? Release your spot</button>' +
@@ -4449,6 +4450,8 @@ function renderNextNight(){
   if(shareBtn2 && ev) shareBtn2.addEventListener('click', function(){ shareStory(ev, shareBtn2); });
   const passBtn = document.getElementById('nextNightPass');
   if(passBtn) passBtn.addEventListener('click', function(){ openTonight(true); });
+  const walletBtn = document.getElementById('nextNightWallet');
+  if(walletBtn) walletBtn.addEventListener('click', function(){ addToWallet(r.id, walletBtn); });
   if(ev){
     document.getElementById('nextNightCal').addEventListener('click', function(){ addEventToCalendar(ev); });
     document.getElementById('nextNightDetails').addEventListener('click', function(){ openEventSheet(ev); });
@@ -5717,3 +5720,41 @@ async function openOutfits(){
   try{ renderOutfitEntry(); } catch(e){}
   try{ if(/[?&]outfits=1/.test(location.search)) setTimeout(openOutfits, 1300); } catch(e){}
 })();
+
+
+/* ---------- Apple Wallet pass ----------
+   Approved guests on an iPhone get "Add to Apple Wallet". The server checks
+   the request belongs to them and returns a signed .pkpass link; Safari then
+   shows Apple's "Add pass" sheet. The pass pops up on the lock screen on the
+   night itself. Hidden until AGS has set up the pass certificate. */
+var WALLET_ON = false;
+function walletAvailable(){ return WALLET_ON && isIosDevice(); }
+(function(){
+  try{
+    if(!isIosDevice()) return;
+    fetch(API_BASE + '/api/ags?fn=wallet-status').then(function(r){ return r.json(); }).then(function(d){
+      if(d && d.enabled){ WALLET_ON = true; try{ renderNextNight(); } catch(e){} }
+    }).catch(function(){});
+  } catch(e){}
+})();
+async function addToWallet(requestId, btn){
+  if(!supabaseClient || !requestId) return;
+  const label = btn ? btn.innerHTML : '';
+  if(btn){ btn.disabled = true; btn.classList.add('is-busy'); }
+  try{
+    const { data } = await supabaseClient.auth.getSession();
+    const token = data && data.session && data.session.access_token;
+    const res = await fetch(API_BASE + '/api/ags?fn=wallet-link', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ id: requestId })
+    });
+    const j = await res.json();
+    if(!j || !j.ok || !j.url) throw new Error(j && j.reason || 'failed');
+    try{ haptic('light'); } catch(e){}
+    window.location.href = j.url;
+  } catch(e){
+    window.alert(String(e && e.message) === 'not_approved' ? 'Your spot isn’t confirmed yet. You can add it to Wallet once you’re approved.' : 'Could not create your Wallet pass right now. Please try again.');
+  } finally {
+    if(btn){ setTimeout(function(){ btn.disabled = false; btn.classList.remove('is-busy'); }, 1500); }
+  }
+}
