@@ -678,7 +678,7 @@ const EVENTS = [
     badgeLabel: "NYE · Discount Tickets",
     discount: true,
     guestlistUrl: "#guestlist",
-    publicFrom: "2026-11-25T21:00:00+01:00", // members (Silver+) see it 48h early
+    publicFrom: "2026-11-25T19:00:00+01:00", // members (Silver+) see it early; public with the NYE push at 19:00
     featured: false,
     countdownEnabled: false
   },
