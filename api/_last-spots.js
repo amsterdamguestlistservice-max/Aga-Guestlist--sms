@@ -361,4 +361,41 @@ async function announceEarlyToMembers(supabase, earlyEvents) {
   }
 }
 
-module.exports = { maybeSendLastSpots, sendTonightPush, sendWeeklyPush, sendNewEventsPush, spotsThreshold };
+
+// Thursday evening: "Plan your weekend" push with the open guestlists Fri-Sun.
+// Goes through push_outbox (audience 'all'), once per Thursday.
+async function sendPlannerPush(supabase, opts) {
+  opts = opts || {};
+  try {
+    const fmt = function (ms) { return new Date(ms).toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' }); };
+    const today = fmt(Date.now());
+    const weekday = new Date().toLocaleDateString('en-GB', { timeZone: 'Europe/Amsterdam', weekday: 'long' });
+    if (weekday !== 'Thursday' && !opts.force) return { skipped: 'not_thursday' };
+    const hour = Number(new Date().toLocaleString('en-GB', { timeZone: 'Europe/Amsterdam', hour: '2-digit', hour12: false }));
+    if (hour < 19 && !opts.force) return { skipped: 'too_early' };
+    const from = fmt(Date.now() + 864e5), to = fmt(Date.now() + 3 * 864e5); // Fri .. Sun
+    const events = (await loadEvents()).filter(function (e) {
+      return e.date >= from && e.date <= to && isPublicNow(e) && e.guestlistStatus !== 'none' && e.guestlistStatus !== 'closed' && !e.flyerPending;
+    }).sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+    if (!events.length) return { skipped: 'no_open_guestlists' };
+    const short = function (n) { return n === 'Behind Closed Doors' ? 'BCD' : n; };
+    const dayName = function (iso) { return new Date(iso + 'T12:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' }); };
+    const byDay = [];
+    events.forEach(function (e) {
+      const d = dayName(e.date); const last = byDay[byDay.length - 1];
+      if (last && last.d === d) { if (last.n.indexOf(short(e.name)) < 0) last.n.push(short(e.name)); } else byDay.push({ d: d, n: [short(e.name)] });
+    });
+    const title = 'Plan your weekend 🗓️';
+    const body = byDay.map(function (x) { return x.d + ': ' + x.n.join(', '); }).join(' · ') + '. Pick your nights, one tap for all.';
+    if (opts.dryRun) return { dryRun: true, title: title, body: body };
+    const { data: flag } = await supabase.from('app_flags').select('value').eq('key', 'planner_push').maybeSingle();
+    if (flag && flag.value === today) return { skipped: 'already_sent' };
+    await supabase.from('app_flags').upsert({ key: 'planner_push', value: today, updated_at: new Date().toISOString() });
+    const { error } = await supabase.from('push_outbox').insert({ title: title, body: body, url: './index.html?plan=1', audience: 'all' });
+    return error ? { error: error.message } : { queued: true, body: body };
+  } catch (e) {
+    return { error: e.message || 'failed' };
+  }
+}
+
+module.exports = { maybeSendLastSpots, sendTonightPush, sendWeeklyPush, sendNewEventsPush, sendPlannerPush, spotsThreshold };

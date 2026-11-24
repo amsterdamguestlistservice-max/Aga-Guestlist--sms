@@ -25,7 +25,7 @@ const { sendPush: sendAnyPush, saveInbox } = require('./_push');
 const { createClient } = require('@supabase/supabase-js');
 const { sendGuestEmail } = require('./_guest-email');
 const { notifyForEvent } = require('./waitlist-notify');
-const { sendTonightPush, sendWeeklyPush, sendNewEventsPush } = require('./_last-spots');
+const { sendTonightPush, sendWeeklyPush, sendNewEventsPush, sendPlannerPush } = require('./_last-spots');
 
 function isAuthorized(req) {
   const cron = process.env.CRON_SECRET;
@@ -237,6 +237,9 @@ module.exports = async function handler(req, res) {
     const weeklyPush = await sendWeeklyPush(supabase);
     // New parties added since the last run.
     const newEventsPush = await sendNewEventsPush(supabase);
+    // Thursday evening: "Plan your weekend".
+    let plannerPush = null;
+    try { plannerPush = await sendPlannerPush(supabase); } catch (e) { plannerPush = { error: String(e && e.message || e) }; }
     // Evening run: "Tomorrow" reminder for guests approved for tomorrow.
     let eveReminders = null;
     try { eveReminders = await sendEveReminders(supabase); } catch (e) { eveReminders = { error: String(e && e.message || e) }; }
@@ -247,7 +250,7 @@ module.exports = async function handler(req, res) {
     let stillThinking = null;
     try { stillThinking = await sendStillThinking(supabase); } catch (e) { stillThinking = { error: String(e && e.message || e) }; }
 
-    res.status(200).json({ ok: true, date: today, requests: (rows || []).length, pushed, emailed, unreachable, waitlistNotified, tonightPush, weeklyPush, newEventsPush, eveReminders, ratePushes, stillThinking });
+    res.status(200).json({ ok: true, date: today, requests: (rows || []).length, pushed, emailed, unreachable, waitlistNotified, tonightPush, weeklyPush, newEventsPush, plannerPush, eveReminders, ratePushes, stillThinking });
   } catch (err) {
     res.status(500).json({ ok: false, error: String(err && err.message || err) });
   }
