@@ -71,7 +71,7 @@ module.exports = async function handler(req, res) {
       try {
         const { data: dr } = await supabase.from('drops').select('id, kind, event_name, event_date').in('kind', ['priority', 'plusone']).gte('event_date', new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10));
         if (dr && dr.length) {
-          const { data: dc } = await supabase.from('drop_claims').select('drop_id, user_id').in('drop_id', dr.map(function (d) { return d.id; }));
+          const { data: dc } = await supabase.from('drop_claims').select('drop_id, user_id').not('confirmed_at', 'is', null).in('drop_id', dr.map(function (d) { return d.id; }));
           const byId = {}; dr.forEach(function (d) { byId[d.id] = d; });
           const perk = {};
           (dc || []).forEach(function (c) { const d = byId[c.drop_id]; perk[c.user_id + '|' + d.event_name + '|' + d.event_date] = d.kind; });

@@ -50,13 +50,15 @@ async function admin(req, res) {
   const ids = (drops || []).map(function (d) { return d.id; });
   const claims = {};
   if (ids.length) {
-    const { data: cl } = await sb.from('drop_claims').select('drop_id, user_id, created_at').in('drop_id', ids).order('created_at', { ascending: true });
+    const { data: cl0 } = await sb.from('drop_claims').select('drop_id, user_id, created_at, confirmed_at, expires_at').in('drop_id', ids).order('created_at', { ascending: true });
+    // only confirmed claims, or holds that are still running
+    const cl = (cl0 || []).filter(function (c) { return c.confirmed_at || (c.expires_at && Date.parse(c.expires_at) > Date.now()); });
     const users = Array.from(new Set((cl || []).map(function (c) { return c.user_id; })));
     const names = {};
     await Promise.all(users.map(async function (u) {
       try { const { data } = await sb.auth.admin.getUserById(u); const m = (data && data.user && data.user.user_metadata) || {}; names[u] = [m.first_name, m.last_name].filter(Boolean).join(' ') || (data && data.user && data.user.email) || 'Guest'; } catch (e) { names[u] = 'Guest'; }
     }));
-    (cl || []).forEach(function (c) { (claims[c.drop_id] = claims[c.drop_id] || []).push({ name: names[c.user_id], at: c.created_at }); });
+    (cl || []).forEach(function (c) { (claims[c.drop_id] = claims[c.drop_id] || []).push({ name: names[c.user_id] + (c.confirmed_at ? '' : ' (requesting…)'), at: c.created_at }); });
   }
   res.status(200).json({ days: days.map(function (d) {
     const drop = (drops || []).find(function (x) { return x.drop_date === d; }) || null;
@@ -75,8 +77,8 @@ async function sendDropPush(supabase) {
     const { data: d } = await supabase.from('drops').select('*').eq('drop_date', today).maybeSingle();
     if (!d) return { skipped: 'no_drop' };
     if (d.pushed_at) return { skipped: 'already_sent' };
-    const { count } = await supabase.from('drop_claims').select('user_id', { count: 'exact', head: true }).eq('drop_id', d.id);
-    if ((count || 0) >= d.max_claims) return { skipped: 'sold_out' };
+    const { data: taken } = await supabase.rpc('ags_drop_taken', { p_drop: d.id });
+    if ((taken || 0) >= d.max_claims) return { skipped: 'sold_out' };
     await supabase.from('drops').update({ pushed_at: new Date().toISOString() }).eq('id', d.id);
     const { error } = await supabase.from('push_outbox').insert({
       title: 'Today’s drop is live 🎁', body: d.title + ' · only for the first ' + d.max_claims + '. Be quick.', url: './index.html', audience: 'all'

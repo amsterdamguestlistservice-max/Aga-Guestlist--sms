@@ -6332,7 +6332,10 @@ function renderDropCard(){
     if(!anchor || !anchor.parentNode) return;
     b = document.createElement('div'); b.id = 'dropCard'; b.className = 'drop-card';
     anchor.parentNode.insertBefore(b, anchor);
-    b.addEventListener('click', function(e){ const c = e.target.closest('[data-drop]'); if(c) claimDrop(c); });
+    b.addEventListener('click', function(e){
+      const c = e.target.closest('[data-drop]'); if(c) return claimDrop(c);
+      if(e.target.closest('[data-dropreq]')) dropRequest();
+    });
   }
   const esc = function(v){ return String(v == null ? '' : v).replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
   const d = DROP;
@@ -6347,7 +6350,13 @@ function renderDropCard(){
   const left = Math.max(0, (d.max_claims || 0) - (d.claimed || 0));
   const startMs = Date.parse(d.starts_at), live = Date.now() >= startMs;
   let state, action = '';
-  if(d.i_claimed){ state = '<span class="drop-card__state is-won">✓ You got it</span>'; }
+  const held = d.claim_state === 'held' && d.hold_until && Date.parse(d.hold_until) > Date.now();
+  if(held){
+    const ms = Date.parse(d.hold_until) - Date.now(), m = Math.floor(ms / 6e4), s2 = Math.floor(ms % 6e4 / 1e3);
+    state = '<span class="drop-card__state is-held">Spot held for you · request within <b>' + m + ':' + String(s2).padStart(2, '0') + '</b> or it goes to the next person</span>';
+    action = '<button type="button" class="btn btn--solid drop-card__btn" data-dropreq="1">Request now</button>';
+  }
+  else if(d.claim_state === 'confirmed' || (d.i_claimed && d.claim_state !== 'held')){ state = '<span class="drop-card__state is-won">✓ You got it' + (d.kind === 'priority' ? ' · your request is first in line' : d.kind === 'plusone' ? ' · your +1 is on us' : '') + '</span>'; }
   else if(!live){
     const ms = startMs - Date.now(), h = Math.floor(ms / 36e5), m = Math.floor(ms % 36e5 / 6e4), s = Math.floor(ms % 6e4 / 1e3);
     state = '<span class="drop-card__state">Drops in <b>' + String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0') + '</b></span>';
@@ -6356,12 +6365,13 @@ function renderDropCard(){
     state = '<span class="drop-card__state is-live"><i></i>Live · ' + left + ' of ' + d.max_claims + ' left</span>';
     action = '<button type="button" class="btn btn--solid drop-card__btn" data-drop="' + esc(d.id) + '">' + (currentUser ? 'Claim it' : 'Log in to claim') + '</button>';
   }
-  b.className = 'drop-card' + (live && !d.i_claimed && left > 0 ? ' is-live' : '') + (d.i_claimed ? ' is-won' : '');
+  b.className = 'drop-card' + ((live && !d.i_claimed && left > 0) || held ? ' is-live' : '') + (d.i_claimed && !held ? ' is-won' : '');
   b.innerHTML = '<div class="drop-card__icon">' + esc(live || d.i_claimed ? dropIcon(d.kind) : '🎁') + '</div><div class="drop-card__tx"><small>Today’s drop</small>' +
     '<b>' + esc(live || d.i_claimed ? d.title : 'Something drops at 16:00') + '</b>' +
     '<em>' + esc(live || d.i_claimed ? (d.body || '') : 'First come, first served. Be quick.') + '</em>' + state + '</div>' + action;
   clearTimeout(DROP_TIMER);
-  if(!live && !d.i_claimed) DROP_TIMER = setTimeout(renderDropCard, 1000);
+  if((!live && !d.i_claimed) || held) DROP_TIMER = setTimeout(renderDropCard, 1000);
+  else if(d.claim_state === 'held') DROP_TIMER = setTimeout(loadDrop, 500); // hold ran out: refresh
 }
 async function claimDrop(btn){
   if(!currentUser){ switchTab('account'); return; }
@@ -6369,9 +6379,12 @@ async function claimDrop(btn){
   let r = null;
   try{ const { data } = await supabaseClient.rpc('claim_drop', { p_id: Number(DROP.id) }); r = data; } catch(e){}
   if(r && r.ok){
-    DROP.i_claimed = true; DROP.claimed = (DROP.claimed || 0) + 1;
+    if(!r.already) DROP.claimed = (DROP.claimed || 0) + 1;
+    DROP.i_claimed = true; DROP.claim_state = r.state || 'confirmed'; DROP.hold_until = r.hold_until || null;
     try{ haptic('success'); } catch(e){} try{ AppSound.play('success'); } catch(e){}
     renderDropCard();
+    // Priority / +1 only count once they actually request the party: open it right away.
+    if(DROP.claim_state === 'held') dropRequest();
     try{ if(DROP.kind === 'points' && typeof loadPoints === 'function') loadPoints(); } catch(e){}
   } else {
     if(r && r.reason === 'gone'){ DROP.claimed = DROP.max_claims; }
@@ -6382,4 +6395,20 @@ async function claimDrop(btn){
   try{ setTimeout(loadDrop, 1500); } catch(e){}
   // refresh when the app comes back to the front (the drop may have gone live or sold out)
   document.addEventListener('visibilitychange', function(){ if(!document.hidden) loadDrop(); });
+})();
+
+function dropRequest(){
+  if(!DROP || !DROP.event_name) return;
+  const ev = EVENTS.find(function(e){ return e.name === DROP.event_name && e.date === String(DROP.event_date).slice(0, 10); });
+  if(!ev){ switchTab('events'); return; }
+  const after = function(){ setTimeout(loadDrop, 1500); };
+  if(DROP.kind === 'plusone'){ goToFullForm(ev, 1); return; }
+  tryQuickRequest(ev).then(function(took){ if(!took) goToFullForm(ev, 0); after(); }, function(){ goToFullForm(ev, 0); });
+}
+// After any request is sent, re-check the drop (a held spot becomes confirmed).
+(function(){
+  try{
+    const orig = saveRequestToAccount;
+    saveRequestToAccount = async function(){ const r = await orig.apply(this, arguments); if(r && DROP && DROP.claim_state === 'held') setTimeout(loadDrop, 1200); return r; };
+  } catch(e){}
 })();
