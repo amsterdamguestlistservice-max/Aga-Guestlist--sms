@@ -5951,7 +5951,7 @@ function hostButtonHtml(r){
    No AI: scores parties on date, music, the clubs you follow, what you went
    to before (forYouScore) and whether there is room for your group. */
 const CONCIERGE_GENRES = ['Afro house', 'Amapiano', 'House', 'Hits', 'New wave'];
-const KEURTEN_AVATAR = 'https://ogyvzgkykyesjozwmkds.supabase.co/storage/v1/object/public/avatars/630a9b40-9b31-4f65-80f6-2f71a2d21d92/avatar-1795381327156.jpg';
+const KEURTEN_AVATAR = 'concierge-avatar.png';
 function renderConciergeEntry(){
   let b = document.getElementById('conciergeEntry');
   if(b) return;
