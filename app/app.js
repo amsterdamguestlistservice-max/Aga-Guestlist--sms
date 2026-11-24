@@ -6156,7 +6156,7 @@ function openConcierge(){
    in a 1080x1920 card to share. Works for brand-new members too (founding
    member + "your first night is still ahead"). Open from the home card in
    December, the push, or ./?wrapped=1. */
-const WRAPPED_FROM = '2026-12-14';
+const WRAPPED_FROM = '2026-12-27';
 function wrappedAvailable(){ return todayAmsterdam() >= WRAPPED_FROM || /[?&]wrapped=1/.test(location.search); }
 function renderWrappedEntry(){
   let b = document.getElementById('wrappedEntry');

@@ -398,4 +398,23 @@ async function sendPlannerPush(supabase, opts) {
   }
 }
 
-module.exports = { maybeSendLastSpots, sendTonightPush, sendWeeklyPush, sendNewEventsPush, sendPlannerPush, spotsThreshold };
+
+// AGS Wrapped 2026 launch push: once, on the launch day (first run from 16:00).
+const WRAPPED_LAUNCH = '2026-12-27';
+async function sendWrappedPush(supabase) {
+  try {
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
+    if (today !== WRAPPED_LAUNCH) return { skipped: 'not_launch_day' };
+    const { data: flag } = await supabase.from('app_flags').select('value').eq('key', 'wrapped_push').maybeSingle();
+    if (flag && flag.value === today) return { skipped: 'already_sent' };
+    await supabase.from('app_flags').upsert({ key: 'wrapped_push', value: today, updated_at: new Date().toISOString() });
+    const { error } = await supabase.from('push_outbox').insert({
+      title: 'Your AGS Wrapped 2026 is here 🎁',
+      body: 'Your first season with AGS: your nights, your club, your sound and your member number. Tap to see it and share it to your story.',
+      url: './index.html?wrapped=1', audience: 'all'
+    });
+    return error ? { error: error.message } : { queued: true };
+  } catch (e) { return { error: e.message || 'failed' }; }
+}
+
+module.exports = { maybeSendLastSpots, sendTonightPush, sendWeeklyPush, sendNewEventsPush, sendPlannerPush, sendWrappedPush, spotsThreshold };
