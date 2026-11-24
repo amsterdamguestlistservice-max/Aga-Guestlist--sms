@@ -128,6 +128,7 @@
   .adm-chg__tx em{display:block;font-style:normal;color:var(--muted);font-size:12px}
   .adm-chg.is-new{border-color:var(--gold)}
   .adm-edited{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:999px;background:rgba(212,175,55,.15);color:var(--gold);font-size:10px;font-weight:700;letter-spacing:.06em;vertical-align:middle}
+  .adm-verified{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:999px;background:rgba(61,220,132,.16);color:#7ee3a6;font-size:10px;font-weight:700;letter-spacing:.06em;vertical-align:middle}
   .adm-hist{margin:14px 0;padding:12px 14px;border-radius:14px;background:rgba(212,175,55,.07);border:1px solid rgba(212,175,55,.25);font-size:13px;line-height:1.5}
   .adm-hist div+div{margin-top:6px}
   .adm-hist small{color:var(--muted)}
@@ -409,8 +410,11 @@
   }
   function renderReqs(){
     // Silver+ members are reviewed first (a Silver perk), then by name.
+    // Verified guest = was on a list before (approved, party already happened).
+    const today0 = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
+    const verified = new Set(REQS.filter(function(x){ return st(x) === 'approved' && String(x.event_date) < today0 && x.user_id; }).map(function(x){ return x.user_id; }));
     const pending = PENDING.filter(function(x){ return !PARTY || x.event_name === PARTY; }).slice().sort(function(a, b){
-      return ((b.points >= 50 ? 1 : 0) - (a.points >= 50 ? 1 : 0)) || byName(a, b);
+      return ((b.points >= 50 ? 1 : 0) - (a.points >= 50 ? 1 : 0)) || ((verified.has(b.user_id) ? 1 : 0) - (verified.has(a.user_id) ? 1 : 0)) || byName(a, b);
     });
     const box = document.getElementById('admReqs');
     if(!pending.length){ box.innerHTML = '<div class="adm-empty">' + (PARTY ? 'No requests waiting for ' + esc(PARTY) + '.' : 'All caught up. No requests waiting.') + '</div>'; return; }
@@ -421,6 +425,7 @@
       const tier = x.points >= 300 ? 'VIP' : x.points >= 150 ? 'Gold' : x.points >= 50 ? 'Silver' : '';
       return '<div class="adm-req" data-id="' + esc(x.id) + '"><h4>' + esc((x.first_name || '') + ' ' + (x.last_name || '')) +
         (tier ? ' <span class="adm-tier adm-tier--' + tier.toLowerCase() + '">★ ' + tier + '</span>' : '') +
+        (verified.has(x.user_id) ? '<span class="adm-verified">✓ VERIFIED</span>' : '') +
         (x.changes && x.changes.length ? '<span class="adm-edited">✏️ EDITED</span>' : '') + '</h4>' +
         '<div class="ev">' + esc(x.event_name) + ' · ' + esc(day(x.event_date)) + '</div>' +
         '<div class="meta">' + (x.total_guests || 1) + ' guest' + ((x.total_guests || 1) > 1 ? 's' : '') +

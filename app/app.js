@@ -1455,7 +1455,7 @@ function renderGuestlistPanel(panelEl, eventId){
     spotsLine +
     '<div class="glive__countdown">Closes in <span class="glive__timer">' + formatCountdown(msLeft) + '</span></div>' +
     '<button type="button" class="glive__claim-btn" data-event-id="' + eventId + '"' + (urgency.locked ? ' disabled' : '') + '>' +
-      (urgency.locked ? (msLeft <= 0 ? 'Guestlist closed' : 'Guestlist full') : 'Claim your spot') +
+      (urgency.locked ? (msLeft <= 0 ? 'Guestlist closed' : 'Guestlist full') : 'Request access') +
     '</button>' + (msLeft > 0 ? ageOkWaitlistHtml(ev) : '');
 }
 
@@ -1567,7 +1567,7 @@ document.getElementById('eventList').addEventListener('click', async function(e)
     console.warn('Claim failed.', err);
     alert('Something went wrong while claiming your spot. Please try again.');
     btn.disabled = false;
-    btn.textContent = 'Claim your spot';
+    btn.textContent = 'Request access';
   }
 });
 
@@ -2005,7 +2005,7 @@ function renderFeed(){
       '<div class="feed-item__info"><small>' + formatDate(ev.date) + ' · ' + esc(eventVenueName(ev)) + (ev.sponsored ? ' · Sponsored' : '') + '</small>' +
         '<h3>' + esc(ev.name) + '</h3>' + (eventGenres(ev).length ? '<p>♫ ' + eventGenres(ev).join(' · ') + '</p>' : '') +
         '<div class="feed-item__going" data-going></div>' +
-        '<button type="button" class="feed-item__cta" data-act="go">' + (open ? '🔑 Get on the list' : 'View party') + '</button></div>' +
+        '<button type="button" class="feed-item__cta" data-act="go">' + (open ? 'Request access' : 'View party') + '</button></div>' +
       '<div class="feed-rail">' +
         (it.video ? '<button type="button" data-act="sound"><i>' + (FEED_MUTED ? '🔇' : '🔊') + '</i>Sound</button>' : '') +
         '<button type="button" data-act="info"><i>ⓘ</i>Info</button>' +
@@ -2192,7 +2192,7 @@ function openStoryViewer(events, startIndex){
         (it.video ? '<button type="button" class="story-viewer__btn" data-act="sound">' + (muted ? '🔇' : '🔊') + '</button>' : '') +
         '<button type="button" class="story-viewer__btn" data-act="close" aria-label="Close">✕</button></div>' +
       '<div class="story-viewer__tap story-viewer__tap--prev" data-act="prev"></div><div class="story-viewer__tap story-viewer__tap--next" data-act="next"></div>' +
-      '<button type="button" class="story-viewer__cta" data-act="go">' + (open ? 'Get on the guestlist →' : 'View party →') + '</button>';
+      '<button type="button" class="story-viewer__cta" data-act="go">' + (open ? 'Request access →' : 'View party →') + '</button>';
     const bar = el.querySelectorAll('.story-viewer__bars b')[itemIdx];
     const v = el.querySelector('video');
     if(v){
@@ -2250,7 +2250,7 @@ function renderFeaturedHero(){
       ' autoplay muted loop playsinline preload="metadata"></video>' +
     '<span class="featured-hero__tag">Featured · ' + formatDate(ev.date) + '</span>' +
     '<button type="button" class="featured-hero__sound" aria-label="Sound on">🔇</button>' +
-    '<div class="featured-hero__cta">' + (open ? 'Get on the guestlist →' : 'View party →') + '</div>';
+    '<div class="featured-hero__cta">' + (open ? 'Request access →' : 'View party →') + '</div>';
   const v = box.querySelector('video'), snd = box.querySelector('.featured-hero__sound');
   snd.addEventListener('click', function(e){
     e.stopPropagation();
@@ -3131,6 +3131,7 @@ function showPartyRatingSheet(night){
 }
 
 function showAccountPanel(user){
+  try{ setTimeout(loadMemberMeta, 0); } catch(e){}
   claimReferralIfAny();
   maybeShowGroupJoin().then(async function(joined){
     if(joined) return;
@@ -3507,7 +3508,7 @@ function maybeShowHeroIntro(){
     '<button type="button" class="hero-intro__close" aria-label="Close">✕</button>' +
     '<button type="button" class="hero-intro__sound" aria-label="Sound off">🔊</button>' +
     '<div class="hero-intro__bottom"><span class="hero-intro__tag">Featured · ' + formatDate(ev.date) + ' · ' + eventVenueName(ev) + '</span>' +
-    '<button type="button" class="hero-intro__cta">' + (open ? 'Get on the guestlist →' : 'View party →') + '</button></div>';
+    '<button type="button" class="hero-intro__cta">' + (open ? 'Request access →' : 'View party →') + '</button></div>';
   document.body.appendChild(el);
   document.body.classList.add('hero-intro-open');
   document.body.style.overflow = 'hidden';
@@ -3757,7 +3758,7 @@ async function loadMyRequests(silent){
       return;
     }
     if(!data || data.length === 0){
-      list.innerHTML = emptyStateHtml('🔑', 'No requests yet', 'Pick a party and get on the guestlist in one tap.', 'See parties', 'events');
+      list.innerHTML = emptyStateHtml('🔑', 'No requests yet', 'Pick a party and request access in one tap.', 'See parties', 'events');
       bindEmptyState(list);
       return;
     }
@@ -3796,7 +3797,7 @@ async function loadMyRequests(silent){
           note = 'You were marked as a no-show for this event.';
         }
       } else {
-        note = "We'll confirm your spot soon.";
+        note = "Every request is personally reviewed. We'll let you know as soon as you're in.";
       }
       const openUntil = new Date(r.event_date + 'T23:00:00').getTime();
       const stillOpen = Date.now() < openUntil;
@@ -3807,7 +3808,7 @@ async function loadMyRequests(silent){
         '<div class="request-card">' +
           '<div class="request-card__event">' + r.event_name + '</div>' +
           '<div class="request-card__meta">' + r.event_venue + ' · ' + formatDate(r.event_date) + ' · ' + (r.total_guests > 1 ? r.total_guests + ' people' : 'just you') + '</div>' +
-          '<span class="request-card__status' + statusClass + '">' + statusRaw + '</span>' +
+          '<span class="request-card__status' + statusClass + '">' + statusLabel(statusRaw) + '</span>' +
           requestTimeline(r) +
           '<div class="request-card__note">' + note + '</div>' +
           ((canEdit || canInvite) ? '<div class="request-card__actions">' +
@@ -4422,7 +4423,7 @@ function renderNextNight(){
   const approved = String(r.status || '').trim().toLowerCase() === 'approved';
   const tonight = approved && String(r.event_date).slice(0, 10) === todayAmsterdam();
   const pill = tonight ? '<span class="next-night__pill is-tonight">Tonight</span>'
-    : approved ? '<span class="next-night__pill is-confirmed">Confirmed</span>'
+    : approved ? '<span class="next-night__pill is-confirmed">On the list</span>'
     : '<span class="next-night__pill">Under review</span>';
   const guests = (r.total_guests || 1) > 1 ? r.total_guests + ' people' : 'Just you';
   const meta = formatDate(String(r.event_date).slice(0, 10)) + (ev && ev.time ? ' · ' + ev.time : '') + ' · ' + escHtml(String(r.event_venue || '').split('·')[0].trim()) + ' · ' + guests;
@@ -4432,6 +4433,7 @@ function renderNextNight(){
     '<div class="next-night__meta">' + meta + '</div>' +
     (approved ? '' : '<div class="next-night__meta" style="margin-top:-8px;">We’ll notify you as soon as you’re approved.</div>') +
     (tonight ? '<button type="button" class="btn btn--solid next-night__pass" id="nextNightPass">Open tonight\u2019s pass</button>' : '') +
+    (tonight ? hostButtonHtml(r) : '') +
     '<div class="next-night__actions">' +
       '<a class="btn" href="' + mapsLinkFor(r.event_venue) + '" target="_blank" rel="noopener">Route</a>' +
       (ev ? '<button type="button" class="btn" id="nextNightCal">Calendar</button>' : '') +
@@ -4556,10 +4558,11 @@ async function tryQuickRequest(ev){
       '<div class="quick-sheet__row"><span>Phone</span><span>' + escHtml(d.phone) + '</span></div>' +
       '<div class="quick-sheet__row"><span>Guests</span><span>Just you</span></div>' +
     '</div>' +
-    '<p class="quick-sheet__note">By confirming you confirm you are ' + eventMinAge(ev, d.gender) + '+ and agree to be contacted about this request.</p>' +
+    '<p class="quick-sheet__review">Every request is personally reviewed by AGS.</p>' +
+    '<p class="quick-sheet__note">By requesting you confirm you are ' + eventMinAge(ev, d.gender) + '+ and agree to be contacted about this request.</p>' +
     '<div class="err" id="quickErr" style="margin-bottom:12px;"></div>' +
     '<div class="quick-sheet__btns">' +
-      '<button type="button" class="btn btn--solid" id="quickConfirm">Confirm request</button>' +
+      '<button type="button" class="btn btn--solid" id="quickConfirm">Request access</button>' +
       '<button type="button" class="btn" id="quickAddGuests">Bringing friends? Add guests</button>' +
     '</div>' +
     '<button type="button" class="quick-sheet__link" id="quickEdit">Change my details</button>';
@@ -4583,7 +4586,7 @@ async function tryQuickRequest(ev){
     };
     const ok = await saveRequestToAccount(payload);
     if(!ok){
-      btn.disabled = false; btn.textContent = 'Confirm request';
+      btn.disabled = false; btn.textContent = 'Request access';
       const e = document.getElementById('quickErr');
       e.textContent = lastSaveBlockMessage || 'Your request could not be sent. Check your connection and try again.';
       e.classList.add('is-visible');
@@ -4871,6 +4874,7 @@ function openTonight(force){
         tonightGroupHtml(r) +
       '</div>' +
       tonightInfoHtml(ev) +
+      hostButtonHtml(r) +
       '<ul class="tonight__rules"><li>Bring a valid photo ID for everyone</li><li>' + (ev && ev.entryUntil ? 'Be inside before <strong>' + escHtml(ev.entryUntil) + '</strong>' : 'Arrive on time — the list closes when the room is full') + '</li><li>Give the name above at the door</li></ul>' +
       '<div class="tonight__btns">' +
         '<a class="btn btn--solid" href="' + mapsLinkFor(r.event_venue) + '" target="_blank" rel="noopener">Route to the club</a>' +
@@ -5142,15 +5146,22 @@ function maybeCelebrateApproval(){
   seen.push(r.id); try{ localStorage.setItem(key, JSON.stringify(seen.slice(-50))); } catch(e){}
   const label = nightGroupLabel(r.event_date);
   const el = document.createElement('div');
-  el.id = 'approvedMoment'; el.className = 'approved-moment';
-  el.innerHTML = '<canvas></canvas><div class="approved-moment__check">✓</div><small>Approved</small><h2>You’re on the list</h2>' +
-    '<p>' + escHtml(r.event_name) + ' · ' + (label === 'Tonight' ? 'tonight' : label === 'Tomorrow' ? 'tomorrow' : formatDate(r.event_date)) + (r.total_guests > 1 ? ' · ' + r.total_guests + ' people' : '') + '</p>' +
-    '<button type="button" class="btn btn--solid" data-a="share">Share to your story</button><button type="button" class="btn" data-a="close">Let’s go 🥂</button>';
+  el.id = 'approvedMoment'; el.className = 'approved-moment approved-moment--card';
+  const evA = findEventFor(r.event_name, r.event_date);
+  const first = String(r.first_name || '').trim();
+  el.innerHTML = '<small class="approved-moment__kicker">Your name is on the list</small>' +
+    '<div class="vip-card"><div class="vip-card__sheen"></div>' +
+      '<div class="vip-card__top"><span>AGS</span><span>' + (MY_MEMBER_NO ? 'Nº ' + String(MY_MEMBER_NO).padStart(4, '0') : 'Guestlist') + '</span></div>' +
+      '<h2>You’re in' + (first ? ', ' + escHtml(first) : '') + '.</h2>' +
+      '<div class="vip-card__ev">' + escHtml(r.event_name) + '</div>' +
+      '<div class="vip-card__row"><span>' + (label === 'Tonight' ? 'Tonight' : label === 'Tomorrow' ? 'Tomorrow' : formatDate(r.event_date)) + (evA && evA.time ? ' · ' + escHtml(evA.time) : '') + '</span><span>' + escHtml(String(r.event_venue || '').split('·')[0].trim()) + '</span></div>' +
+      '<div class="vip-card__row"><span>' + (r.total_guests > 1 ? r.total_guests + ' guests' : '1 guest') + '</span><span>Valid ID required</span></div>' +
+    '</div>' +
+    '<button type="button" class="btn btn--solid" data-a="share">Share to your story</button><button type="button" class="btn" data-a="close">Close</button>';
   document.body.appendChild(el);
   requestAnimationFrame(function(){ el.classList.add('is-in'); });
   haptic('success');
   try{ AppSound.play('success'); } catch(e){}
-  confetti(el.querySelector('canvas'));
   el.addEventListener('click', function(e){
     const a = e.target.closest('[data-a]'); if(!a) return;
     const ev = findEventFor(r.event_name, r.event_date);
@@ -5896,3 +5907,40 @@ async function openPlanner(){
   try{ setTimeout(renderPlannerEntry, 1500); } catch(e){}
   try{ if(/[?&]plan=1/.test(location.search)) setTimeout(openPlanner, 1400); } catch(e){}
 })();
+
+
+/* ---------- High-end guestlist ----------
+   Status wording, member number, host contact on the night, verified guests. */
+function statusLabel(raw){
+  const s = String(raw || 'Pending').trim().toLowerCase();
+  if(s === 'pending') return 'Under review';
+  if(s === 'approved') return 'On the list';
+  if(s === 'declined') return 'Not this time';
+  if(s === 'cancelled') return 'Cancelled';
+  return raw;
+}
+var MY_MEMBER_NO = null, MY_VERIFIED = false;
+async function loadMemberMeta(){
+  if(!supabaseClient || !currentUser) return;
+  try{
+    const { data } = await supabaseClient.rpc('my_member_meta');
+    const row = Array.isArray(data) ? data[0] : data;
+    if(row){ MY_MEMBER_NO = row.member_no || null; MY_VERIFIED = !!row.verified; }
+    renderVerifiedBadge();
+  } catch(e){}
+}
+function renderVerifiedBadge(){
+  const host = document.getElementById('accountUserName');
+  if(!host) return;
+  let b = document.getElementById('verifiedBadge');
+  if(!MY_VERIFIED && !MY_MEMBER_NO){ if(b) b.remove(); return; }
+  if(!b){ b = document.createElement('div'); b.id = 'verifiedBadge'; b.className = 'verified-badge'; host.insertAdjacentElement('afterend', b); }
+  b.innerHTML = (MY_MEMBER_NO ? '<span class="verified-badge__no">AGS Nº ' + String(MY_MEMBER_NO).padStart(4, '0') + '</span>' : '') +
+    (MY_VERIFIED ? '<span class="verified-badge__v">✓ Verified guest</span>' : '');
+}
+function hostButtonHtml(r){
+  const name = [r.first_name, r.last_name].filter(Boolean).join(' ');
+  const msg = 'Hi AGS, I’m on the list for ' + r.event_name + ' tonight' + (name ? ' (' + name + (r.total_guests > 1 ? ' +' + (r.total_guests - 1) : '') + ')' : '') + '.';
+  return '<a class="host-btn" href="https://wa.me/31644948562?text=' + encodeURIComponent(msg) + '" target="_blank" rel="noopener">' +
+    '<span class="host-btn__dot"></span><span class="host-btn__txt"><small>Your host tonight</small>Message AGS on WhatsApp</span><span class="host-btn__go">→</span></a>';
+}
