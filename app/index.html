@@ -1290,6 +1290,23 @@ body{ background:#020202; }
 /* Outfit check */
 .outfit-entry{ width:100%; display:flex; align-items:center; gap:12px; margin:0 0 16px; padding:14px 16px; border-radius:18px; border:1px solid rgba(255,255,255,.14); background:linear-gradient(120deg,#16110b,#060505); color:#fff; text-align:left; font:inherit; cursor:pointer; }
 .outfit-entry__icon{ font-size:28px; }
+.drop-card{ position:relative; display:flex; align-items:center; gap:14px; margin:14px 16px 0; padding:16px; border-radius:20px; border:1px solid rgba(233,209,139,.25); background:linear-gradient(120deg,#120f0a,#060505); overflow:hidden; }
+.drop-card.is-live{ border-color:#c9a24a; box-shadow:0 0 0 1px rgba(201,162,74,.4), 0 10px 40px rgba(201,162,74,.18); }
+.drop-card.is-live::before{ content:''; position:absolute; inset:-50%; background:linear-gradient(115deg, transparent 42%, rgba(255,232,170,.12) 50%, transparent 58%); animation:vipSheen 3s ease-in-out infinite; pointer-events:none; }
+.drop-card.is-won{ border-color:rgba(126,227,166,.45); }
+.drop-card__icon{ flex:none; width:52px; height:52px; border-radius:16px; display:flex; align-items:center; justify-content:center; font:800 22px/1 var(--sans); color:#120d03; background:linear-gradient(135deg,#f3dc97,#b8902f); }
+.drop-card__tx{ flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.drop-card__tx small{ font:700 10px/1 var(--sans); letter-spacing:.24em; text-transform:uppercase; color:#cfae5e; }
+.drop-card__tx b{ font-family:var(--serif); font-weight:400; font-size:22px; line-height:1.1; color:#fff; }
+.drop-card__tx em{ font-style:normal; font-size:12px; color:rgba(255,255,255,.6); }
+.drop-card__state{ margin-top:6px; font-size:12px; font-weight:700; letter-spacing:.04em; color:#e9d18b; }
+.drop-card__state b{ font-variant-numeric:tabular-nums; font-size:14px; }
+.drop-card__state.is-live{ display:flex; align-items:center; gap:6px; color:#ffd36b; }
+.drop-card__state.is-live i{ width:8px; height:8px; border-radius:50%; background:#ff5a5a; box-shadow:0 0 0 4px rgba(255,90,90,.2); animation:dropPulse 1.2s ease-in-out infinite; }
+@keyframes dropPulse{ 50%{ opacity:.35; } }
+.drop-card__state.is-won{ color:#7ee3a6; }
+.drop-card__state.is-gone{ color:rgba(255,255,255,.45); }
+.drop-card__btn{ flex:none; position:relative; z-index:1; padding:12px 16px; min-height:0; font-size:12px; }
 .wrapped-entry{ background:linear-gradient(120deg,#2a1f0c,#0a0806 60%); border-color:rgba(233,209,139,.5); }
 .wrapped{ position:fixed; inset:0; z-index:9500; background:radial-gradient(90% 60% at 50% 35%, #2a1f0c, #050403 70%); color:#fff; display:flex; flex-direction:column; padding:calc(env(safe-area-inset-top,0px) + 14px) 24px calc(env(safe-area-inset-bottom,0px) + 24px); user-select:none; -webkit-user-select:none; }
 .wrapped__loading{ margin:auto; text-align:center; color:#e9d18b; }

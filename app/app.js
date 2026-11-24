@@ -6286,3 +6286,67 @@ async function shareWrapped(name, rows, btn){
   try{ setTimeout(renderWrappedEntry, 1900); } catch(e){}
   try{ if(/[?&]wrapped=1/.test(location.search)) setTimeout(openWrapped, 1800); } catch(e){}
 })();
+
+/* ---------- Daily drop ----------
+   Every day at 16:00 one small perk drops in the app, for the first few who
+   claim it: bonus points, priority review for a party, a free +1… The card
+   on the home screen counts down to the drop, then shows how many are left.
+   AGS sets the drop in the admin dashboard; on days without one there is an
+   automatic small points drop. Data: today_drop() / claim_drop(id). */
+let DROP = null, DROP_TIMER = null;
+function dropIcon(kind){ return kind === 'points' ? '★' : kind === 'priority' ? '⚡' : kind === 'plusone' ? '+1' : '🎁'; }
+async function loadDrop(){
+  if(!supabaseClient) return;
+  try{ const { data } = await supabaseClient.rpc('today_drop'); DROP = data || null; } catch(e){ DROP = null; }
+  renderDropCard();
+}
+function renderDropCard(){
+  let b = document.getElementById('dropCard');
+  if(!DROP){ if(b) b.remove(); return; }
+  if(!b){
+    const anchor = document.getElementById('wrappedEntry') || document.getElementById('conciergeEntry') || document.getElementById('plannerEntry') || document.getElementById('featuredHero');
+    if(!anchor || !anchor.parentNode) return;
+    b = document.createElement('div'); b.id = 'dropCard'; b.className = 'drop-card';
+    anchor.parentNode.insertBefore(b, anchor);
+    b.addEventListener('click', function(e){ const c = e.target.closest('[data-drop]'); if(c) claimDrop(c); });
+  }
+  const esc = function(v){ return String(v == null ? '' : v).replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
+  const d = DROP, left = Math.max(0, (d.max_claims || 0) - (d.claimed || 0));
+  const startMs = Date.parse(d.starts_at), live = Date.now() >= startMs;
+  let state, action = '';
+  if(d.i_claimed){ state = '<span class="drop-card__state is-won">✓ You got it</span>'; }
+  else if(!live){
+    const ms = startMs - Date.now(), h = Math.floor(ms / 36e5), m = Math.floor(ms % 36e5 / 6e4), s = Math.floor(ms % 6e4 / 1e3);
+    state = '<span class="drop-card__state">Drops in <b>' + String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0') + '</b></span>';
+  } else if(left <= 0){ state = '<span class="drop-card__state is-gone">All gone · next drop tomorrow 16:00</span>'; }
+  else {
+    state = '<span class="drop-card__state is-live"><i></i>Live · ' + left + ' of ' + d.max_claims + ' left</span>';
+    action = '<button type="button" class="btn btn--solid drop-card__btn" data-drop="' + esc(d.id) + '">' + (currentUser ? 'Claim it' : 'Log in to claim') + '</button>';
+  }
+  b.className = 'drop-card' + (live && !d.i_claimed && left > 0 ? ' is-live' : '') + (d.i_claimed ? ' is-won' : '');
+  b.innerHTML = '<div class="drop-card__icon">' + esc(live || d.i_claimed ? dropIcon(d.kind) : '🎁') + '</div><div class="drop-card__tx"><small>Today’s drop</small>' +
+    '<b>' + esc(live || d.i_claimed ? d.title : 'Something drops at 16:00') + '</b>' +
+    '<em>' + esc(live || d.i_claimed ? (d.body || '') : 'First come, first served. Be quick.') + '</em>' + state + '</div>' + action;
+  clearTimeout(DROP_TIMER);
+  if(!live && !d.i_claimed) DROP_TIMER = setTimeout(renderDropCard, 1000);
+}
+async function claimDrop(btn){
+  if(!currentUser){ switchTab('account'); return; }
+  btn.disabled = true; btn.textContent = 'Claiming…';
+  let r = null;
+  try{ const { data } = await supabaseClient.rpc('claim_drop', { p_id: Number(DROP.id) }); r = data; } catch(e){}
+  if(r && r.ok){
+    DROP.i_claimed = true; DROP.claimed = (DROP.claimed || 0) + 1;
+    try{ haptic('success'); } catch(e){} try{ AppSound.play('success'); } catch(e){}
+    renderDropCard();
+    try{ if(DROP.kind === 'points' && typeof loadPoints === 'function') loadPoints(); } catch(e){}
+  } else {
+    if(r && r.reason === 'gone'){ DROP.claimed = DROP.max_claims; }
+    renderDropCard();
+  }
+}
+(function(){
+  try{ setTimeout(loadDrop, 1500); } catch(e){}
+  // refresh when the app comes back to the front (the drop may have gone live or sold out)
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) loadDrop(); });
+})();
