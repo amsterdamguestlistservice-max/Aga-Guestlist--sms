@@ -1288,6 +1288,11 @@ body{ background:#020202; }
 .outfit-entry{ width:100%; display:flex; align-items:center; gap:12px; margin:0 0 16px; padding:14px 16px; border-radius:18px; border:1px solid rgba(255,255,255,.14); background:linear-gradient(120deg,#16110b,#060505); color:#fff; text-align:left; font:inherit; cursor:pointer; }
 .outfit-entry__icon{ font-size:28px; }
 .concierge-entry{ background:linear-gradient(120deg,#0d0b14,#060505); border-color:rgba(233,209,139,.28); }
+.cc-face{ flex:none; width:44px; height:44px; border-radius:50%; background:#1a1612 center/cover no-repeat; border:1.5px solid #c9a24a; box-shadow:0 0 0 3px rgba(201,162,74,.15); }
+.cc-face--lg{ width:52px; height:52px; }
+.cc-host{ display:flex; align-items:center; gap:12px; margin:2px 0 10px; }
+.cc-host b{ display:block; font-size:17px; }
+.cc-host small{ display:block; font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:#cfae5e; margin-top:2px; }
 .cc-thread{ display:flex; flex-direction:column; gap:10px; margin-top:16px; padding-bottom:30px; }
 .cc-msg{ display:flex; gap:10px; align-items:flex-end; max-width:88%; animation:ccIn .35s ease both; }
 @keyframes ccIn{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:none; } }
@@ -1295,7 +1300,7 @@ body{ background:#020202; }
 .cc-msg--bot p{ background:#15120d; border:1px solid rgba(233,209,139,.18); border-bottom-left-radius:6px; color:#f6ecd0; }
 .cc-msg--me{ align-self:flex-end; }
 .cc-msg--me p{ background:linear-gradient(135deg,#e2c46f,#b8902f); color:#120d03; font-weight:600; border-bottom-right-radius:6px; }
-.cc-av{ flex:none; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#000; border:1px solid rgba(233,209,139,.5); color:#e9d18b; font:700 8px/1 var(--sans); letter-spacing:.08em; }
+.cc-av{ flex:none; width:30px; height:30px; border-radius:50%; background:#1a1612 center/cover no-repeat; border:1px solid rgba(233,209,139,.6); }
 .cc-chips{ display:flex; flex-wrap:wrap; gap:8px; margin:2px 0 0 40px; animation:ccIn .35s .1s ease both; }
 .cc-chip{ padding:10px 14px; border-radius:999px; border:1px solid rgba(233,209,139,.4); background:none; color:#fff; font:600 14px/1 var(--sans); cursor:pointer; }
 .cc-chip.on{ background:#c9a24a; color:#000; border-color:#c9a24a; }

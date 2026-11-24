@@ -5951,13 +5951,14 @@ function hostButtonHtml(r){
    No AI: scores parties on date, music, the clubs you follow, what you went
    to before (forYouScore) and whether there is room for your group. */
 const CONCIERGE_GENRES = ['Afro house', 'Amapiano', 'House', 'Hits', 'New wave'];
+const KEURTEN_AVATAR = 'https://ogyvzgkykyesjozwmkds.supabase.co/storage/v1/object/public/avatars/630a9b40-9b31-4f65-80f6-2f71a2d21d92/avatar-1795381327156.jpg';
 function renderConciergeEntry(){
   let b = document.getElementById('conciergeEntry');
   if(b) return;
   const anchor = document.getElementById('plannerEntry') || document.getElementById('outfitEntry') || document.getElementById('featuredHero');
   if(!anchor || !anchor.parentNode) return;
   b = document.createElement('button'); b.type = 'button'; b.id = 'conciergeEntry'; b.className = 'outfit-entry concierge-entry';
-  b.innerHTML = '<span class="outfit-entry__icon">🛎️</span><span class="outfit-entry__txt"><small>Concierge</small><b>Not sure where to go?</b><em>Tell us your vibe, we pick your night</em></span><span class="outfit-entry__go">→</span>';
+  b.innerHTML = '<span class="cc-face" style="background-image:url(\'' + KEURTEN_AVATAR + '\')"></span><span class="outfit-entry__txt"><small>Ask Keurten · Founder of AGS</small><b>Not sure where to go?</b><em>Tell me your vibe, I’ll pick your night</em></span><span class="outfit-entry__go">→</span>';
   anchor.parentNode.insertBefore(b, anchor);
   b.addEventListener('click', openConcierge);
 }
@@ -6016,7 +6017,7 @@ function openConcierge(){
       return data || null;
     } catch(e){ return null; }
   }
-  const bot = function(t){ return '<div class="cc-msg cc-msg--bot"><span class="cc-av">AGS</span><p>' + t + '</p></div>'; };
+  const bot = function(t){ return '<div class="cc-msg cc-msg--bot"><span class="cc-av" style="background-image:url(\'' + KEURTEN_AVATAR + '\')"></span><p>' + t + '</p></div>'; };
   const me = function(t){ return '<div class="cc-msg cc-msg--me"><p>' + esc(t) + '</p></div>'; };
   const WHEN = [['tonight', 'Tonight'], ['tomorrow', 'Tomorrow'], ['weekend', 'This weekend'], ['any', 'Any night']];
   const SIZE = [[1, 'Just me'], [2, 'With 1 friend'], [3, '3–4 of us'], [5, '5 or more']];
@@ -6028,8 +6029,9 @@ function openConcierge(){
   }
   function render(){
     let h = '<div class="outfits__inner"><button type="button" class="safe__close" data-a="close" aria-label="Close">✕</button>' +
-      '<small class="nye__kicker">Concierge</small><h2>Your night, sorted</h2><div class="cc-thread">' +
-      bot('Good ' + (new Date().getHours() < 18 ? 'afternoon' : 'evening') + (first ? ', ' + esc(first) : '') + '. When are you going out?');
+      '<div class="cc-host"><span class="cc-face cc-face--lg" style="background-image:url(\'' + KEURTEN_AVATAR + '\')"></span><span><b>Keurten</b><small>Founder of Amsterdam Guestlist Service</small></span></div>' +
+      '<h2>Your night, sorted</h2><div class="cc-thread">' +
+      bot('Hey' + (first ? ' ' + esc(first) : '') + ', Keurten here 👋 Let me find your night. When are you going out?');
     if(step === 0) h += chips(WHEN, 'when');
     else {
       h += me(WHEN.find(function(w){ return w[0] === ans.when; })[1]) + bot('What’s the vibe? Pick as many as you like.');
@@ -6043,10 +6045,10 @@ function openConcierge(){
           const picks = conciergePick(ans);
           if(!sessionId && !asked){ asked = true; lastPicks = picks; logSession(picks).then(function(id){ sessionId = id; }); }
           if(!picks.length){
-            h += bot('Nothing open that matches right now. Try another night or vibe, and turn on notifications so you hear first when new parties drop.') +
+            h += bot('Nothing open that matches right now. Try another night or vibe, or ask me below. Turn on notifications so you hear first when new parties drop.') +
               '<button type="button" class="btn cc-next" data-a="restart">Start over</button>';
           } else {
-            h += bot(picks.length === 1 ? 'This is the one for you:' : 'My picks for you' + (picks[0].fits ? '' : ' (lists are filling up)') + ':');
+            h += bot(picks.length === 1 ? 'This is the one I’d go to:' : 'Here’s where I’d go' + (picks[0].fits ? '' : ' (lists are filling up)') + ':');
             h += '<div class="cc-picks">' + picks.map(function(p, i){
               const ev = p.ev;
               return '<div class="cc-pick' + (i === 0 ? ' is-top' : '') + '">' +
@@ -6065,10 +6067,10 @@ function openConcierge(){
   }
   let sentQ = null;
   function askBox(){
-    if(sentQ) return me(sentQ) + bot('Got it. Someone from AGS will answer you personally in your inbox' + (('Notification' in window && Notification.permission === 'granted') ? ' and with a notification.' : '.'));
-    return '<div class="cc-ask"><b>Still unsure? Ask our team.</b><span>A birthday, a big group, a table, a dress code question… we answer personally.</span>' +
+    if(sentQ) return me(sentQ) + bot('Got it! I’ll answer you personally in your inbox' + (('Notification' in window && Notification.permission === 'granted') ? ' and you’ll get a notification.' : '.'));
+    return '<div class="cc-ask"><b>Still unsure? Ask me directly.</b><span>A birthday, a big group, a table, a dress code question… I answer personally.</span>' +
       (currentUser
-        ? '<textarea id="ccQ" maxlength="600" rows="3" placeholder="Type your question…"></textarea><button type="button" class="btn btn--solid" data-a="ask">Send to AGS</button>'
+        ? '<textarea id="ccQ" maxlength="600" rows="3" placeholder="Type your question…"></textarea><button type="button" class="btn btn--solid" data-a="ask">Send to Keurten</button>'
         : '<button type="button" class="btn" data-a="login">Log in to ask</button>') + '</div>';
   }
   function close(){ el.remove(); document.body.style.overflow = ''; }
@@ -6088,7 +6090,7 @@ function openConcierge(){
       if(!q.trim()) return;
       t.disabled = true; t.textContent = 'Sending…';
       logSession(lastPicks, q.trim()).then(function(id){
-        if(!id){ t.disabled = false; t.textContent = 'Send to AGS'; return; }
+        if(!id){ t.disabled = false; t.textContent = 'Send to Keurten'; return; }
         sentQ = q.trim(); try{ haptic('success'); } catch(x){} render();
       });
       return;

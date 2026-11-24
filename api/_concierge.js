@@ -51,7 +51,7 @@ async function admin(req, res) {
     if (!id || !reply) { res.status(400).json({ error: 'Write a reply first' }); return; }
     const { data: row, error } = await sb.from('concierge_requests').update({ reply: reply, replied_at: new Date().toISOString() }).eq('id', id).select('user_id').maybeSingle();
     if (error || !row) { res.status(500).json({ error: (error && error.message) || 'not found' }); return; }
-    const title = 'AGS Concierge 🛎️';
+    const title = 'Keurten · Founder of AGS';
     await saveInbox(row.user_id, { title: title, body: reply, url: './index.html' });
     let pushed = 0;
     if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
