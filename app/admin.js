@@ -90,6 +90,14 @@
   .adm-ig .g button.on{border-color:var(--gold);background:var(--gold);color:#000}
   .adm-ig-more{display:block;width:100%;min-height:40px;margin-top:4px;border:1px solid var(--line);background:transparent;color:var(--white);font:600 12px/1 var(--sans);cursor:pointer}
   .adm-ev__more{font-size:11px;color:var(--gold);letter-spacing:.14em;text-transform:uppercase;margin-top:8px}
+  .adm-live{width:100%;display:flex;align-items:center;gap:12px;margin:6px 0 4px;padding:14px 16px;border-radius:16px;border:1px solid rgba(61,220,132,.35);background:rgba(61,220,132,.06);color:#fff;font:inherit;text-align:left;cursor:pointer}
+  .adm-live__dot{flex:none;width:12px;height:12px;border-radius:50%;background:#3ddc84;box-shadow:0 0 0 0 rgba(61,220,132,.6);animation:admPulse 1.6s infinite}
+  @keyframes admPulse{70%{box-shadow:0 0 0 10px rgba(61,220,132,0)}100%{box-shadow:0 0 0 0 rgba(61,220,132,0)}}
+  .adm-live__tx{flex:1}.adm-live__tx b{display:block;font-size:16px}.adm-live__tx em{display:block;font-style:normal;font-size:12px;color:var(--muted);margin-top:2px}
+  .adm-live__go{color:var(--muted);font-size:20px}
+  .adm-live__list{padding:4px 4px 10px}
+  .adm-live__p{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:14px;border-bottom:1px solid rgba(255,255,255,.06)}
+  .adm-live__p span{width:7px;height:7px;border-radius:50%;background:#3ddc84}.adm-live__p em{font-style:normal;color:var(--muted);font-size:12px;margin-left:auto}
   .adm-drop{padding:12px 14px;margin-bottom:8px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);font-size:13px;display:flex;flex-direction:column;gap:8px}
   .adm-drop.is-edit{border-color:var(--gold)}
   .adm-drop__top{display:flex;justify-content:space-between;gap:10px}.adm-drop__top span{color:var(--muted);font-size:12px}
@@ -176,6 +184,7 @@
     '<div class="adm-head"><div class="adm-title"><small>AGS</small>Admin</div>' +
     '<div style="display:flex;gap:8px"><button type="button" class="adm-btn" id="admRefresh">↻</button><button type="button" class="adm-btn" id="admClose">Close</button></div></div>' +
     '<div id="admErr" class="adm-err" hidden></div>' +
+    '<button type="button" class="adm-live" id="admLive"><span class="adm-live__dot"></span><span class="adm-live__tx"><b id="admLiveNow">…</b><em id="admLiveSub">people in the app right now</em></span><span class="adm-live__go">›</span></button><div class="adm-live__list" id="admLiveList" hidden></div>' +
     '<div class="adm-sec">Today</div><div class="adm-grid" id="admStats"></div>' +
     '<div class="adm-sec">Filter by party</div><div class="adm-filter" id="admFilter"></div>' +
     '<div class="adm-sec">Requests to review</div><div id="admReqs"></div>' +
@@ -886,8 +895,19 @@
     btn.disabled = false;
   }
 
-  function open(){ PARTY = ''; sheet.classList.add('is-open'); document.body.style.overflow = 'hidden'; refresh(); }
-  function close(){ sheet.classList.remove('is-open'); listLayer.classList.remove('is-open'); detailLayer.classList.remove('is-open'); listCtx = null; document.body.style.overflow = ''; }
+  let LIVE_T = null;
+  async function loadLive(){
+    try{
+      const l = await api('/api/ags?fn=admin-live');
+      document.getElementById('admLiveNow').textContent = l.now + (l.now === 1 ? ' person' : ' people') + ' in the app now';
+      document.getElementById('admLiveSub').textContent = l.nowMembers + ' logged in · ' + l.lastHour + ' in the last hour · ' + l.today + ' today';
+      const sc = Object.keys(l.screens || {}).sort(function(a, b){ return l.screens[b] - l.screens[a]; }).map(function(k){ return esc(k) + ' ' + l.screens[k]; }).join(' · ');
+      document.getElementById('admLiveList').innerHTML = (sc ? '<div class="adm-note">Looking at: ' + sc + '</div>' : '') +
+        (l.people.length ? l.people.map(function(p){ return '<div class="adm-live__p"><span></span>' + esc(p.name) + (p.screen ? ' <em>' + esc(p.screen) + '</em>' : '') + '</div>'; }).join('') : '<div class="adm-empty">Nobody logged in right now.</div>');
+    } catch(e){ document.getElementById('admLiveSub').textContent = 'Could not load'; }
+  }
+  function open(){ PARTY = ''; sheet.classList.add('is-open'); document.body.style.overflow = 'hidden'; refresh(); loadLive(); clearInterval(LIVE_T); LIVE_T = setInterval(function(){ if(sheet.classList.contains('is-open')) loadLive(); }, 20000); }
+  function close(){ clearInterval(LIVE_T); sheet.classList.remove('is-open'); listLayer.classList.remove('is-open'); detailLayer.classList.remove('is-open'); listCtx = null; document.body.style.overflow = ''; }
 
   document.getElementById('admClose').addEventListener('click', close);
   document.getElementById('admRefresh').addEventListener('click', refresh);
@@ -914,6 +934,7 @@
     const pf = e.target.closest('#admFilter button[data-party]');
     if(pf){ setParty(pf.getAttribute('data-party')); return; }
     if(e.target.closest('#admAccOpen')){ openAccounts(); return; }
+    if(e.target.closest('#admLive')){ const l = document.getElementById('admLiveList'); l.hidden = !l.hidden; return; }
     const de = e.target.closest('[data-dropedit]');
     if(de){ const p = dropParties()[0]; DROP_EDIT = { date: de.getAttribute('data-dropedit'), kind: 'priority', max: 10, points: 10, evKey: p ? p.name + '|' + p.date : '', ev: p ? p.name : '' }; renderDropsAdmin(); return; }
     const dk = e.target.closest('[data-dropkind]');

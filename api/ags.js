@@ -29,7 +29,8 @@ const ROUTES = {
   'admin-members': require('./_admin-members'),
   'notify-concierge': require('./_concierge').notify,
   'concierge-admin': require('./_concierge').admin,
-  'drops-admin': require('./_drops').admin
+  'drops-admin': require('./_drops').admin,
+  'admin-live': require('./_admin-live')
 };
 
 module.exports = function handler(req, res) {

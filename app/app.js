@@ -5636,6 +5636,15 @@ function logOpen(){
   } catch(e){}
 }
 setTimeout(logOpen, 3000);
+/* Presence heartbeat: lets AGS see how many people are in the app right now. */
+(function(){
+  function vid(){ try{ let v = localStorage.getItem('ags_vid'); if(!v){ v = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('ags_vid', v); } return v; } catch(e){ return 'nostore'; } }
+  function screen(){ const a = document.querySelector('.tab-panel.is-active'); return a ? a.id.replace('tab-', '') : 'app'; }
+  function ping(){ try{ if(!supabaseClient || document.hidden) return; supabaseClient.rpc('ping_presence', { p_visitor: vid(), p_screen: screen() }).then(function(){}, function(){}); } catch(e){} }
+  setTimeout(ping, 2500);
+  setInterval(ping, 60000);
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) ping(); });
+})();
 document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible') setTimeout(logOpen, 1500); });
 
 
