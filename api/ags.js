@@ -30,7 +30,8 @@ const ROUTES = {
   'notify-concierge': require('./_concierge').notify,
   'concierge-admin': require('./_concierge').admin,
   'drops-admin': require('./_drops').admin,
-  'admin-live': require('./_admin-live')
+  'admin-live': require('./_admin-live'),
+  'notify-ticket-click': require('./_notify-ticket-click')
 };
 
 module.exports = function handler(req, res) {
