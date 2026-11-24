@@ -97,7 +97,11 @@
   .adm-cc__q{margin-top:8px;padding:10px 12px;border-radius:12px;background:rgba(212,175,55,.1);color:#f6ecd0;font-size:14px}
   .adm-cc__a{margin-top:8px;color:var(--muted);font-size:12px}
   .adm-cc__reply{display:flex;flex-direction:column;gap:8px;margin-top:8px}
-  .adm-cc__reply textarea{width:100%;min-height:64px;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:#0b0a08;color:#fff;font:14px/1.4 var(--sans);resize:vertical}
+  .adm-cc__tpl{display:flex;flex-wrap:wrap;gap:6px}
+  .adm-cc__tpl button{padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:none;color:#fff;font:600 12px/1 var(--sans);cursor:pointer}
+  .adm-cc__tpl button.on{background:var(--gold);color:#000;border-color:var(--gold)}
+  .adm-btn--gold{background:var(--gold);color:#000;border-color:var(--gold)}
+  .adm-cc__reply textarea{width:100%;min-height:104px;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:#0b0a08;color:#fff;font:14px/1.4 var(--sans);resize:vertical}
   .adm-acc-open{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-radius:14px;border:1px solid rgba(212,175,55,.35);background:rgba(212,175,55,.06);color:#fff;font:inherit;text-align:left;cursor:pointer}
   .adm-acc-open b{display:block;font-size:15px}.adm-acc-open em{display:block;font-style:normal;font-size:12px;color:var(--muted);margin-top:2px}
   .adm-acc-filters{display:flex;gap:6px;overflow-x:auto;margin:10px 0 12px;scrollbar-width:none}
@@ -292,6 +296,35 @@
   function setParty(n){ PARTY = n; renderFilter(); renderEvents(); renderReqs(); renderChanges(); }
   // ---------- concierge ----------
   let CC = [], CC_SHOW = 8;
+  // One-tap answers. The best one is filled in already, so most of the time
+  // you only tap "Send answer". Everything stays editable.
+  const CC_TPL = [
+    ['table', 'Table', 'Hi {n}! Love it. For a table at {e}, send us your group size and budget on WhatsApp (+31 6 44948562) and we\u2019ll sort it out for you.'],
+    ['bday', 'Birthday', 'Hi {n}, happy early birthday! 🎂 Request access for {e} with your whole group in the app and let us know it\u2019s your birthday. We\u2019ll take care of you.'],
+    ['group', 'Big group', 'Hi {n}! Groups are welcome. Request access for {e} with everyone\u2019s names in the app and we\u2019ll review it personally.'],
+    ['dress', 'Dress code', 'Hi {n}! Dress to impress: smart and stylish, no sportswear or caps. When in doubt, go black.'],
+    ['age', 'Age', 'Hi {n}! The minimum age is on every party page in the app. Bring a valid photo ID, the door checks everyone.'],
+    ['yes', 'You\u2019re in', 'Hi {n}! Yes, that works. Request access for {e} in the app and we\u2019ll make sure you\u2019re on the list.'],
+    ['full', 'Full', 'Hi {n}, sorry, the guestlist for {e} is full. Discounted tickets are still available in the app.'],
+    ['thanks', 'Thanks', 'Hi {n}! Thanks for your message. We\u2019ll get back to you shortly.']
+  ];
+  function ccGuess(q){
+    q = String(q || '').toLowerCase();
+    if(/table|tafel|bottle|vip/.test(q)) return 'table';
+    if(/birthday|bday|verjaardag|jarig/.test(q)) return 'bday';
+    if(/dress|outfit|wear|kleding|sneaker/.test(q)) return 'dress';
+    if(/age|old|leeftijd|18|21|\bid\b/.test(q)) return 'age';
+    if(/group|friends|girls|guys|people|groep|\b[4-9]\b|\b1[0-9]\b/.test(q)) return 'group';
+    return 'yes';
+  }
+  function ccFill(c, key){
+    const t = CC_TPL.find(function(x){ return x[0] === key; }) || CC_TPL[0];
+    const first = String(c.name || '').split(' ')[0] || 'there';
+    const ev = (String(c.message || '').match(/behind closed doors|bcd|house of zenda|zenda|roza|amajoyo|huisfissa|club fair|nema|nye|new year/i) || [])[0] ||
+      ((c.picks && c.picks[0]) ? String(c.picks[0]).replace(/\s*\(.*\)$/, '') : 'the party');
+    const evName = /^bcd$/i.test(ev) ? 'Behind Closed Doors' : /^zenda$/i.test(ev) ? 'House of Zenda' : /^(nye|new year)$/i.test(ev) ? 'New Year\u2019s Eve' : ev.replace(/\b\w/g, function(m){ return m.toUpperCase(); });
+    return t[2].replace('{n}', first).replace(/\{e\}/g, evName);
+  }
   async function loadConciergeAdmin(){
     const box = document.getElementById('admConcierge'); if(!box) return;
     try{ CC = (await api('/api/ags?fn=concierge-admin')).sessions || []; } catch(e){ box.innerHTML = '<div class="adm-err">' + esc(e.message) + '</div>'; return; }
@@ -310,7 +343,15 @@
           (c.chosen ? '<div class="adm-cc__chosen">✓ Tapped request: ' + esc(c.chosen) + '</div>' : '') +
           (c.message ? '<div class="adm-cc__q">“' + esc(c.message) + '”</div>' : '') +
           (c.reply ? '<div class="adm-cc__a">You: ' + esc(c.reply) + '</div>'
-            : c.message ? '<div class="adm-cc__reply" data-ccid="' + c.id + '"><textarea placeholder="Answer ' + esc((c.name || 'guest').split(' ')[0]) + '…" maxlength="600"></textarea><button type="button" class="adm-btn" data-ccsend="' + c.id + '">Send answer</button></div>' : '') +
+            : c.message ? (function(){
+                const g = ccGuess(c.message);
+                return '<div class="adm-cc__reply" data-ccid="' + c.id + '" id="admCc' + c.id + '">' +
+                  '<div class="adm-cc__tpl">' + CC_TPL.map(function(t){ return '<button type="button" data-cctpl="' + t[0] + '" data-ccfor="' + c.id + '" class="' + (t[0] === g ? 'on' : '') + '">' + esc(t[1]) + '</button>'; }).join('') + '</div>' +
+                  '<textarea maxlength="600">' + esc(ccFill(c, g)) + '</textarea>' +
+                  '<button type="button" class="adm-btn adm-btn--gold" data-ccsend="' + c.id + '">Send answer</button>' +
+                  ((c.phone || c.ig) ? '<div class="adm-contact">' + (c.phone ? '<a href="https://wa.me/' + waNumber(c.phone) + '?text=' + encodeURIComponent(ccFill(c, g)) + '" target="_blank" rel="noopener">WhatsApp</a>' : '') + (c.ig ? '<a href="https://ig.me/m/' + encodeURIComponent(c.ig) + '" target="_blank" rel="noopener">DM</a>' : '') + '</div>' : '') +
+                  '</div>';
+              })() : '') +
           '</div>';
       }).join('') + (CC.length > CC_SHOW ? '<button type="button" class="adm-btn" id="admCcMore" style="width:100%">Show more (' + (CC.length - CC_SHOW) + ')</button>' : '');
   }
@@ -789,6 +830,14 @@
     if(pf){ setParty(pf.getAttribute('data-party')); return; }
     if(e.target.closest('#admAccOpen')){ openAccounts(); return; }
     const ccs = e.target.closest('[data-ccsend]'); if(ccs){ if(!ccs.disabled) sendConciergeReply(ccs); return; }
+    const tpl = e.target.closest('[data-cctpl]');
+    if(tpl){
+      const c = CC.find(function(x){ return String(x.id) === tpl.getAttribute('data-ccfor'); }); if(!c) return;
+      const wrap = tpl.closest('.adm-cc__reply');
+      wrap.querySelectorAll('[data-cctpl]').forEach(function(b){ b.classList.toggle('on', b === tpl); });
+      const ta = wrap.querySelector('textarea'); ta.value = ccFill(c, tpl.getAttribute('data-cctpl')); ta.focus();
+      return;
+    }
     if(e.target.closest('#admCcMore')){ CC_SHOW += 10; renderConcierge(); return; }
     const chg = e.target.closest('.adm-chg[data-rid]');
     if(chg){ openDetail(chg.getAttribute('data-rid')); return; }
@@ -844,7 +893,15 @@
       const s = await api('/api/admin-stats');
       isAdminUser = true; b.hidden = false; updateBadge(s.pending);
       if(/[?&]admin=concierge/.test(location.search) && !sheet.classList.contains('is-open')){
-        open(); setTimeout(function(){ const sec = document.getElementById('admConciergeSec'); if(sec) sec.scrollIntoView({ block: 'start' }); }, 900);
+        open();
+        const ccId = (location.search.match(/[?&]cc=(\d+)/) || [])[1];
+        const jump = function(tries){
+          const el = ccId && document.getElementById('admCc' + ccId);
+          if(el){ el.scrollIntoView({ block: 'center' }); const ta = el.querySelector('textarea'); if(ta) ta.focus(); return; }
+          if(tries > 0) return setTimeout(function(){ jump(tries - 1); }, 400);
+          const sec = document.getElementById('admConciergeSec'); if(sec) sec.scrollIntoView({ block: 'start' });
+        };
+        setTimeout(function(){ jump(10); }, 700);
       }
     } catch(e){ isAdminUser = false; b.hidden = true; }
   };

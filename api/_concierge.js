@@ -38,7 +38,7 @@ async function notify(req, res) {
   const body = r.message
     ? '“' + String(r.message).slice(0, 160) + '”' + (r.answers && r.answers.when ? ' · ' + summary(r.answers) : '')
     : summary(r.answers) + (picks ? ' → ' + picks : ' → nothing matched');
-  const sent = await pushToAdmins({ title: (r.message ? '💬 Concierge question · ' : '🛎️ Concierge · ') + who, body: body, url: '/app/index.html?admin=concierge' });
+  const sent = await pushToAdmins({ title: (r.message ? '💬 Concierge question · ' : '🛎️ Concierge · ') + who, body: body, url: '/app/index.html?admin=concierge&cc=' + r.id });
   res.status(200).json({ ok: true, sent: sent });
 }
 
@@ -66,9 +66,18 @@ async function admin(req, res) {
   const { data: rows } = await sb.from('concierge_requests').select('id, user_id, answers, picks, chosen, message, reply, replied_at, created_at')
     .order('created_at', { ascending: false }).limit(80);
   const ids = Array.from(new Set((rows || []).map(function (r) { return r.user_id; })));
-  const names = {};
+  const names = {}, contact = {};
   await Promise.all(ids.map(async function (u) { names[u] = await nameOf(sb, u); }));
-  res.status(200).json({ sessions: (rows || []).map(function (r) { return Object.assign({}, r, { name: names[r.user_id], summary: summary(r.answers) }); }) });
+  if (ids.length) {
+    // Latest phone / Instagram from their guestlist requests, for one-tap WhatsApp or DM.
+    const { data: reqs } = await sb.from('guestlist_requests').select('user_id, phone, instagram, created_at').in('user_id', ids).order('created_at', { ascending: true }).limit(2000);
+    (reqs || []).forEach(function (q) {
+      const c = contact[q.user_id] = contact[q.user_id] || {};
+      if (q.phone) c.phone = q.phone;
+      if (q.instagram && q.instagram !== 'None') c.ig = String(q.instagram).replace(/^@/, '');
+    });
+  }
+  res.status(200).json({ sessions: (rows || []).map(function (r) { return Object.assign({}, r, { name: names[r.user_id], summary: summary(r.answers), phone: (contact[r.user_id] || {}).phone || '', ig: (contact[r.user_id] || {}).ig || '' }); }) });
 }
 
 module.exports = { notify, admin };
