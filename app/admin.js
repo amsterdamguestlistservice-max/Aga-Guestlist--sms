@@ -90,6 +90,16 @@
   .adm-ig .g button.on{border-color:var(--gold);background:var(--gold);color:#000}
   .adm-ig-more{display:block;width:100%;min-height:40px;margin-top:4px;border:1px solid var(--line);background:transparent;color:var(--white);font:600 12px/1 var(--sans);cursor:pointer}
   .adm-ev__more{font-size:11px;color:var(--gold);letter-spacing:.14em;text-transform:uppercase;margin-top:8px}
+  .adm-acc-open{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-radius:14px;border:1px solid rgba(212,175,55,.35);background:rgba(212,175,55,.06);color:#fff;font:inherit;text-align:left;cursor:pointer}
+  .adm-acc-open b{display:block;font-size:15px}.adm-acc-open em{display:block;font-style:normal;font-size:12px;color:var(--muted);margin-top:2px}
+  .adm-acc-filters{display:flex;gap:6px;overflow-x:auto;margin:10px 0 12px;scrollbar-width:none}
+  .adm-acc-filters button{flex:none;padding:7px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.15);background:none;color:#fff;font:600 12px/1 var(--sans);cursor:pointer}
+  .adm-acc-filters button.on{background:var(--gold);color:#000;border-color:var(--gold)}
+  .adm-acc{display:flex;gap:12px;align-items:center;padding:11px 4px;border-bottom:1px solid rgba(255,255,255,.07);cursor:pointer}
+  .adm-acc__no{flex:none;width:46px;font:700 11px/1 var(--sans);color:var(--gold);letter-spacing:.04em}
+  .adm-acc__tx{flex:1;min-width:0}.adm-acc__tx b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .adm-acc__tx em{display:block;font-style:normal;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .adm-acc__r{flex:none;text-align:right;font-size:12px;color:var(--muted)}.adm-acc__r b{display:block;color:#fff;font-size:13px}
   .adm-layer{position:fixed;inset:0;z-index:9100;background:var(--black);overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(env(safe-area-inset-top,0px) + 14px) 16px calc(env(safe-area-inset-bottom,0px) + 40px);display:none}
   .adm-layer.is-open{display:block}
   #admDetail{z-index:9200}
@@ -154,6 +164,7 @@
     '<div class="adm-sec">Outfit check</div><div id="admOutfits"></div>' +
     '<div class="adm-sec">People in the app per day</div><div id="admActives"></div>' +
     '<div class="adm-sec">Party ratings</div><div id="admRatings"></div>' +
+    '<div class="adm-sec">Accounts</div><button type="button" class="adm-acc-open" id="admAccOpen"><span><b id="admAccCount">All accounts</b><em>Search everyone, see points, requests and no-shows</em></span><span>→</span></button>' +
     '<div class="adm-sec">Instagram</div><div class="adm-tabs" id="admIgTabs"></div>' +
     '<input type="search" id="admIgSearch" class="adm-ig-search" placeholder="Search name or @handle" autocomplete="off">' +
     '<div id="admIg"></div>' +
@@ -169,6 +180,7 @@
   document.body.appendChild(sheet);
   const listLayer = document.createElement('div'); listLayer.id = 'admList'; listLayer.className = 'adm-layer'; document.body.appendChild(listLayer);
   const detailLayer = document.createElement('div'); detailLayer.id = 'admDetail'; detailLayer.className = 'adm-layer'; document.body.appendChild(detailLayer);
+  const accLayer = document.createElement('div'); accLayer.id = 'admAccounts'; accLayer.className = 'adm-layer'; document.body.appendChild(accLayer);
   let REQS = [];
   let listCtx = null; // { name, date, filter }
 
@@ -578,6 +590,86 @@
     else prompt('Copy the list:', text);
   }
 
+  // ---------- all accounts ----------
+  let ACC = null, ACC_Q = '', ACC_F = 'all', ACC_SHOW = 60;
+  const tierOf = function(p){ return p >= 300 ? 'VIP' : p >= 150 ? 'Gold' : p >= 50 ? 'Silver' : ''; };
+  async function openAccounts(){
+    accLayer.classList.add('is-open'); accLayer.scrollTop = 0;
+    if(!ACC){
+      accLayer.innerHTML = '<div class="adm-head"><div class="adm-title"><small>Admin</small>Accounts</div><button type="button" class="adm-btn" data-close="admAccounts">Back</button></div><div class="adm-empty">Loading…</div>';
+      try{ ACC = (await api('/api/ags?fn=admin-members')).members || []; }
+      catch(e){ accLayer.innerHTML = '<div class="adm-head"><div class="adm-title"><small>Admin</small>Accounts</div><button type="button" class="adm-btn" data-close="admAccounts">Back</button></div><div class="adm-err">' + esc(e.message) + '</div>'; return; }
+      const c = document.getElementById('admAccCount'); if(c) c.textContent = 'All accounts (' + ACC.length + ')';
+    }
+    renderAccounts(true);
+  }
+  function accFilter(m){
+    if(ACC_F === 'verified') return m.verified;
+    if(ACC_F === 'silver') return m.points >= 50;
+    if(ACC_F === 'noshow') return m.noShows > 0;
+    if(ACC_F === 'never') return !m.requests;
+    if(ACC_F === 'nopush') return !m.push;
+    return true;
+  }
+  function renderAccounts(full){
+    const q = ACC_Q.trim().toLowerCase().replace(/^@/, '');
+    const list = ACC.filter(accFilter).filter(function(m){
+      if(!q) return true;
+      return (m.name + ' ' + m.email + ' ' + m.ig + ' ' + (m.phone || '') + ' ' + (m.no || '')).toLowerCase().indexOf(q) >= 0;
+    });
+    const n = function(f){ const k = ACC_F; ACC_F = f; const c = ACC.filter(accFilter).length; ACC_F = k; return c; };
+    const chip = function(f, l){ return '<button type="button" data-accf="' + f + '" class="' + (ACC_F === f ? 'on' : '') + '">' + l + ' ' + n(f) + '</button>'; };
+    const rows = list.slice(0, ACC_SHOW).map(function(m){
+      const t = tierOf(m.points);
+      return '<div class="adm-acc" data-acc="' + esc(m.id) + '"><span class="adm-acc__no">' + (m.no ? 'Nº ' + String(m.no).padStart(4, '0') : '') + '</span>' +
+        '<span class="adm-acc__tx"><b>' + esc(m.name || m.email) + (m.verified ? ' <span class="adm-verified">✓</span>' : '') + (t ? ' <span class="adm-tier adm-tier--' + t.toLowerCase() + '">★ ' + t + '</span>' : '') + '</b>' +
+        '<em>' + esc(m.email) + (m.ig ? ' · @' + esc(m.ig) : '') + '</em></span>' +
+        '<span class="adm-acc__r"><b>' + m.points + ' pts</b>' + m.requests + ' req' + (m.noShows ? ' · ' + m.noShows + ' NS' : '') + '</span></div>';
+    }).join('');
+    const listHtml = (rows || '<div class="adm-empty">No accounts found.</div>') +
+      (list.length > ACC_SHOW ? '<button type="button" class="adm-btn" id="admAccMore" style="width:100%;margin-top:12px">Show more (' + (list.length - ACC_SHOW) + ')</button>' : '');
+    if(full){
+      accLayer.innerHTML = '<div class="adm-head"><div class="adm-title"><small>Admin</small>Accounts · ' + ACC.length + '</div><button type="button" class="adm-btn" data-close="admAccounts">Back</button></div>' +
+        '<input type="search" id="admAccSearch" class="adm-ig-search" placeholder="Search name, email, @handle, phone or Nº" autocomplete="off" value="' + esc(ACC_Q) + '">' +
+        '<div class="adm-acc-filters" id="admAccFilters"></div><div id="admAccList"></div>';
+    }
+    document.getElementById('admAccFilters').innerHTML = chip('all', 'All') + chip('verified', '✓ Verified') + chip('silver', '★ Silver+') + chip('noshow', 'No-shows') + chip('never', 'No requests') + chip('nopush', 'No notifications');
+    document.getElementById('admAccList').innerHTML = '<div class="adm-note" style="margin:0 0 6px">' + list.length + ' shown</div>' + listHtml;
+  }
+  function openAccount(id){
+    const m = (ACC || []).find(function(x){ return x.id === id; }); if(!m) return;
+    const reqs = REQS.filter(function(r){ return r.user_id === id; }).sort(function(a, b){ return String(b.event_date).localeCompare(String(a.event_date)); });
+    const t = tierOf(m.points);
+    const d = function(iso){ return iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''; };
+    let html = '<div class="adm-head"><div class="adm-title"><small>' + (m.no ? 'AGS Nº ' + String(m.no).padStart(4, '0') : 'Account') + '</small>' + esc(m.name || m.email) + '</div><button type="button" class="adm-btn" data-close="admDetail">Back</button></div>' +
+      (m.verified ? '<span class="adm-verified">✓ VERIFIED GUEST</span> ' : '') + (t ? '<span class="adm-tier adm-tier--' + t.toLowerCase() + '">★ ' + t + '</span>' : '') +
+      dl([
+        ['Email', '<a href="mailto:' + esc(m.email) + '">' + esc(m.email) + '</a>'],
+        ['Instagram', m.ig ? '<a href="https://instagram.com/' + encodeURIComponent(m.ig) + '" target="_blank" rel="noopener">@' + esc(m.ig) + '</a>' : ''],
+        ['Phone', m.phone ? '<a href="tel:' + esc(m.phone) + '">' + esc(m.phone) + '</a>' : ''],
+        ['Points', String(m.points)],
+        ['Requests', m.requests + ' · ' + m.approved + ' approved' + (m.noShows ? ' · ' + m.noShows + ' no-show' + (m.noShows > 1 ? 's' : '') : '')],
+        ['Notifications', m.push ? 'On' : 'Off'],
+        ['Joined', esc(d(m.joined)) + (m.referred ? ' · via a friend' : '')],
+        ['Last login', esc(d(m.lastSeen))]
+      ]);
+    const c = [];
+    if(m.phone) c.push('<a href="https://wa.me/' + waNumber(m.phone) + '" target="_blank" rel="noopener">WhatsApp</a>');
+    if(m.ig) c.push('<a href="https://ig.me/m/' + encodeURIComponent(m.ig) + '" target="_blank" rel="noopener">DM</a>');
+    if(c.length) html += '<div class="adm-contact">' + c.join('') + '</div>';
+    html += '<div class="adm-sec">Requests (' + reqs.length + ')</div>' + (reqs.length ? reqs.map(function(r){
+      return '<div class="adm-req" data-id="' + esc(r.id) + '"><h4>' + esc(r.event_name) + '</h4><div class="ev">' + esc(day(r.event_date)) + ' · ' + (r.total_guests || 1) + ' guest' + ((r.total_guests || 1) > 1 ? 's' : '') + '</div><span class="adm-pill ' + esc(st(r)) + '">' + esc(r.status || 'Pending') + '</span></div>';
+    }).join('') : '<div class="adm-empty">No requests yet.</div>');
+    detailLayer.innerHTML = html; detailLayer.classList.add('is-open'); detailLayer.scrollTop = 0;
+  }
+  accLayer.addEventListener('input', function(e){ if(e.target && e.target.id === 'admAccSearch'){ ACC_Q = e.target.value; ACC_SHOW = 60; renderAccounts(false); } });
+  accLayer.addEventListener('click', function(e){
+    const c = e.target.closest('[data-close]'); if(c){ accLayer.classList.remove('is-open'); return; }
+    const f = e.target.closest('[data-accf]'); if(f){ ACC_F = f.getAttribute('data-accf'); ACC_SHOW = 60; renderAccounts(false); return; }
+    if(e.target.closest('#admAccMore')){ ACC_SHOW += 60; renderAccounts(false); return; }
+    const row = e.target.closest('[data-acc]'); if(row) openAccount(row.getAttribute('data-acc'));
+  });
+
   async function refresh(){
     showErr('');
     try{ await Promise.all([loadStats(), loadReqs()]); }
@@ -650,6 +742,7 @@
     if(wf){ setWhen(wf.getAttribute('data-when')); return; }
     const pf = e.target.closest('#admFilter button[data-party]');
     if(pf){ setParty(pf.getAttribute('data-party')); return; }
+    if(e.target.closest('#admAccOpen')){ openAccounts(); return; }
     const chg = e.target.closest('.adm-chg[data-rid]');
     if(chg){ openDetail(chg.getAttribute('data-rid')); return; }
     const b = e.target.closest('.adm-req button[data-act]');

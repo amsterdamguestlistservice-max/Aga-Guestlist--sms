@@ -25,7 +25,8 @@ const ROUTES = {
   'notify-outfit': require('./_outfits').notify,
   'wallet-status': require('./_wallet').status,
   'wallet-link': require('./_wallet').link,
-  'wallet': require('./_wallet').pass
+  'wallet': require('./_wallet').pass,
+  'admin-members': require('./_admin-members')
 };
 
 module.exports = function handler(req, res) {
