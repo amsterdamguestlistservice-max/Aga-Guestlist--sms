@@ -6311,14 +6311,23 @@ function renderDropCard(){
     b.addEventListener('click', function(e){ const c = e.target.closest('[data-drop]'); if(c) claimDrop(c); });
   }
   const esc = function(v){ return String(v == null ? '' : v).replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
-  const d = DROP, left = Math.max(0, (d.max_claims || 0) - (d.claimed || 0));
+  const d = DROP;
+  if(d.upcoming){
+    const when = new Date(d.starts_at);
+    const day = when.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'Europe/Amsterdam' });
+    const tomorrow = new Date(Date.now() + 864e5).toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' }) === when.toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
+    b.className = 'drop-card is-next';
+    b.innerHTML = '<div class="drop-card__icon">🎁</div><div class="drop-card__tx"><small>The drop</small><b>Next drop ' + (tomorrow ? 'tomorrow' : day) + ' at 16:00</b><em>Every Monday, Wednesday and Friday. A perk for the first few who claim it.</em></div>';
+    clearTimeout(DROP_TIMER); return;
+  }
+  const left = Math.max(0, (d.max_claims || 0) - (d.claimed || 0));
   const startMs = Date.parse(d.starts_at), live = Date.now() >= startMs;
   let state, action = '';
   if(d.i_claimed){ state = '<span class="drop-card__state is-won">✓ You got it</span>'; }
   else if(!live){
     const ms = startMs - Date.now(), h = Math.floor(ms / 36e5), m = Math.floor(ms % 36e5 / 6e4), s = Math.floor(ms % 6e4 / 1e3);
     state = '<span class="drop-card__state">Drops in <b>' + String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0') + '</b></span>';
-  } else if(left <= 0){ state = '<span class="drop-card__state is-gone">All gone · next drop tomorrow 16:00</span>'; }
+  } else if(left <= 0){ state = '<span class="drop-card__state is-gone">All gone · next drop ' + (new Date().getDay() === 5 ? 'Monday' : 'in two days') + ' at 16:00</span>'; }
   else {
     state = '<span class="drop-card__state is-live"><i></i>Live · ' + left + ' of ' + d.max_claims + ' left</span>';
     action = '<button type="button" class="btn btn--solid drop-card__btn" data-drop="' + esc(d.id) + '">' + (currentUser ? 'Claim it' : 'Log in to claim') + '</button>';

@@ -67,6 +67,17 @@ module.exports = async function handler(req, res) {
         changes.forEach(function (c) { (byReq[c.request_id] = byReq[c.request_id] || []).push(c); });
         rows.forEach(function (r) { if (byReq[r.id]) r.changes = byReq[r.id]; });
       } catch (e) { /* optional */ }
+      // Drop perks (priority / +1) claimed for the party of a request.
+      try {
+        const { data: dr } = await supabase.from('drops').select('id, kind, event_name, event_date').in('kind', ['priority', 'plusone']).gte('event_date', new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10));
+        if (dr && dr.length) {
+          const { data: dc } = await supabase.from('drop_claims').select('drop_id, user_id').in('drop_id', dr.map(function (d) { return d.id; }));
+          const byId = {}; dr.forEach(function (d) { byId[d.id] = d; });
+          const perk = {};
+          (dc || []).forEach(function (c) { const d = byId[c.drop_id]; perk[c.user_id + '|' + d.event_name + '|' + d.event_date] = d.kind; });
+          rows.forEach(function (r) { const k = perk[r.user_id + '|' + r.event_name + '|' + String(r.event_date).slice(0, 10)]; if (k) r.drop = k; });
+        }
+      } catch (e) { /* optional */ }
       res.status(200).json({ requests: rows, changes: changes });
     } catch (err) {
       res.status(500).json({ error: err.message || 'Unknown error' });

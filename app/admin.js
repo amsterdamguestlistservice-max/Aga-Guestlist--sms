@@ -90,6 +90,16 @@
   .adm-ig .g button.on{border-color:var(--gold);background:var(--gold);color:#000}
   .adm-ig-more{display:block;width:100%;min-height:40px;margin-top:4px;border:1px solid var(--line);background:transparent;color:var(--white);font:600 12px/1 var(--sans);cursor:pointer}
   .adm-ev__more{font-size:11px;color:var(--gold);letter-spacing:.14em;text-transform:uppercase;margin-top:8px}
+  .adm-drop{padding:12px 14px;margin-bottom:8px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);font-size:13px;display:flex;flex-direction:column;gap:8px}
+  .adm-drop.is-edit{border-color:var(--gold)}
+  .adm-drop__top{display:flex;justify-content:space-between;gap:10px}.adm-drop__top span{color:var(--muted);font-size:12px}
+  .adm-drop__what{font-size:14px;color:#fff}.adm-drop__auto{font-size:10px;padding:2px 6px;border-radius:999px;border:1px solid rgba(255,255,255,.2);color:var(--muted);margin-left:4px;vertical-align:middle}
+  .adm-drop__who{font-size:12px;color:#7ee3a6}
+  .adm-drop__nums{display:flex;gap:10px}.adm-drop__nums label{flex:1;display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+  .adm-drop__nums input{padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:#0b0a08;color:#fff;font:15px var(--sans)}
+  .adm-drop__body{width:100%;min-height:60px;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:#0b0a08;color:#fff;font:14px/1.4 var(--sans)}
+  .adm-drop__act{display:flex;flex-wrap:wrap;gap:8px}
+  .adm-dropchip{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:999px;background:rgba(255,211,107,.18);color:#ffd36b;font-size:10px;font-weight:700;letter-spacing:.06em;vertical-align:middle}
   .adm-cc{padding:12px 14px;margin-bottom:8px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);font-size:13px;line-height:1.45}
   .adm-cc.is-q{border-color:var(--gold)}
   .adm-cc__top{display:flex;justify-content:space-between;gap:10px}.adm-cc__top span{color:var(--muted);font-size:12px}
@@ -173,6 +183,7 @@
     '<div class="adm-sec">All time</div><div class="adm-grid" id="admTotals"></div>' +
     '<div class="adm-sec">New accounts · last 14 days</div><div class="adm-chart" id="admChart"></div>' +
     '<div class="adm-sec">Most guests</div><div id="admTop"></div>' +
+    '<div class="adm-sec">The drop · Mon, Wed, Fri 16:00</div><div id="admDrops"></div>' +
     '<div class="adm-sec" id="admConciergeSec">Concierge</div><div id="admConcierge"></div>' +
     '<div class="adm-sec">Outfit check</div><div id="admOutfits"></div>' +
     '<div class="adm-sec">People in the app per day</div><div id="admActives"></div>' +
@@ -294,6 +305,70 @@
     })).join('');
   }
   function setParty(n){ PARTY = n; renderFilter(); renderEvents(); renderReqs(); renderChanges(); }
+  // ---------- the drop ----------
+  let DROPS = [], DROP_EDIT = null;
+  const DROP_KINDS = [
+    ['points', '★ Bonus points', function(f){ return '+' + (f.points || 10) + ' bonus points'; }, function(f){ return 'For the first ' + f.max + ' who claim it. Points move you up to Silver, Gold and VIP.'; }],
+    ['priority', '⚡ Priority', function(f){ return 'Priority for ' + (f.ev || 'the party'); }, function(f){ return 'First ' + f.max + ' jump the queue: your request for ' + (f.ev || 'the party') + ' gets reviewed first.'; }],
+    ['plusone', '+1 Free plus-one', function(f){ return 'Free +1 for ' + (f.ev || 'the party'); }, function(f){ return 'First ' + f.max + ' can bring one extra friend on the guestlist for ' + (f.ev || 'the party') + '.'; }],
+    ['custom', '🎁 Own perk', function(){ return ''; }, function(){ return ''; }]
+  ];
+  async function loadDropsAdmin(){
+    const box = document.getElementById('admDrops'); if(!box) return;
+    try{ DROPS = (await api('/api/ags?fn=drops-admin')).days || []; } catch(e){ box.innerHTML = '<div class="adm-err">' + esc(e.message) + '</div>'; return; }
+    renderDropsAdmin();
+  }
+  function dropParties(){
+    try{
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
+      return EVENTS.filter(function(e){ return e.date >= today && e.guestlistStatus !== 'none'; }).sort(function(a, b){ return a.date < b.date ? -1 : 1; }).slice(0, 12);
+    } catch(e){ return []; }
+  }
+  function renderDropsAdmin(){
+    const box = document.getElementById('admDrops'); if(!box) return;
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
+    box.innerHTML = DROPS.map(function(x){
+      const d = x.drop, label = (x.date === today ? 'Today · ' : '') + new Date(x.date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
+      if(DROP_EDIT && DROP_EDIT.date === x.date) return dropForm(x, label);
+      const what = d ? esc(d.title) + (d.auto ? ' <span class="adm-drop__auto">auto</span>' : '') : '<span style="color:var(--muted)">Automatic drop</span>';
+      return '<div class="adm-drop"><div class="adm-drop__top"><b>' + esc(label) + '</b>' + (d ? '<span>' + x.claims.length + ' / ' + d.max_claims + ' claimed</span>' : '') + '</div>' +
+        '<div class="adm-drop__what">' + what + '</div>' +
+        (x.claims.length ? '<div class="adm-drop__who">' + x.claims.map(function(c){ return esc(c.name); }).join(', ') + '</div>' : '') +
+        (!x.claims.length ? '<button type="button" class="adm-btn" data-dropedit="' + x.date + '">' + (d && !d.auto ? 'Change drop' : 'Set your own drop') + '</button>' : '') +
+        '</div>';
+    }).join('');
+  }
+  function dropForm(x, label){
+    const f = DROP_EDIT;
+    const parties = dropParties();
+    const k = DROP_KINDS.find(function(t){ return t[0] === f.kind; });
+    return '<div class="adm-drop is-edit"><div class="adm-drop__top"><b>' + esc(label) + '</b></div>' +
+      '<div class="adm-cc__tpl">' + DROP_KINDS.map(function(t){ return '<button type="button" data-dropkind="' + t[0] + '" class="' + (t[0] === f.kind ? 'on' : '') + '">' + esc(t[1]) + '</button>'; }).join('') + '</div>' +
+      ((f.kind === 'priority' || f.kind === 'plusone') ? '<select id="admDropEv" class="adm-ig-search">' + parties.map(function(e){ const v = e.name + '|' + e.date; return '<option value="' + esc(v) + '"' + (f.evKey === v ? ' selected' : '') + '>' + esc(e.name + ' · ' + day(e.date)) + '</option>'; }).join('') + '</select>' : '') +
+      '<div class="adm-drop__nums"><label>How many<input type="number" id="admDropMax" min="1" max="500" value="' + f.max + '"></label>' +
+      (f.kind === 'points' ? '<label>Points<input type="number" id="admDropPts" min="1" max="100" value="' + (f.points || 10) + '"></label>' : '') + '</div>' +
+      '<input type="text" id="admDropTitle" class="adm-ig-search" maxlength="80" placeholder="Title (what they get)" value="' + esc(f.title != null ? f.title : k[2](f)) + '">' +
+      '<textarea id="admDropBody" class="adm-drop__body" maxlength="200" placeholder="One line of detail">' + esc(f.body != null ? f.body : k[3](f)) + '</textarea>' +
+      '<div class="adm-drop__act"><button type="button" class="adm-btn adm-btn--gold" data-dropsave="' + x.date + '">Save drop</button>' +
+      (x.drop && !x.drop.auto ? '<button type="button" class="adm-btn" data-dropreset="' + x.date + '">Back to automatic</button>' : '') +
+      '<button type="button" class="adm-btn" data-dropcancel="1">Cancel</button></div></div>';
+  }
+  function readDropForm(){
+    const f = DROP_EDIT; if(!f) return;
+    const ev = document.getElementById('admDropEv'); if(ev){ f.evKey = ev.value; f.ev = ev.value.split('|')[0]; }
+    const mx = document.getElementById('admDropMax'); if(mx) f.max = Number(mx.value) || f.max;
+    const pt = document.getElementById('admDropPts'); if(pt) f.points = Number(pt.value) || f.points;
+  }
+  async function saveDrop(date, btn){
+    readDropForm();
+    const f = DROP_EDIT;
+    const body = { date: date, kind: f.kind, title: document.getElementById('admDropTitle').value, body: document.getElementById('admDropBody').value, max_claims: f.max, points: f.points };
+    if(f.evKey && (f.kind === 'priority' || f.kind === 'plusone')){ body.event_name = f.evKey.split('|')[0]; body.event_date = f.evKey.split('|')[1]; }
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try{ await api('/api/ags?fn=drops-admin', { method: 'POST', body: body }); DROP_EDIT = null; await loadDropsAdmin(); }
+    catch(e){ btn.disabled = false; btn.textContent = 'Save drop'; showErr(e.message); }
+  }
+
   // ---------- concierge ----------
   let CC = [], CC_SHOW = 8;
   // One-tap answers. The best one is filled in already, so most of the time
@@ -511,7 +586,7 @@
     const today0 = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
     const verified = new Set(REQS.filter(function(x){ return st(x) === 'approved' && String(x.event_date) < today0 && x.user_id; }).map(function(x){ return x.user_id; }));
     const pending = PENDING.filter(function(x){ return !PARTY || x.event_name === PARTY; }).slice().sort(function(a, b){
-      return ((b.points >= 50 ? 1 : 0) - (a.points >= 50 ? 1 : 0)) || ((verified.has(b.user_id) ? 1 : 0) - (verified.has(a.user_id) ? 1 : 0)) || byName(a, b);
+      return ((b.drop ? 1 : 0) - (a.drop ? 1 : 0)) || ((b.points >= 50 ? 1 : 0) - (a.points >= 50 ? 1 : 0)) || ((verified.has(b.user_id) ? 1 : 0) - (verified.has(a.user_id) ? 1 : 0)) || byName(a, b);
     });
     const box = document.getElementById('admReqs');
     if(!pending.length){ box.innerHTML = '<div class="adm-empty">' + (PARTY ? 'No requests waiting for ' + esc(PARTY) + '.' : 'All caught up. No requests waiting.') + '</div>'; return; }
@@ -523,6 +598,7 @@
       return '<div class="adm-req" data-id="' + esc(x.id) + '"><h4>' + esc((x.first_name || '') + ' ' + (x.last_name || '')) +
         (tier ? ' <span class="adm-tier adm-tier--' + tier.toLowerCase() + '">★ ' + tier + '</span>' : '') +
         (verified.has(x.user_id) ? '<span class="adm-verified">✓ VERIFIED</span>' : '') +
+        (x.drop === 'priority' ? '<span class="adm-dropchip">⚡ DROP</span>' : x.drop === 'plusone' ? '<span class="adm-dropchip">+1 DROP</span>' : '') +
         (x.changes && x.changes.length ? '<span class="adm-edited">✏️ EDITED</span>' : '') + '</h4>' +
         '<div class="ev">' + esc(x.event_name) + ' · ' + esc(day(x.event_date)) + '</div>' +
         '<div class="meta">' + (x.total_guests || 1) + ' guest' + ((x.total_guests || 1) > 1 ? 's' : '') +
@@ -758,6 +834,7 @@
   async function refresh(){
     showErr('');
     loadConciergeAdmin();
+    loadDropsAdmin();
     try{ await Promise.all([loadStats(), loadReqs()]); }
     catch(e){ showErr(e.message === 'Unauthorized' ? 'This account has no admin access.' : e.message); }
   }
@@ -817,6 +894,14 @@
   document.getElementById('admPushSend').addEventListener('click', sendPush);
   document.getElementById('admNewBtn').addEventListener('click', announceNew);
   sheet.addEventListener('input', function(e){ if(e.target && e.target.id === 'admIgSearch'){ IG_Q = e.target.value; IG_SHOW = 40; renderIg(); } });
+  sheet.addEventListener('change', function(e){
+    if(!DROP_EDIT || !e.target) return;
+    if(e.target.id === 'admDropEv' || e.target.id === 'admDropMax' || e.target.id === 'admDropPts'){
+      readDropForm();
+      const k = DROP_KINDS.find(function(t){ return t[0] === DROP_EDIT.kind; });
+      if(DROP_EDIT.kind !== 'custom'){ document.getElementById('admDropTitle').value = k[2](DROP_EDIT); document.getElementById('admDropBody').value = k[3](DROP_EDIT); }
+    }
+  });
   sheet.addEventListener('click', function(e){
     const it = e.target.closest('#admIgTabs button[data-igtab]');
     if(it){ IG_TAB = it.getAttribute('data-igtab'); IG_SHOW = 40; renderIg(); return; }
@@ -829,6 +914,14 @@
     const pf = e.target.closest('#admFilter button[data-party]');
     if(pf){ setParty(pf.getAttribute('data-party')); return; }
     if(e.target.closest('#admAccOpen')){ openAccounts(); return; }
+    const de = e.target.closest('[data-dropedit]');
+    if(de){ const p = dropParties()[0]; DROP_EDIT = { date: de.getAttribute('data-dropedit'), kind: 'priority', max: 10, points: 10, evKey: p ? p.name + '|' + p.date : '', ev: p ? p.name : '' }; renderDropsAdmin(); return; }
+    const dk = e.target.closest('[data-dropkind]');
+    if(dk){ readDropForm(); DROP_EDIT.kind = dk.getAttribute('data-dropkind'); DROP_EDIT.title = null; DROP_EDIT.body = null; if(DROP_EDIT.kind === 'points') DROP_EDIT.max = 20; renderDropsAdmin(); return; }
+    const ds = e.target.closest('[data-dropsave]'); if(ds){ if(!ds.disabled) saveDrop(ds.getAttribute('data-dropsave'), ds); return; }
+    const dr = e.target.closest('[data-dropreset]');
+    if(dr){ api('/api/ags?fn=drops-admin', { method: 'POST', body: { date: dr.getAttribute('data-dropreset'), reset: true } }).then(function(){ DROP_EDIT = null; loadDropsAdmin(); }).catch(function(err){ showErr(err.message); }); return; }
+    if(e.target.closest('[data-dropcancel]')){ DROP_EDIT = null; renderDropsAdmin(); return; }
     const ccs = e.target.closest('[data-ccsend]'); if(ccs){ if(!ccs.disabled) sendConciergeReply(ccs); return; }
     const tpl = e.target.closest('[data-cctpl]');
     if(tpl){

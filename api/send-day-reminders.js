@@ -25,6 +25,7 @@ const { sendPush: sendAnyPush, saveInbox } = require('./_push');
 const { createClient } = require('@supabase/supabase-js');
 const { sendGuestEmail } = require('./_guest-email');
 const { notifyForEvent } = require('./waitlist-notify');
+const { sendDropPush } = require('./_drops');
 const { sendTonightPush, sendWeeklyPush, sendNewEventsPush, sendPlannerPush, sendWrappedPush } = require('./_last-spots');
 
 function isAuthorized(req) {
@@ -237,6 +238,9 @@ module.exports = async function handler(req, res) {
     const weeklyPush = await sendWeeklyPush(supabase);
     // New parties added since the last run.
     const newEventsPush = await sendNewEventsPush(supabase);
+    // The drop (Mon / Wed / Fri 16:00).
+    let dropPush = null;
+    try { dropPush = await sendDropPush(supabase); } catch (e) { dropPush = { error: String(e && e.message || e) }; }
     // AGS Wrapped launch day (27 Dec).
     let wrappedPush = null;
     try { wrappedPush = await sendWrappedPush(supabase); } catch (e) { wrappedPush = { error: String(e && e.message || e) }; }
@@ -255,7 +259,7 @@ module.exports = async function handler(req, res) {
     if (plannerPush && (plannerPush.queued || plannerPush.skipped === 'already_sent')) stillThinking = { skipped: 'planner_push_today' };
     else { try { stillThinking = await sendStillThinking(supabase); } catch (e) { stillThinking = { error: String(e && e.message || e) }; } }
 
-    res.status(200).json({ ok: true, date: today, requests: (rows || []).length, pushed, emailed, unreachable, waitlistNotified, tonightPush, weeklyPush, newEventsPush, plannerPush, wrappedPush, eveReminders, ratePushes, stillThinking });
+    res.status(200).json({ ok: true, date: today, requests: (rows || []).length, pushed, emailed, unreachable, waitlistNotified, tonightPush, weeklyPush, newEventsPush, plannerPush, wrappedPush, dropPush, eveReminders, ratePushes, stillThinking });
   } catch (err) {
     res.status(500).json({ ok: false, error: String(err && err.message || err) });
   }

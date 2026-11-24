@@ -1293,6 +1293,9 @@ body{ background:#020202; }
 .drop-card{ position:relative; display:flex; align-items:center; gap:14px; margin:14px 16px 0; padding:16px; border-radius:20px; border:1px solid rgba(233,209,139,.25); background:linear-gradient(120deg,#120f0a,#060505); overflow:hidden; }
 .drop-card.is-live{ border-color:#c9a24a; box-shadow:0 0 0 1px rgba(201,162,74,.4), 0 10px 40px rgba(201,162,74,.18); }
 .drop-card.is-live::before{ content:''; position:absolute; inset:-50%; background:linear-gradient(115deg, transparent 42%, rgba(255,232,170,.12) 50%, transparent 58%); animation:vipSheen 3s ease-in-out infinite; pointer-events:none; }
+.drop-card.is-next{ padding:12px 14px; }
+.drop-card.is-next .drop-card__icon{ width:40px; height:40px; font-size:18px; border-radius:12px; }
+.drop-card.is-next .drop-card__tx b{ font-size:18px; }
 .drop-card.is-won{ border-color:rgba(126,227,166,.45); }
 .drop-card__icon{ flex:none; width:52px; height:52px; border-radius:16px; display:flex; align-items:center; justify-content:center; font:800 22px/1 var(--sans); color:#120d03; background:linear-gradient(135deg,#f3dc97,#b8902f); }
 .drop-card__tx{ flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
