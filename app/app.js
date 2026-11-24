@@ -5999,7 +5999,25 @@ function conciergePick(ans){
     if(info && info.label) why.push(info.label.toLowerCase());
     return { ev: ev, score: score, why: why, fits: fits };
   }).filter(Boolean).sort(function(a, b){ return b.score - a.score; });
-  return list.slice(0, 3);
+  if(list.length) return list.slice(0, 3);
+  // Nothing fits? Always name a party:
+  // 1) Behind Closed Doors on that night, 2) any party that night,
+  // 3) the next Behind Closed Doors, 4) the next party at all.
+  const live = function(ev){ return eventVisible(ev) && !isPastEvent(ev) && !ev.flyerPending; };
+  const inRange = function(ev){ return dates ? dates.indexOf(ev.date) >= 0 : (ev.date >= today && ev.date <= limit); };
+  const soonest = function(arr){ return arr.sort(function(a, b){ return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; })[0]; };
+  const isBcd = function(ev){ return ev.name === 'Behind Closed Doors'; };
+  let fb = soonest(EVENTS.filter(function(ev){ return live(ev) && isBcd(ev) && inRange(ev); }));
+  let other = false;
+  if(!fb) fb = soonest(EVENTS.filter(function(ev){ return live(ev) && inRange(ev); }));
+  if(!fb){ other = true; fb = soonest(EVENTS.filter(function(ev){ return live(ev) && isBcd(ev) && ev.date >= today; })) || soonest(EVENTS.filter(function(ev){ return live(ev) && ev.date >= today; })); }
+  if(!fb) return [];
+  const st = GUESTLIST_STATE[fb.id], info = st ? guestlistUrgencyInfo(st) : null;
+  const noList = fb.guestlistStatus === 'none' || fb.guestlistStatus === 'closed' || (info && info.locked);
+  const why = [isBcd(fb) ? 'our go-to night' : 'the best option ' + (other ? 'coming up' : 'that night')];
+  if(eventGenres(fb).length) why.push(eventGenres(fb).slice(0, 2).join(' & '));
+  if(noList) why.push(fb.ticketUrl ? 'tickets available' : 'guestlist full');
+  return [{ ev: fb, score: 0, why: why, fits: !noList, fallback: true, otherNight: other }];
 }
 function openConcierge(){
   if(document.getElementById('conciergePage')) return;
@@ -6048,14 +6066,14 @@ function openConcierge(){
             h += bot('Nothing open that matches right now. Try another night or vibe, or ask me below. Turn on notifications so you hear first when new parties drop.') +
               '<button type="button" class="btn cc-next" data-a="restart">Start over</button>';
           } else {
-            h += bot(picks.length === 1 ? 'This is the one I’d go to:' : 'Here’s where I’d go' + (picks[0].fits ? '' : ' (lists are filling up)') + ':');
+            h += bot(picks[0].fallback ? (picks[0].otherNight ? 'Nothing on that night, but this is where I’d be next:' : 'Nothing matches exactly, but this is where I’d be:') : picks.length === 1 ? 'This is the one I’d go to:' : 'Here’s where I’d go' + (picks[0].fits ? '' : ' (lists are filling up)') + ':');
             h += '<div class="cc-picks">' + picks.map(function(p, i){
               const ev = p.ev;
               return '<div class="cc-pick' + (i === 0 ? ' is-top' : '') + '">' +
                 '<span class="cc-pick__img" style="background-image:url(\'' + esc(webpOf(ev.image) || ev.image || '') + '\')">' + (i === 0 ? '<i>Top pick</i>' : '') + '</span>' +
                 '<div class="cc-pick__tx"><b>' + esc(ev.name) + '</b><span>' + esc(plannerDayLabel(ev.date)) + (ev.time ? ' · ' + esc(ev.time) : '') + ' · ' + esc(eventVenueName(ev)) + '</span>' +
                 '<em>' + esc(p.why.join(' · ')) + '</em>' +
-                '<div class="cc-pick__act"><button type="button" class="btn btn--solid" data-a="req" data-id="' + esc(ev.id) + '">Request access</button><button type="button" class="cc-link" data-a="view" data-id="' + esc(ev.id) + '">View party</button></div></div></div>';
+                '<div class="cc-pick__act">' + (p.fallback && !p.fits && ev.ticketUrl ? '<a class="btn btn--solid" href="' + esc(ev.ticketUrl) + '" target="_blank" rel="noopener">Tickets</a>' : '<button type="button" class="btn btn--solid" data-a="req" data-id="' + esc(ev.id) + '">Request access</button>') + '<button type="button" class="cc-link" data-a="view" data-id="' + esc(ev.id) + '">View party</button></div></div></div>';
             }).join('') + '</div><button type="button" class="cc-link cc-again" data-a="restart">Ask again</button>';
           }
           h += askBox();
