@@ -6111,3 +6111,24 @@ function openConcierge(){
   try{ setTimeout(renderConciergeEntry, 1700); } catch(e){}
   try{ if(/[?&]concierge=1/.test(location.search)) setTimeout(openConcierge, 1500); } catch(e){}
 })();
+
+
+/* ---------- Tab bar hides on scroll down, returns on scroll up ---------- */
+(function(){
+  let lastY = window.scrollY || 0, acc = 0, ticking = false;
+  function show(){ document.body.classList.remove('tabbar-hidden'); }
+  function update(){
+    ticking = false;
+    const y = Math.max(0, window.scrollY || 0);
+    const dy = y - lastY; lastY = y;
+    const atBottom = window.innerHeight + y >= document.documentElement.scrollHeight - 40;
+    if(y < 80 || atBottom){ acc = 0; return show(); }
+    // only react after a small amount of movement in the same direction
+    acc = (acc > 0) === (dy > 0) ? acc + dy : dy;
+    if(acc > 24) document.body.classList.add('tabbar-hidden');
+    else if(acc < -16) show();
+  }
+  window.addEventListener('scroll', function(){ if(!ticking){ ticking = true; requestAnimationFrame(update); } }, { passive: true });
+  // Always visible again after switching tabs or opening an overlay
+  document.addEventListener('click', function(e){ if(e.target.closest && e.target.closest('.app-tabbar button')) show(); }, true);
+})();

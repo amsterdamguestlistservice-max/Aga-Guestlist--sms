@@ -104,6 +104,9 @@ input,select{ font-family:inherit; }
 .tab-panel{ display:none; }
 .tab-panel.is-active{ display:block; }
 body.is-gated .app-tabbar{ display:none; }
+/* Hide the tab bar while scrolling down, bring it back when scrolling up */
+.app-tabbar{ transition:transform .32s cubic-bezier(.2,.8,.2,1), opacity .25s ease; will-change:transform; }
+body.tabbar-hidden .app-tabbar{ transform:translateY(calc(100% + 40px)); opacity:0; pointer-events:none; }
 body.is-gated .tab-panel{ display:none !important; }
 body.is-gated #tab-account{ display:block !important; }
 
