@@ -5944,3 +5944,138 @@ function hostButtonHtml(r){
   return '<a class="host-btn" href="https://wa.me/31644948562?text=' + encodeURIComponent(msg) + '" target="_blank" rel="noopener">' +
     '<span class="host-btn__dot"></span><span class="host-btn__txt"><small>Your host tonight</small>Message AGS on WhatsApp</span><span class="host-btn__go">→</span></a>';
 }
+
+/* ---------- Concierge ----------
+   "Not sure where to go?" Three quick questions (when, vibe, who) and the
+   best 3 parties with an open guestlist, explained, with one tap to request.
+   No AI: scores parties on date, music, the clubs you follow, what you went
+   to before (forYouScore) and whether there is room for your group. */
+const CONCIERGE_GENRES = ['Afro house', 'Amapiano', 'House', 'Hits', 'New wave'];
+function renderConciergeEntry(){
+  let b = document.getElementById('conciergeEntry');
+  if(b) return;
+  const anchor = document.getElementById('plannerEntry') || document.getElementById('outfitEntry') || document.getElementById('featuredHero');
+  if(!anchor || !anchor.parentNode) return;
+  b = document.createElement('button'); b.type = 'button'; b.id = 'conciergeEntry'; b.className = 'outfit-entry concierge-entry';
+  b.innerHTML = '<span class="outfit-entry__icon">🛎️</span><span class="outfit-entry__txt"><small>Concierge</small><b>Not sure where to go?</b><em>Tell us your vibe, we pick your night</em></span><span class="outfit-entry__go">→</span>';
+  anchor.parentNode.insertBefore(b, anchor);
+  b.addEventListener('click', openConcierge);
+}
+function conciergeDates(when){
+  const today = todayAmsterdam();
+  const add = function(n){ return new Date(new Date(today + 'T12:00:00Z').getTime() + n * 864e5).toISOString().slice(0, 10); };
+  if(when === 'tonight') return [today];
+  if(when === 'tomorrow') return [add(1)];
+  if(when === 'weekend') return weekendDates();
+  return null; // any night (next 3 weeks)
+}
+function conciergePick(ans){
+  const dates = conciergeDates(ans.when);
+  const today = todayAmsterdam();
+  const limit = new Date(Date.now() + 21 * 864e5).toISOString().slice(0, 10);
+  const size = ans.size || 1;
+  const list = EVENTS.filter(function(ev){
+    if(!eventVisible(ev) || isPastEvent(ev) || ev.flyerPending) return false;
+    if(ev.guestlistStatus === 'none' || ev.guestlistStatus === 'closed') return false;
+    if(dates ? dates.indexOf(ev.date) < 0 : (ev.date < today || ev.date > limit)) return false;
+    return true;
+  }).map(function(ev){
+    const st = GUESTLIST_STATE[ev.id], info = st ? guestlistUrgencyInfo(st) : null;
+    if(info && info.locked) return null;
+    const fits = !info || info.spotsLeft >= size;
+    const g = eventGenres(ev);
+    const match = ans.genres.length ? g.filter(function(x){ return ans.genres.indexOf(x) >= 0; }) : [];
+    if(ans.genres.length && !match.length) return null;
+    const venue = eventVenueName(ev);
+    let score = match.length * 4 + forYouScore(ev) + (MY_FOLLOWS.has(venue) ? 3 : 0) + (fits ? 3 : -6);
+    score -= (new Date(ev.date) - new Date(today)) / 864e5 * 0.15; // sooner is a little better
+    const why = [];
+    if(match.length) why.push(match.join(' & '));
+    else if(g.length) why.push(g.slice(0, 2).join(' & '));
+    if(MY_FOLLOWS.has(venue)) why.push('you follow ' + venue);
+    else if(MY_PREFS && MY_PREFS.names[ev.name]) why.push('you’ve been before');
+    if(size > 1) why.push(fits ? 'room for ' + size : 'tight for ' + size);
+    if(info && info.label) why.push(info.label.toLowerCase());
+    return { ev: ev, score: score, why: why, fits: fits };
+  }).filter(Boolean).sort(function(a, b){ return b.score - a.score; });
+  return list.slice(0, 3);
+}
+function openConcierge(){
+  if(document.getElementById('conciergePage')) return;
+  const el = document.createElement('div'); el.className = 'outfits concierge'; el.id = 'conciergePage';
+  document.body.appendChild(el); document.body.style.overflow = 'hidden';
+  const esc = function(v){ return String(v == null ? '' : v).replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
+  const first = (currentUser && currentUser.user_metadata && currentUser.user_metadata.first_name) || '';
+  const ans = { when: null, genres: [], size: null };
+  let step = 0;
+  const bot = function(t){ return '<div class="cc-msg cc-msg--bot"><span class="cc-av">AGS</span><p>' + t + '</p></div>'; };
+  const me = function(t){ return '<div class="cc-msg cc-msg--me"><p>' + esc(t) + '</p></div>'; };
+  const WHEN = [['tonight', 'Tonight'], ['tomorrow', 'Tomorrow'], ['weekend', 'This weekend'], ['any', 'Any night']];
+  const SIZE = [[1, 'Just me'], [2, 'With 1 friend'], [3, '3–4 of us'], [5, '5 or more']];
+  function chips(list, key, multi){
+    return '<div class="cc-chips">' + list.map(function(o){
+      const on = multi ? ans.genres.indexOf(o[0]) >= 0 : false;
+      return '<button type="button" class="cc-chip' + (on ? ' on' : '') + '" data-' + key + '="' + esc(o[0]) + '">' + esc(o[1]) + '</button>';
+    }).join('') + '</div>';
+  }
+  function render(){
+    let h = '<div class="outfits__inner"><button type="button" class="safe__close" data-a="close" aria-label="Close">✕</button>' +
+      '<small class="nye__kicker">Concierge</small><h2>Your night, sorted</h2><div class="cc-thread">' +
+      bot('Good ' + (new Date().getHours() < 18 ? 'afternoon' : 'evening') + (first ? ', ' + esc(first) : '') + '. When are you going out?');
+    if(step === 0) h += chips(WHEN, 'when');
+    else {
+      h += me(WHEN.find(function(w){ return w[0] === ans.when; })[1]) + bot('What’s the vibe? Pick as many as you like.');
+      if(step === 1) h += chips(CONCIERGE_GENRES.map(function(g){ return [g, g]; }), 'genre', true) +
+        '<div class="cc-row"><button type="button" class="cc-link" data-a="anyvibe">Anything good</button><button type="button" class="btn btn--solid cc-next" data-a="vibe"' + (ans.genres.length ? '' : ' disabled') + '>Next</button></div>';
+      else {
+        h += me(ans.genres.length ? ans.genres.join(', ') : 'Anything good') + bot('Who’s coming?');
+        if(step === 2) h += chips(SIZE, 'size');
+        else {
+          h += me(SIZE.find(function(s){ return s[0] === ans.size; })[1]);
+          const picks = conciergePick(ans);
+          if(!picks.length){
+            h += bot('Nothing open that matches right now. Try another night or vibe, and turn on notifications so you hear first when new parties drop.') +
+              '<button type="button" class="btn cc-next" data-a="restart">Start over</button>';
+          } else {
+            h += bot(picks.length === 1 ? 'This is the one for you:' : 'My picks for you' + (picks[0].fits ? '' : ' (lists are filling up)') + ':');
+            h += '<div class="cc-picks">' + picks.map(function(p, i){
+              const ev = p.ev;
+              return '<div class="cc-pick' + (i === 0 ? ' is-top' : '') + '">' +
+                '<span class="cc-pick__img" style="background-image:url(\'' + esc(webpOf(ev.image) || ev.image || '') + '\')">' + (i === 0 ? '<i>Top pick</i>' : '') + '</span>' +
+                '<div class="cc-pick__tx"><b>' + esc(ev.name) + '</b><span>' + esc(plannerDayLabel(ev.date)) + (ev.time ? ' · ' + esc(ev.time) : '') + ' · ' + esc(eventVenueName(ev)) + '</span>' +
+                '<em>' + esc(p.why.join(' · ')) + '</em>' +
+                '<div class="cc-pick__act"><button type="button" class="btn btn--solid" data-a="req" data-id="' + esc(ev.id) + '">Request access</button><button type="button" class="cc-link" data-a="view" data-id="' + esc(ev.id) + '">View party</button></div></div></div>';
+            }).join('') + '</div><button type="button" class="cc-link cc-again" data-a="restart">Ask again</button>';
+          }
+        }
+      }
+    }
+    el.innerHTML = h + '</div></div>';
+    const last = el.querySelector('.cc-thread > :last-child'); if(last && step > 0) last.scrollIntoView({ block: 'end', behavior: 'smooth' });
+  }
+  function close(){ el.remove(); document.body.style.overflow = ''; }
+  el.addEventListener('click', function(e){
+    const w = e.target.closest('[data-when]'); if(w){ ans.when = w.getAttribute('data-when'); step = 1; try{ haptic('light'); } catch(x){} return render(); }
+    const g = e.target.closest('[data-genre]'); if(g){ const v = g.getAttribute('data-genre'), i = ans.genres.indexOf(v); if(i >= 0) ans.genres.splice(i, 1); else ans.genres.push(v); return render(); }
+    const s = e.target.closest('[data-size]'); if(s){ ans.size = Number(s.getAttribute('data-size')); step = 3; try{ haptic('success'); } catch(x){} return render(); }
+    const t = e.target.closest('[data-a]'); if(!t) return;
+    const a = t.getAttribute('data-a');
+    if(a === 'close') return close();
+    if(a === 'anyvibe'){ ans.genres = []; step = 2; return render(); }
+    if(a === 'vibe'){ step = 2; return render(); }
+    if(a === 'restart'){ ans.when = null; ans.genres = []; ans.size = null; step = 0; return render(); }
+    const ev = EVENTS.find(function(x){ return x.id === t.getAttribute('data-id'); }); if(!ev) return;
+    close();
+    if(a === 'view') return openEventSheet(ev);
+    if(a === 'req'){
+      if(!currentUser){ switchTab('account'); return; }
+      if(ans.size > 1) return goToFullForm(ev, ans.size === 3 ? 2 : ans.size === 5 ? 4 : 1);
+      tryQuickRequest(ev).then(function(took){ if(!took) goToFullForm(ev, 0); });
+    }
+  });
+  render();
+}
+(function(){
+  try{ setTimeout(renderConciergeEntry, 1700); } catch(e){}
+  try{ if(/[?&]concierge=1/.test(location.search)) setTimeout(openConcierge, 1500); } catch(e){}
+})();
