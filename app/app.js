@@ -6150,3 +6150,139 @@ function openConcierge(){
   // Always visible again after switching tabs or opening an overlay
   document.addEventListener('click', function(e){ if(e.target.closest && e.target.closest('.app-tabbar button')) show(); }, true);
 })();
+
+/* ---------- AGS Wrapped 2026 ----------
+   "Your first season with AGS": story-style slides from my_wrapped(), ending
+   in a 1080x1920 card to share. Works for brand-new members too (founding
+   member + "your first night is still ahead"). Open from the home card in
+   December, the push, or ./?wrapped=1. */
+const WRAPPED_FROM = '2026-12-14';
+function wrappedAvailable(){ return todayAmsterdam() >= WRAPPED_FROM || /[?&]wrapped=1/.test(location.search); }
+function renderWrappedEntry(){
+  let b = document.getElementById('wrappedEntry');
+  if(!currentUser || !wrappedAvailable()){ if(b) b.remove(); return; }
+  if(b) return;
+  const anchor = document.getElementById('conciergeEntry') || document.getElementById('plannerEntry') || document.getElementById('featuredHero');
+  if(!anchor || !anchor.parentNode) return;
+  b = document.createElement('button'); b.type = 'button'; b.id = 'wrappedEntry'; b.className = 'outfit-entry wrapped-entry';
+  b.innerHTML = '<span class="outfit-entry__icon">🎁</span><span class="outfit-entry__txt"><small>AGS Wrapped 2026</small><b>Your first season with us</b><em>Tap to see your year · share it to your story</em></span><span class="outfit-entry__go">→</span>';
+  anchor.parentNode.insertBefore(b, anchor);
+  b.addEventListener('click', openWrapped);
+}
+function wrappedSound(w){
+  const g = (w.genres && w.genres[0]) || (w.top_party && eventGenres({ name: w.top_party })[0]) || (w.top_viewed && eventGenres({ name: w.top_viewed })[0]) || '';
+  return g;
+}
+function wrappedTier(p){ return p >= 300 ? 'VIP' : p >= 150 ? 'Gold' : p >= 50 ? 'Silver' : 'Member'; }
+async function openWrapped(){
+  if(!supabaseClient || !currentUser){ switchTab('account'); return; }
+  if(document.getElementById('wrappedPage')) return;
+  const el = document.createElement('div'); el.className = 'wrapped'; el.id = 'wrappedPage';
+  el.innerHTML = '<div class="wrapped__loading">Loading your year…</div>';
+  document.body.appendChild(el); document.body.style.overflow = 'hidden';
+  const esc = function(v){ return String(v == null ? '' : v).replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
+  let w = null;
+  try{ const { data } = await supabaseClient.rpc('my_wrapped'); w = data; } catch(e){}
+  if(!w){ el.innerHTML = '<div class="wrapped__loading">Couldn’t load your Wrapped. Try again later.<br><br><button type="button" class="btn" data-w="close">Close</button></div>'; el.addEventListener('click', function(e){ if(e.target.closest('[data-w="close"]')){ el.remove(); document.body.style.overflow = ''; } }); return; }
+  const first = (currentUser.user_metadata && currentUser.user_metadata.first_name) || '';
+  const no = w.member_no ? 'Nº ' + String(w.member_no).padStart(4, '0') : '';
+  const sound = wrappedSound(w);
+  const fmtDay = function(d){ return new Date(String(d) + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' }); };
+  const slides = [];
+  slides.push({ cls: 'w-intro', html: '<small>AGS Wrapped</small><h1>2026</h1><p>' + (first ? esc(first) + ', this' : 'This') + ' was your first season with Amsterdam Guestlist Service.</p><span class="w-tap">Tap to start</span>' });
+  if(no) slides.push({ cls: 'w-no', html: '<small>Founding member</small><div class="w-big">' + esc(no) + '</div><p>You’re one of the first ' + (w.members > 300 ? Math.ceil(w.members / 100) * 100 : w.members) + ' members of AGS. Remember that number.</p>' });
+  if(w.nights > 0){
+    slides.push({ cls: 'w-nights', html: '<small>Nights on the list</small><div class="w-big">' + w.nights + '</div><p>' + (w.nights === 1 ? 'night' : 'nights') + ' out with AGS.' + (w.first_night ? ' It started with ' + esc(w.first_night.name) + ' on ' + esc(fmtDay(w.first_night.date)) + '.' : '') + '</p>' + (w.guests_brought > 0 ? '<p class="w-sub">And you brought ' + w.guests_brought + ' friend' + (w.guests_brought > 1 ? 's' : '') + ' along.</p>' : '') });
+  } else {
+    slides.push({ cls: 'w-nights', html: '<small>Nights on the list</small><div class="w-big">0</div><p>Your first night with AGS is still ahead. 2027 starts on the list.</p>' + (w.viewed > 0 ? '<p class="w-sub">You already checked out ' + w.viewed + ' part' + (w.viewed > 1 ? 'ies' : 'y') + (w.top_viewed ? ', ' + esc(w.top_viewed) + ' the most' : '') + '.</p>' : '') });
+  }
+  if(w.top_venue || w.top_party || sound){
+    slides.push({ cls: 'w-spot', html: '<small>Your spot</small>' +
+      (w.top_venue ? '<div class="w-mid">' + esc(w.top_venue) + '</div><p>was your club.</p>' : w.top_viewed ? '<div class="w-mid">' + esc(w.top_viewed) + '</div><p>caught your eye the most.</p>' : '') +
+      (sound ? '<div class="w-mid w-mid--2">' + esc(sound) + '</div><p>was your sound.</p>' : '') });
+  }
+  if(w.top_pct){
+    slides.push({ cls: 'w-rank', html: '<small>Your rank</small><div class="w-big">Top ' + w.top_pct + '%</div><p>of AGS guests this year.</p>' });
+  }
+  const extras = [];
+  if(w.friends_invited > 0) extras.push(['👥', w.friends_invited + ' friend' + (w.friends_invited > 1 ? 's' : '') + ' joined through you']);
+  if(w.fires > 0) extras.push(['🔥', w.fires + ' fire' + (w.fires > 1 ? 's' : '') + ' on your outfits']);
+  if(w.points > 0) extras.push(['★', w.points + ' points · ' + wrappedTier(w.points)]);
+  if(w.requests > 0) extras.push(['🔑', w.requests + ' request' + (w.requests > 1 ? 's' : '') + ' sent']);
+  if(extras.length) slides.push({ cls: 'w-extra', html: '<small>Also this year</small><ul>' + extras.map(function(x){ return '<li><span>' + x[0] + '</span>' + esc(x[1]) + '</li>'; }).join('') + '</ul>' });
+  const summary = [
+    ['Member', no || 'AGS'],
+    ['Nights', String(w.nights || 0)],
+    ['Club', w.top_venue || (w.top_viewed ? w.top_viewed : '—')],
+    ['Sound', sound || '—'],
+    ['Rank', w.top_pct ? 'Top ' + w.top_pct + '%' : 'Founding member']
+  ];
+  slides.push({ cls: 'w-card', html: '<small>Your 2026</small><div class="w-card__box"><div class="w-card__top"><span>AGS WRAPPED</span><span>2026</span></div><h3>' + esc(first || 'My year') + '</h3>' +
+    summary.map(function(r){ return '<div class="w-card__row"><span>' + esc(r[0]) + '</span><b>' + esc(r[1]) + '</b></div>'; }).join('') + '</div>' +
+    '<button type="button" class="btn btn--solid" data-w="share">Share to your story</button><button type="button" class="btn" data-w="close">Close</button>' });
+  let i = 0, timer = null;
+  function render(){
+    clearTimeout(timer);
+    if(i < slides.length - 1) timer = setTimeout(function(){ if(document.getElementById('wrappedPage')){ i++; render(); } }, 5000);
+    const s = slides[i];
+    el.innerHTML = '<div class="wrapped__bars">' + slides.map(function(_, k){ return '<i class="' + (k < i ? 'done' : k === i ? 'on' : '') + '"></i>'; }).join('') + '</div>' +
+      '<button type="button" class="wrapped__x" data-w="close" aria-label="Close">✕</button>' +
+      '<div class="wrapped__slide ' + s.cls + '">' + s.html + '</div>';
+  }
+  function close(){ clearTimeout(timer); el.remove(); document.body.style.overflow = ''; }
+  el.addEventListener('click', function(e){
+    const a = e.target.closest('[data-w]');
+    if(a){
+      const k = a.getAttribute('data-w');
+      if(k === 'close') return close();
+      if(k === 'share') return shareWrapped(first, summary, a);
+      return;
+    }
+    if(i === slides.length - 1) return;
+    const left = e.clientX < window.innerWidth * 0.3;
+    i = left ? Math.max(0, i - 1) : Math.min(slides.length - 1, i + 1);
+    try{ haptic('light'); } catch(x){}
+    render();
+  });
+  render();
+}
+async function makeWrappedImage(name, rows){
+  const c = document.createElement('canvas'); c.width = 1080; c.height = 1920;
+  const x = c.getContext('2d');
+  const g = x.createRadialGradient(540, 700, 80, 540, 900, 1200); g.addColorStop(0, '#2a1f0c'); g.addColorStop(1, '#050403');
+  x.fillStyle = g; x.fillRect(0, 0, 1080, 1920);
+  try{ await document.fonts.ready; } catch(e){}
+  const gold = x.createLinearGradient(0, 0, 1080, 0); gold.addColorStop(0, '#f3dc97'); gold.addColorStop(1, '#b98f32');
+  x.textAlign = 'center';
+  x.fillStyle = '#d4b25c'; x.font = '700 34px Inter, -apple-system, sans-serif';
+  x.fillText('A G S   W R A P P E D', 540, 300);
+  x.fillStyle = gold; x.font = '400 220px "Cormorant Garamond", Georgia, serif'; x.fillText('2026', 540, 520);
+  x.fillStyle = '#fff'; x.font = '600 64px Inter, -apple-system, sans-serif'; x.fillText(name || 'My year', 540, 660);
+  // card
+  x.strokeStyle = 'rgba(233,209,139,.55)'; x.lineWidth = 3;
+  const top = 760, h = 820; if(x.roundRect){ x.beginPath(); x.roundRect(110, top, 860, h, 40); x.stroke(); } else x.strokeRect(110, top, 860, h);
+  rows.forEach(function(r, k){
+    const y = top + 120 + k * 150;
+    x.textAlign = 'left'; x.fillStyle = 'rgba(246,236,208,.6)'; x.font = '600 34px Inter, -apple-system, sans-serif'; x.fillText(r[0].toUpperCase(), 170, y);
+    x.textAlign = 'right'; x.fillStyle = '#fff'; x.font = '600 54px Inter, -apple-system, sans-serif'; x.fillText(r[1], 910, y + 4);
+    if(k < rows.length - 1){ x.fillStyle = 'rgba(233,209,139,.18)'; x.fillRect(170, y + 50, 740, 2); }
+  });
+  x.textAlign = 'center'; x.fillStyle = '#d4b25c'; x.font = '600 36px Inter, -apple-system, sans-serif';
+  x.fillText('Amsterdam Guestlist Service', 540, 1730);
+  x.fillStyle = 'rgba(255,255,255,.55)'; x.font = '400 30px Inter, -apple-system, sans-serif'; x.fillText('Get yours in the AGS app', 540, 1790);
+  return await new Promise(function(res){ c.toBlob(res, 'image/png'); });
+}
+async function shareWrapped(name, rows, btn){
+  const label = btn.textContent; btn.disabled = true; btn.textContent = 'Making your story…';
+  try{
+    const blob = await makeWrappedImage(name, rows);
+    const file = new File([blob], 'ags-wrapped-2026.png', { type: 'image/png' });
+    if(navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: 'AGS Wrapped 2026', text: 'My 2026 with Amsterdam Guestlist Service 🔑' });
+    else showStoryPreview(URL.createObjectURL(blob), file.name);
+  } catch(e){}
+  btn.disabled = false; btn.textContent = label;
+}
+(function(){
+  try{ setTimeout(renderWrappedEntry, 1900); } catch(e){}
+  try{ if(/[?&]wrapped=1/.test(location.search)) setTimeout(openWrapped, 1800); } catch(e){}
+})();
