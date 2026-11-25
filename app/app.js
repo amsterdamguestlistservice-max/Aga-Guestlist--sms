@@ -6076,7 +6076,7 @@ function openConcierge(){
     if(!supabaseClient || !currentUser) return;
     try{
       const { data } = await supabaseClient.from('concierge_messages').select('id, sender, body, created_at').eq('user_id', currentUser.id).order('created_at', { ascending: true }).limit(200);
-      chat = data || [];
+      chat = (data || []).filter(function(m){ return m.sender === 'guest' || m.sender === 'keurten'; }); // flow/bot history is for Keurten's view
       if(chat.some(function(m){ return m.sender === 'keurten'; })) supabaseClient.rpc('concierge_seen').then(function(){}, function(){});
       if(document.getElementById('conciergePage')) render(true);
     } catch(e){}
@@ -6086,7 +6086,7 @@ function openConcierge(){
     try{
       chatChan = supabaseClient.channel('cc-' + currentUser.id)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'concierge_messages', filter: 'user_id=eq.' + currentUser.id }, function(p){
-          const m = p && p.new; if(!m || chat.some(function(x){ return x.id === m.id; })) return;
+          const m = p && p.new; if(!m || (m.sender !== 'guest' && m.sender !== 'keurten') || chat.some(function(x){ return x.id === m.id; })) return;
           chat.push(m);
           if(m.sender === 'keurten'){ try{ haptic('success'); } catch(x){} supabaseClient.rpc('concierge_seen').then(function(){}, function(){}); }
           render(true);

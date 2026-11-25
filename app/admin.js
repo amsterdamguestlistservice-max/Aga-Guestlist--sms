@@ -137,6 +137,8 @@
   .adm-chat__m small{display:block;font-size:10px;opacity:.6;margin-top:3px}
   .adm-chat__m.g{align-self:flex-start;background:#1b1813;border:1px solid rgba(255,255,255,.1);border-bottom-left-radius:5px}
   .adm-chat__m.k{align-self:flex-end;background:var(--gold);color:#000;border-bottom-right-radius:5px}
+  .adm-chat__m.f{background:transparent;border:1px dashed rgba(255,255,255,.2);color:#ddd}
+  .adm-chat__m.b{background:transparent;color:var(--gold);border:1px solid rgba(212,175,55,.45)}
   .adm-chat__empty{color:var(--muted);font-size:13px;text-align:center;padding:30px 0}
   .adm-chat__foot{position:sticky;bottom:0;background:var(--black);padding-top:8px;display:flex;flex-direction:column;gap:8px}
   .adm-chat__row{display:flex;gap:8px;align-items:flex-end}
@@ -440,7 +442,7 @@
   function renderConcierge(){
     const box = document.getElementById('admConcierge'); if(!box) return;
     const liveHtml = CC_LIVE.length ? '<div class="adm-cclive">' + CC_LIVE.map(function(l){ return '<div class="adm-cclive__row"><i></i><b>' + esc(l.name || 'Guest') + '</b><em>in the concierge now</em><button type="button" class="adm-btn adm-btn--gold" data-ccchat="' + esc(l.user_id) + '">Take over</button></div>'; }).join('') + '</div>' : '';
-    const chatsHtml = CC_CHATS.length ? CC_CHATS.slice(0, 8).map(function(c){ return '<button type="button" class="adm-ccchat' + (c.last_sender === 'guest' ? ' is-wait' : '') + '" data-ccchat="' + esc(c.user_id) + '"><span><b>' + (c.live ? '🟢 ' : '') + esc(c.name || 'Guest') + '</b><small>' + (c.last_sender === 'keurten' ? 'You: ' : '') + esc(c.last) + '</small></span>' + (c.last_sender === 'guest' ? '<em>' + c.waiting + ' new</em>' : '') + '</button>'; }).join('') : '';
+    const chatsHtml = CC_CHATS.length ? CC_CHATS.slice(0, 15).map(function(c){ return '<button type="button" class="adm-ccchat' + (c.last_sender === 'guest' ? ' is-wait' : '') + '" data-ccchat="' + esc(c.user_id) + '"><span><b>' + (c.live ? '🟢 ' : '') + esc(c.name || 'Guest') + '</b><small>' + (c.last_sender === 'keurten' ? 'You: ' : '') + esc(c.last) + '</small></span>' + (c.last_sender === 'guest' ? '<em>' + c.waiting + ' new</em>' : '') + '</button>'; }).join('') : '';
     if(!CC.length && !liveHtml && !chatsHtml){ box.innerHTML = '<div class="adm-empty">Nobody used the concierge yet.</div>'; return; }
     box.dataset.top = liveHtml + chatsHtml;
     const ago = function(iso){ const m = Math.round((Date.now() - Date.parse(iso)) / 6e4); return m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + 'h ago' : new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); };
@@ -505,7 +507,7 @@
     const st = CHAT.here ? '<small class="on">● In the concierge now, sees your message live</small>' : CHAT.online ? '<small class="on">● In the app now</small>' : '<small>Not in the app · gets a notification</small>';
     const g = ccGuess(chatCtx().message);
     chatLayer.innerHTML = '<div class="adm-chat"><div class="adm-chat__head"><button type="button" class="adm-btn" data-chatclose>← Back</button><span><b>' + esc(CHAT.name || 'Guest') + '</b>' + st + '</span></div>' +
-      '<div class="adm-chat__list">' + (CHAT.messages.length ? CHAT.messages.map(function(m){ return '<div class="adm-chat__m ' + (m.sender === 'guest' ? 'g' : 'k') + '">' + esc(m.body).replace(/\n/g, '<br>') + '<small>' + (m.sender === 'keurten' ? 'You · ' : '') + t(m.created_at) + (m.sender === 'keurten' && m.read_at ? ' · seen' : '') + '</small></div>'; }).join('') : '<div class="adm-chat__empty">No messages yet. Write the first one: it appears in their concierge as “Keurten joined the chat”.</div>') + '</div>' +
+      '<div class="adm-chat__list">' + (CHAT.messages.length ? CHAT.messages.map(function(m){ const cls = m.sender === 'guest' ? 'g' : m.sender === 'flow' ? 'g f' : m.sender === 'bot' ? 'k b' : 'k'; const who = m.sender === 'keurten' ? 'You · ' : m.sender === 'bot' ? 'Concierge (auto) · ' : m.sender === 'flow' ? 'Picked in the concierge · ' : ''; return '<div class="adm-chat__m ' + cls + '">' + esc(m.body).replace(/\n/g, '<br>') + '<small>' + who + t(m.created_at) + (m.sender === 'keurten' && m.read_at ? ' · seen' : '') + '</small></div>'; }).join('') : '<div class="adm-chat__empty">No messages yet. Write the first one: it appears in their concierge as “Keurten joined the chat”.</div>') + '</div>' +
       '<div class="adm-chat__foot"><div class="adm-cc__tpl">' + CC_TPL.map(function(x){ return '<button type="button" data-chattpl="' + x[0] + '">' + esc(x[1]) + '</button>'; }).join('') + '</div>' +
       '<div class="adm-chat__row"><textarea id="admChatTa" maxlength="600" placeholder="Message ' + esc(String(CHAT.name || '').split(' ')[0] || 'guest') + '…"></textarea><button type="button" class="adm-btn adm-btn--gold" data-chatsend>Send</button></div></div></div>';
     const nta = document.getElementById('admChatTa');

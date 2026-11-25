@@ -129,8 +129,8 @@ async function admin(req, res) {
   const chats = {};
   (msgs || []).forEach(function (m) {
     const c = chats[m.user_id] = chats[m.user_id] || { user_id: m.user_id, waiting: 0 };
-    c.last = m.body; c.last_sender = m.sender; c.last_at = m.created_at;
-    if (m.sender === 'guest') c.waiting++; else c.waiting = 0;
+    c.last = (m.sender === 'bot' ? 'Concierge: ' : m.sender === 'flow' ? 'Picked: ' : '') + m.body; c.last_sender = m.sender; c.last_at = m.created_at;
+    if (m.sender === 'guest') c.waiting++; else if (m.sender === 'keurten') c.waiting = 0;
   });
   const extra = liveIds.concat(Object.keys(chats)).filter(function (u) { return !names[u]; });
   await Promise.all(Array.from(new Set(extra)).map(async function (u) { names[u] = await nameOf(sb, u); }));
