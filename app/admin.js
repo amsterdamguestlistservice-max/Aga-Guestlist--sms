@@ -217,7 +217,7 @@
     '<div class="adm-sec">New accounts · last 14 days</div><div class="adm-chart" id="admChart"></div>' +
     '<div class="adm-sec">Most guests</div><div id="admTop"></div>' +
     '<div class="adm-sec">The drop · Mon, Wed, Fri 16:00</div><div id="admDrops"></div>' +
-    '<div class="adm-sec" id="admConciergeSec">Concierge</div><div id="admConcierge"></div>' +
+    '<div class="adm-sec" id="admConciergeSec">Concierge & messages</div><button type="button" class="adm-acc-open" id="admMsgNew" style="margin-bottom:10px"><span><b>✉️ Message someone</b><em>Search any account and write to them privately in the app</em></span><span>→</span></button><div id="admConcierge"></div>' +
     '<div class="adm-sec">Outfit check</div><div id="admOutfits"></div>' +
     '<div class="adm-sec">People in the app per day</div><div id="admActives"></div>' +
     '<div class="adm-sec">Party ratings</div><div id="admRatings"></div>' +
@@ -1021,6 +1021,7 @@
     const pf = e.target.closest('#admFilter button[data-party]');
     if(pf){ setParty(pf.getAttribute('data-party')); return; }
     if(e.target.closest('#admAccOpen')){ openAccounts(); return; }
+    if(e.target.closest('#admMsgNew')){ openAccounts(); return; }
     if(e.target.closest('#admLive')){ const l = document.getElementById('admLiveList'); l.hidden = !l.hidden; return; }
     const de = e.target.closest('[data-dropedit]');
     if(de){ const p = dropParties()[0]; DROP_EDIT = { date: de.getAttribute('data-dropedit'), kind: 'priority', max: 10, points: 10, evKey: p ? p.name + '|' + p.date : '', ev: p ? p.name : '' }; renderDropsAdmin(); return; }
