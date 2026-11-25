@@ -789,6 +789,7 @@ const EVENTS = [
     time: "23:00",
     venue: "MEWE · Amsterdam",
     image: "events/nema-2026-12-05.jpg",
+    clip: { mp4: "events/nema-2026-12-05.mp4", poster: "events/nema-2026-12-05-poster.jpg" },
     description: "NEMA at MEWE Amsterdam (Korte Leidsedwarsstraat 14). Afro House / Afro Tech with Bastik, Deuces, Azaro, Rezaie and Noah Staal. 23:00 till 04:00. Men 21+, women 18+.",
     guestlistStatus: "limited",
     minAge: 18,
