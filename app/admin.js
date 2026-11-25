@@ -129,6 +129,7 @@
   .adm-ccchat.is-wait{border-color:var(--gold)}
   .adm-ccchat span{flex:1;min-width:0}.adm-ccchat b{display:block}.adm-ccchat small{display:block;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .adm-ccchat em{font-style:normal;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--gold);color:#000}
+  #admChat{z-index:9200}
   .adm-chat{display:flex;flex-direction:column;min-height:100%}
   .adm-chat__head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
   .adm-chat__head b{display:block;font-size:17px}.adm-chat__head small{font-size:12px;color:var(--muted)}.adm-chat__head small.on{color:#3ddc84}
@@ -534,6 +535,7 @@
     if(tp){ const ta = document.getElementById('admChatTa'); ta.value = ccFill(chatCtx(), tp.getAttribute('data-chattpl')); ta.focus(); }
   });
   window.agsOpenChat = openChat;
+  [detailLayer, listLayer, accLayer].forEach(function(L){ L.addEventListener('click', function(e){ const b = e.target.closest('[data-ccchat]'); if(b){ e.preventDefault(); e.stopPropagation(); openChat(b.getAttribute('data-ccchat')); } }, true); });
   async function loadOutfitsAdmin(){
     const box = document.getElementById('admOutfits');
     if(!box) return;
@@ -768,6 +770,7 @@
       }).join('') + '</div>';
     }
     const c = [];
+    if(x.user_id) c.push('<a href="#" data-ccchat="' + esc(x.user_id) + '">💬 Message in app</a>');
     if(x.phone) c.push('<a href="https://wa.me/' + waNumber(x.phone) + '" target="_blank" rel="noopener">WhatsApp</a>');
     if(x.phone) c.push('<a href="tel:' + esc(x.phone) + '">Call</a>');
     if(ig) c.push('<a href="https://ig.me/m/' + encodeURIComponent(ig) + '" target="_blank" rel="noopener">DM</a>');
@@ -907,7 +910,7 @@
         ['Joined', esc(d(m.joined)) + (m.referred ? ' · via a friend' : '')],
         ['Last login', esc(d(m.lastSeen))]
       ]);
-    const c = [];
+    const c = ['<a href="#" data-ccchat="' + esc(m.id) + '">💬 Message in app</a>'];
     if(m.phone) c.push('<a href="https://wa.me/' + waNumber(m.phone) + '" target="_blank" rel="noopener">WhatsApp</a>');
     if(m.ig) c.push('<a href="https://ig.me/m/' + encodeURIComponent(m.ig) + '" target="_blank" rel="noopener">DM</a>');
     if(c.length) html += '<div class="adm-contact">' + c.join('') + '</div>';
