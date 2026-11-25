@@ -2009,8 +2009,12 @@ function feedEntries(){
 function renderFeed(){
   const feed = document.getElementById('feed');
   if(!feed) return;
-  if(feed.dataset.rendered === '1'){ resumeFeed(); return; }
   const entries = feedEntries();
+  const sig = entries.map(function(e){ return e.ev.id; }).join('|');
+  // Re-use the rendered feed only if the parties (and their order) are unchanged.
+  if(feed.dataset.rendered === '1' && feed.dataset.sig === sig){ resumeFeed(); return; }
+  if(FEED_OBSERVER){ try{ FEED_OBSERVER.disconnect(); } catch(e){} FEED_OBSERVER = null; }
+  feed.dataset.sig = sig;
   if(!entries.length){ feed.innerHTML = '<div class="feed-empty">' + emptyStateHtml('🎬', 'Videos coming soon', 'Party clips and aftermovies land here first.', '', '') + '</div>'; return; }
   const esc = function(v){ return String(v || '').replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
   feed.innerHTML = entries.map(function(e, idx){
@@ -2031,7 +2035,7 @@ function renderFeed(){
       '</div></section>';
   }).join('');
   feed.dataset.rendered = '1';
-  feed.addEventListener('click', function(e){
+  if(!feed.dataset.bound) feed.addEventListener('click', function(e){
     const btn = e.target.closest('[data-act]'), item = e.target.closest('.feed-item');
     if(!item) return;
     const ev = EVENTS.find(function(x){ return x.id === item.dataset.eventId; });
@@ -2047,11 +2051,14 @@ function renderFeed(){
       const v = item.querySelector('video'); if(v && v.paused) v.play().catch(function(){});
     }
   });
+  feed.dataset.bound = '1';
   if('IntersectionObserver' in window){
     FEED_OBSERVER = new IntersectionObserver(function(list){
       list.forEach(function(en){
         const v = en.target.querySelector('video');
         if(en.isIntersecting){
+          // Only the post on screen plays: stop every other video first, so sound never overlaps.
+          feed.querySelectorAll('video').forEach(function(o){ if(o !== v && !o.paused) o.pause(); });
           if(v){ v.preload = 'auto'; v.muted = FEED_MUTED; v.play().catch(function(){ v.muted = true; v.play().catch(function(){}); }); }
           const next = en.target.nextElementSibling, nv = next && next.querySelector('video'); if(nv) nv.preload = 'auto';
           fillFeedGoing(en.target);
@@ -2073,6 +2080,7 @@ function resumeFeed(){
   const feed = document.getElementById('feed'); if(!feed) return;
   const items = feed.querySelectorAll('.feed-item');
   const idx = Math.round(feed.scrollTop / Math.max(1, feed.clientHeight));
+  items.forEach(function(it, i){ const o = it.querySelector('video'); if(o && i !== idx && !o.paused) o.pause(); });
   const v = items[idx] && items[idx].querySelector('video');
   if(v){ v.muted = FEED_MUTED; v.play().catch(function(){}); }
 }
