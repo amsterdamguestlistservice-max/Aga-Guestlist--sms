@@ -1996,15 +1996,15 @@ async function openMemberProfile(uid){
 /* ---- Feed tab (1): full-screen, swipe up through party videos and flyers ---- */
 let FEED_OBSERVER = null, FEED_MUTED = true;
 function feedEntries(){
+  // One item per party (its video if it has one, otherwise the flyer), in date order.
   const out = [];
   getSortedEvents().forEach(function(ev){
-    storyItems(ev).forEach(function(it, i){ out.push({ ev: ev, it: it, key: ev.id + ':' + i }); });
+    const items = storyItems(ev);
+    if(!items.length) return;
+    const it = items.find(function(x){ return x.video; }) || items[0];
+    out.push({ ev: ev, it: it, key: ev.id + ':0' });
   });
-  // Videos first, sponsored first, then For you, keeping date order otherwise.
-  return out.map(function(x, i){ return { x: x, i: i }; }).sort(function(a, b){
-    return ((b.x.ev.sponsored ? 1 : 0) - (a.x.ev.sponsored ? 1 : 0)) || ((b.x.it.video ? 1 : 0) - (a.x.it.video ? 1 : 0)) ||
-      (forYouScore(b.x.ev) - forYouScore(a.x.ev)) || (a.i - b.i);
-  }).map(function(o){ return o.x; });
+  return out;
 }
 function renderFeed(){
   const feed = document.getElementById('feed');
