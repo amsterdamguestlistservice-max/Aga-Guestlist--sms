@@ -5621,6 +5621,12 @@ function renderSheetMusic(ev){
 }
 
 // Deep link ./?perks=1 (from the perks push) opens Rewards & Perks; also from the inbox.
+// Deep link ./?invite=1 (from the invite push) opens Account and scrolls to the invite card.
+(function(){ try{ if(/[?&]invite=1/.test(location.search)) setTimeout(function(){
+  if(document.body.classList.contains('is-gated')) return;
+  try{ switchTab('account'); } catch(e){}
+  setTimeout(function(){ const c = document.getElementById('referralCard'); if(c && c.offsetParent){ c.scrollIntoView({ behavior:'smooth', block:'center' }); c.classList.add('is-flash'); setTimeout(function(){ c.classList.remove('is-flash'); }, 2200); } }, 700);
+}, 1500); } catch(e){} })();
 (function(){ try{ if(/[?&]perks=1/.test(location.search)) setTimeout(function(){ if(!document.body.classList.contains('is-gated')) openRewardsSheet(); }, 1500); } catch(e){} })();
 
 
