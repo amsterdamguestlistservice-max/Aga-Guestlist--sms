@@ -5656,10 +5656,12 @@ setTimeout(logOpen, 3000);
 /* Presence heartbeat: lets AGS see how many people are in the app right now. */
 (function(){
   function vid(){ try{ let v = localStorage.getItem('ags_vid'); if(!v){ v = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('ags_vid', v); } return v; } catch(e){ return 'nostore'; } }
-  function screen(){ const a = document.querySelector('.tab-panel.is-active'); return a ? a.id.replace('tab-', '') : 'app'; }
+  function screen(){ if(document.getElementById('conciergePage')) return 'concierge'; const a = document.querySelector('.tab-panel.is-active'); return a ? a.id.replace('tab-', '') : 'app'; }
   function ping(){ try{ if(!supabaseClient || document.hidden) return; supabaseClient.rpc('ping_presence', { p_visitor: vid(), p_screen: screen() }).then(function(){}, function(){}); } catch(e){} }
+  window.agsPing = ping;
   setTimeout(ping, 2500);
-  setInterval(ping, 60000);
+  // Every 30 s while the concierge is open (so Keurten sees who is there), otherwise every minute.
+  let n = 0; setInterval(function(){ n++; if(document.getElementById('conciergePage') || n % 2 === 0) ping(); }, 30000);
   document.addEventListener('visibilitychange', function(){ if(!document.hidden) ping(); });
 })();
 document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible') setTimeout(logOpen, 1500); });
@@ -6068,6 +6070,46 @@ function openConcierge(){
   const first = (currentUser && currentUser.user_metadata && currentUser.user_metadata.first_name) || '';
   const ans = { when: null, genres: [], size: null };
   let step = 0, sessionId = null, asked = false, lastPicks = [];
+  // Live chat: Keurten can step in at any moment. Messages arrive in real time.
+  let chat = [], chatChan = null, chatTimer = null;
+  async function loadChat(){
+    if(!supabaseClient || !currentUser) return;
+    try{
+      const { data } = await supabaseClient.from('concierge_messages').select('id, sender, body, created_at').eq('user_id', currentUser.id).order('created_at', { ascending: true }).limit(200);
+      chat = data || [];
+      if(chat.some(function(m){ return m.sender === 'keurten'; })) supabaseClient.rpc('concierge_seen').then(function(){}, function(){});
+      if(document.getElementById('conciergePage')) render(true);
+    } catch(e){}
+  }
+  function startChat(){
+    if(!supabaseClient || !currentUser) return;
+    try{
+      chatChan = supabaseClient.channel('cc-' + currentUser.id)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'concierge_messages', filter: 'user_id=eq.' + currentUser.id }, function(p){
+          const m = p && p.new; if(!m || chat.some(function(x){ return x.id === m.id; })) return;
+          chat.push(m);
+          if(m.sender === 'keurten'){ try{ haptic('success'); } catch(x){} supabaseClient.rpc('concierge_seen').then(function(){}, function(){}); }
+          render(true);
+        }).subscribe();
+    } catch(e){}
+    // Safety net if the live connection drops: check again every 15 seconds.
+    chatTimer = setInterval(function(){ if(!document.hidden) loadChat(); }, 15000);
+    try{ if(window.agsPing) window.agsPing(); } catch(e){}
+  }
+  const tm = function(iso){ try{ return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Amsterdam' }); } catch(e){ return ''; } };
+  function chatHtml(){
+    let h = '', joined = false;
+    chat.forEach(function(m){
+      if(m.sender === 'keurten' && !joined){ joined = true; h += '<div class="cc-joined"><span class="cc-face" style="background-image:url(\'' + KEURTEN_AVATAR + '\')"></span>Keurten joined the chat</div>'; }
+      h += m.sender === 'keurten'
+        ? '<div class="cc-msg cc-msg--bot cc-msg--live"><span class="cc-av" style="background-image:url(\'' + KEURTEN_AVATAR + '\')"></span><p>' + esc(m.body).replace(/\n/g, '<br>') + '<small>' + tm(m.created_at) + '</small></p></div>'
+        : '<div class="cc-msg cc-msg--me"><p>' + esc(m.body).replace(/\n/g, '<br>') + '<small>' + tm(m.created_at) + '</small></p></div>';
+    });
+    const lastMine = chat.length && chat[chat.length - 1].sender === 'guest';
+    if(lastMine && !joined) h += '<div class="cc-note">Sent to Keurten. He answers right here' + (('Notification' in window && Notification.permission === 'granted') ? ' and you\u2019ll get a notification.' : '.') + '</div>';
+    return '<div class="cc-chat">' + h + '</div>' +
+      '<div class="cc-compose"><textarea id="ccMsg" maxlength="600" rows="1" placeholder="Message Keurten\u2026"></textarea><button type="button" class="cc-send" data-a="chatsend" aria-label="Send">\u2191</button></div>';
+  }
   // Every finished session is logged (the AGS team gets a notification).
   async function logSession(picks, message){
     if(!supabaseClient || !currentUser) return null;
@@ -6086,7 +6128,8 @@ function openConcierge(){
       return '<button type="button" class="cc-chip' + (on ? ' on' : '') + '" data-' + key + '="' + esc(o[0]) + '">' + esc(o[1]) + '</button>';
     }).join('') + '</div>';
   }
-  function render(){
+  function render(live){
+    const draftEl = document.getElementById('ccMsg') || document.getElementById('ccQ'), draft = draftEl ? draftEl.value : '', hadFocus = draftEl && document.activeElement === draftEl;
     let h = '<div class="outfits__inner"><button type="button" class="safe__close" data-a="close" aria-label="Close">✕</button>' +
       '<div class="cc-host"><span class="cc-face cc-face--lg" style="background-image:url(\'' + KEURTEN_AVATAR + '\')"></span><span><b>Keurten</b><small>Founder of Amsterdam Guestlist Service</small></span></div>' +
       '<h2>Your night, sorted</h2><div class="cc-thread">' +
@@ -6117,22 +6160,40 @@ function openConcierge(){
                 '<div class="cc-pick__act">' + (p.fallback && !p.fits && ev.ticketUrl ? '<a class="btn btn--solid" href="' + esc(ev.ticketUrl) + '" target="_blank" rel="noopener">Tickets</a>' : '<button type="button" class="btn btn--solid" data-a="req" data-id="' + esc(ev.id) + '">Request access</button>') + '<button type="button" class="cc-link" data-a="view" data-id="' + esc(ev.id) + '">View party</button></div></div></div>';
             }).join('') + '</div><button type="button" class="cc-link cc-again" data-a="restart">Ask again</button>';
           }
-          h += askBox();
+          if(!chat.length) h += askBox();
         }
       }
     }
+    if(chat.length) h += chatHtml();
     el.innerHTML = h + '</div></div>';
-    const last = el.querySelector('.cc-thread > :last-child'); if(last && step > 0) last.scrollIntoView({ block: 'end', behavior: 'smooth' });
+    const box = document.getElementById('ccMsg') || document.getElementById('ccQ');
+    if(box && draft){ box.value = draft; }
+    if(box && hadFocus){ box.focus(); }
+    const last = el.querySelector('.cc-thread > :last-child'); if(last && (step > 0 || chat.length)) last.scrollIntoView({ block: 'end', behavior: live ? 'smooth' : 'auto' });
   }
-  let sentQ = null;
   function askBox(){
-    if(sentQ) return me(sentQ) + bot('Got it! I’ll answer you personally in your inbox' + (('Notification' in window && Notification.permission === 'granted') ? ' and you’ll get a notification.' : '.'));
     return '<div class="cc-ask"><b>Still unsure? Ask me directly.</b><span>A birthday, a big group, a table, a dress code question… I answer personally.</span>' +
       (currentUser
         ? '<textarea id="ccQ" maxlength="600" rows="3" placeholder="Type your question…"></textarea><button type="button" class="btn btn--solid" data-a="ask">Send to Keurten</button>'
         : '<button type="button" class="btn" data-a="login">Log in to ask</button>') + '</div>';
   }
-  function close(){ el.remove(); document.body.style.overflow = ''; }
+  async function sendChat(text){
+    if(!supabaseClient || !currentUser) return false;
+    try{
+      const { data } = await supabaseClient.rpc('concierge_send', { p_body: text });
+      if(!data) return false;
+      if(!chat.some(function(x){ return x.id === data; })) chat.push({ id: data, sender: 'guest', body: text, created_at: new Date().toISOString() });
+      try{ haptic('success'); } catch(x){}
+      render(true);
+      return true;
+    } catch(e){ return false; }
+  }
+  function close(){
+    el.remove(); document.body.style.overflow = '';
+    try{ if(chatChan) supabaseClient.removeChannel(chatChan); } catch(e){}
+    clearInterval(chatTimer);
+    try{ if(window.agsPing) window.agsPing(); } catch(e){}
+  }
   el.addEventListener('click', function(e){
     const w = e.target.closest('[data-when]'); if(w){ ans.when = w.getAttribute('data-when'); step = 1; try{ haptic('light'); } catch(x){} return render(); }
     const g = e.target.closest('[data-genre]'); if(g){ const v = g.getAttribute('data-genre'), i = ans.genres.indexOf(v); if(i >= 0) ans.genres.splice(i, 1); else ans.genres.push(v); return render(); }
@@ -6142,16 +6203,20 @@ function openConcierge(){
     if(a === 'close') return close();
     if(a === 'anyvibe'){ ans.genres = []; step = 2; return render(); }
     if(a === 'vibe'){ step = 2; return render(); }
-    if(a === 'restart'){ ans.when = null; ans.genres = []; ans.size = null; step = 0; sessionId = null; asked = false; sentQ = null; return render(); }
+    if(a === 'restart'){ ans.when = null; ans.genres = []; ans.size = null; step = 0; sessionId = null; asked = false; return render(); }
     if(a === 'login'){ close(); switchTab('account'); return; }
     if(a === 'ask'){
       const q = (document.getElementById('ccQ') || {}).value || '';
       if(!q.trim()) return;
       t.disabled = true; t.textContent = 'Sending…';
-      logSession(lastPicks, q.trim()).then(function(id){
-        if(!id){ t.disabled = false; t.textContent = 'Send to Keurten'; return; }
-        sentQ = q.trim(); try{ haptic('success'); } catch(x){} render();
-      });
+      sendChat(q.trim()).then(function(ok){ if(!ok){ t.disabled = false; t.textContent = 'Send to Keurten'; } });
+      return;
+    }
+    if(a === 'chatsend'){
+      const box = document.getElementById('ccMsg'); const q2 = box ? box.value.trim() : '';
+      if(!q2) return;
+      box.value = ''; t.disabled = true;
+      sendChat(q2).then(function(ok){ t.disabled = false; if(!ok){ box.value = q2; } });
       return;
     }
     const ev = EVENTS.find(function(x){ return x.id === t.getAttribute('data-id'); }); if(!ev) return;
@@ -6164,8 +6229,41 @@ function openConcierge(){
       tryQuickRequest(ev).then(function(took){ if(!took) goToFullForm(ev, 0); });
     }
   });
+  el.addEventListener('keydown', function(e){
+    if(e.target && e.target.id === 'ccMsg' && e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); const b = el.querySelector('[data-a="chatsend"]'); if(b) b.click(); }
+  });
   render();
+  loadChat(); startChat();
 }
+/* When Keurten writes while the concierge is closed: a tap-to-open toast + a dot on the entry. */
+(function(){
+  let chan = null, uid = null;
+  function dot(on){ const b = document.getElementById('conciergeEntry'); if(b) b.classList.toggle('has-msg', !!on); }
+  function toast(m){
+    const t = document.createElement('button'); t.type = 'button'; t.className = 'cc-toast';
+    t.innerHTML = '<span class="cc-face" style="background-image:url(\'' + KEURTEN_AVATAR + '\')"></span><span><b>Keurten</b>' + String(m.body || '').replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }).slice(0, 120) + '</span>';
+    document.body.appendChild(t);
+    requestAnimationFrame(function(){ t.classList.add('is-in'); });
+    t.addEventListener('click', function(){ t.remove(); openConcierge(); });
+    setTimeout(function(){ t.classList.remove('is-in'); setTimeout(function(){ t.remove(); }, 400); }, 7000);
+  }
+  async function check(){
+    try{
+      if(!supabaseClient || !currentUser){ return; }
+      if(uid === currentUser.id) return;
+      uid = currentUser.id;
+      const { count } = await supabaseClient.from('concierge_messages').select('id', { count: 'exact', head: true }).eq('user_id', uid).eq('sender', 'keurten').is('read_at', null);
+      dot(count > 0);
+      chan = supabaseClient.channel('ccg-' + uid).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'concierge_messages', filter: 'user_id=eq.' + uid }, function(p){
+        const m = p && p.new; if(!m || m.sender !== 'keurten') return;
+        if(document.getElementById('conciergePage')) return;
+        dot(true); toast(m); try{ haptic('success'); } catch(x){}
+      }).subscribe();
+    } catch(e){}
+  }
+  setInterval(check, 5000); setTimeout(check, 2500);
+  document.addEventListener('click', function(e){ if(e.target.closest && e.target.closest('#conciergeEntry')) dot(false); }, true);
+})();
 (function(){
   try{ setTimeout(renderConciergeEntry, 1700); } catch(e){}
   try{ if(/[?&]concierge=1/.test(location.search)) setTimeout(openConcierge, 1500); } catch(e){}

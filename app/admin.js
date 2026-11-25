@@ -120,6 +120,27 @@
   .adm-cc__tpl button.on{background:var(--gold);color:#000;border-color:var(--gold)}
   .adm-btn--gold{background:var(--gold);color:#000;border-color:var(--gold)}
   .adm-cc__reply textarea{width:100%;min-height:104px;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:#0b0a08;color:#fff;font:14px/1.4 var(--sans);resize:vertical}
+  .adm-cclive{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+  .adm-cclive__row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;border:1px solid rgba(61,220,132,.35);background:rgba(61,220,132,.06);font-size:13px}
+  .adm-cclive__row i{width:8px;height:8px;border-radius:50%;background:#3ddc84;box-shadow:0 0 0 0 rgba(61,220,132,.6);animation:admPulse 1.6s infinite}
+  @keyframes admPulse{70%{box-shadow:0 0 0 8px rgba(61,220,132,0)}100%{box-shadow:0 0 0 0 rgba(61,220,132,0)}}
+  .adm-cclive__row b{flex:1}.adm-cclive__row em{font-style:normal;color:var(--muted);font-size:12px}
+  .adm-ccchat{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;margin-bottom:6px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);color:#fff;font:inherit;font-size:13px;text-align:left;cursor:pointer}
+  .adm-ccchat.is-wait{border-color:var(--gold)}
+  .adm-ccchat span{flex:1;min-width:0}.adm-ccchat b{display:block}.adm-ccchat small{display:block;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .adm-ccchat em{font-style:normal;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--gold);color:#000}
+  .adm-chat{display:flex;flex-direction:column;min-height:100%}
+  .adm-chat__head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .adm-chat__head b{display:block;font-size:17px}.adm-chat__head small{font-size:12px;color:var(--muted)}.adm-chat__head small.on{color:#3ddc84}
+  .adm-chat__list{flex:1;display:flex;flex-direction:column;gap:8px;padding-bottom:12px}
+  .adm-chat__m{max-width:82%;padding:9px 12px;border-radius:16px;font-size:14px;line-height:1.4}
+  .adm-chat__m small{display:block;font-size:10px;opacity:.6;margin-top:3px}
+  .adm-chat__m.g{align-self:flex-start;background:#1b1813;border:1px solid rgba(255,255,255,.1);border-bottom-left-radius:5px}
+  .adm-chat__m.k{align-self:flex-end;background:var(--gold);color:#000;border-bottom-right-radius:5px}
+  .adm-chat__empty{color:var(--muted);font-size:13px;text-align:center;padding:30px 0}
+  .adm-chat__foot{position:sticky;bottom:0;background:var(--black);padding-top:8px;display:flex;flex-direction:column;gap:8px}
+  .adm-chat__row{display:flex;gap:8px;align-items:flex-end}
+  .adm-chat__row textarea{flex:1;min-height:46px;max-height:140px;padding:11px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.18);background:#0b0a08;color:#fff;font:15px/1.35 var(--sans);resize:none}
   .adm-acc-open{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-radius:14px;border:1px solid rgba(212,175,55,.35);background:rgba(212,175,55,.06);color:#fff;font:inherit;text-align:left;cursor:pointer}
   .adm-acc-open b{display:block;font-size:15px}.adm-acc-open em{display:block;font-style:normal;font-size:12px;color:var(--muted);margin-top:2px}
   .adm-acc-filters{display:flex;gap:6px;overflow-x:auto;margin:10px 0 12px;scrollbar-width:none}
@@ -214,6 +235,7 @@
   const listLayer = document.createElement('div'); listLayer.id = 'admList'; listLayer.className = 'adm-layer'; document.body.appendChild(listLayer);
   const detailLayer = document.createElement('div'); detailLayer.id = 'admDetail'; detailLayer.className = 'adm-layer'; document.body.appendChild(detailLayer);
   const accLayer = document.createElement('div'); accLayer.id = 'admAccounts'; accLayer.className = 'adm-layer'; document.body.appendChild(accLayer);
+  const chatLayer = document.createElement('div'); chatLayer.id = 'admChat'; chatLayer.className = 'adm-layer'; document.body.appendChild(chatLayer);
   let REQS = [];
   let listCtx = null; // { name, date, filter }
 
@@ -409,22 +431,27 @@
     const evName = /^bcd$/i.test(ev) ? 'Behind Closed Doors' : /^zenda$/i.test(ev) ? 'House of Zenda' : /^(nye|new year)$/i.test(ev) ? 'New Year\u2019s Eve' : ev.replace(/\b\w/g, function(m){ return m.toUpperCase(); });
     return t[2].replace('{n}', first).replace(/\{e\}/g, evName);
   }
+  let CC_LIVE = [], CC_CHATS = [];
   async function loadConciergeAdmin(){
     const box = document.getElementById('admConcierge'); if(!box) return;
-    try{ CC = (await api('/api/ags?fn=concierge-admin')).sessions || []; } catch(e){ box.innerHTML = '<div class="adm-err">' + esc(e.message) + '</div>'; return; }
+    try{ const d = await api('/api/ags?fn=concierge-admin'); CC = d.sessions || []; CC_LIVE = d.live || []; CC_CHATS = d.chats || []; } catch(e){ box.innerHTML = '<div class="adm-err">' + esc(e.message) + '</div>'; return; }
     renderConcierge();
   }
   function renderConcierge(){
     const box = document.getElementById('admConcierge'); if(!box) return;
-    if(!CC.length){ box.innerHTML = '<div class="adm-empty">Nobody used the concierge yet.</div>'; return; }
+    const liveHtml = CC_LIVE.length ? '<div class="adm-cclive">' + CC_LIVE.map(function(l){ return '<div class="adm-cclive__row"><i></i><b>' + esc(l.name || 'Guest') + '</b><em>in the concierge now</em><button type="button" class="adm-btn adm-btn--gold" data-ccchat="' + esc(l.user_id) + '">Take over</button></div>'; }).join('') + '</div>' : '';
+    const chatsHtml = CC_CHATS.length ? CC_CHATS.slice(0, 8).map(function(c){ return '<button type="button" class="adm-ccchat' + (c.last_sender === 'guest' ? ' is-wait' : '') + '" data-ccchat="' + esc(c.user_id) + '"><span><b>' + (c.live ? '🟢 ' : '') + esc(c.name || 'Guest') + '</b><small>' + (c.last_sender === 'keurten' ? 'You: ' : '') + esc(c.last) + '</small></span>' + (c.last_sender === 'guest' ? '<em>' + c.waiting + ' new</em>' : '') + '</button>'; }).join('') : '';
+    if(!CC.length && !liveHtml && !chatsHtml){ box.innerHTML = '<div class="adm-empty">Nobody used the concierge yet.</div>'; return; }
+    box.dataset.top = liveHtml + chatsHtml;
     const ago = function(iso){ const m = Math.round((Date.now() - Date.parse(iso)) / 6e4); return m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + 'h ago' : new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); };
     const open = CC.filter(function(c){ return c.message && !c.reply; }).length;
-    box.innerHTML = (open ? '<div class="adm-note" style="color:var(--gold)">' + open + ' question' + (open > 1 ? 's' : '') + ' waiting for your answer</div>' : '') +
+    box.innerHTML = (box.dataset.top || '') + (open ? '<div class="adm-note" style="color:var(--gold)">' + open + ' question' + (open > 1 ? 's' : '') + ' waiting for your answer</div>' : '') +
       CC.slice(0, CC_SHOW).map(function(c){
         return '<div class="adm-cc' + (c.message && !c.reply ? ' is-q' : '') + '"><div class="adm-cc__top"><b>' + esc(c.name || 'Guest') + '</b><span>' + esc(ago(c.created_at)) + '</span></div>' +
           '<div class="adm-cc__sum">' + esc(c.summary) + '</div>' +
           (c.picks && c.picks.length ? '<div class="adm-cc__picks">Shown: ' + esc(c.picks.join(', ')) + '</div>' : '<div class="adm-cc__picks">Nothing matched</div>') +
           (c.chosen ? '<div class="adm-cc__chosen">✓ Tapped request: ' + esc(c.chosen) + '</div>' : '') +
+          '<button type="button" class="adm-btn" style="margin-top:8px" data-ccchat="' + esc(c.user_id) + '">💬 Chat with ' + esc(String(c.name || 'guest').split(' ')[0]) + '</button>' +
           (c.message ? '<div class="adm-cc__q">“' + esc(c.message) + '”</div>' : '') +
           (c.reply ? '<div class="adm-cc__a">You: ' + esc(c.reply) + '</div>'
             : c.message ? (function(){
@@ -450,6 +477,61 @@
       renderConcierge();
     } catch(e){ btn.disabled = false; btn.textContent = 'Send answer'; showErr(e.message); }
   }
+  // ---------- live concierge chat: take over at any moment ----------
+  let CHAT = null, CHAT_T = null;
+  async function openChat(uid){
+    CHAT = { uid: uid, name: '', messages: [], here: false, online: false };
+    chatLayer.classList.add('is-open');
+    chatLayer.innerHTML = '<div class="adm-empty">Loading chat…</div>';
+    await loadChat(true);
+    clearInterval(CHAT_T); CHAT_T = setInterval(function(){ if(chatLayer.classList.contains('is-open') && !document.hidden) loadChat(false); }, 4000);
+  }
+  function closeChat(){ clearInterval(CHAT_T); CHAT = null; chatLayer.classList.remove('is-open'); loadConciergeAdmin(); }
+  async function loadChat(first){
+    if(!CHAT) return;
+    let d; try{ d = await api('/api/ags?fn=concierge-admin&chat=' + encodeURIComponent(CHAT.uid)); } catch(e){ if(first) chatLayer.innerHTML = '<div class="adm-err">' + esc(e.message) + '</div>'; return; }
+    const changed = first || d.messages.length !== CHAT.messages.length || d.here !== CHAT.here || d.online !== CHAT.online;
+    CHAT.name = d.name; CHAT.messages = d.messages || []; CHAT.here = d.here; CHAT.online = d.online;
+    if(changed) renderChat(first);
+  }
+  function chatCtx(){
+    const s = CC.find(function(x){ return x.user_id === CHAT.uid; }) || {};
+    const all = CHAT.messages.filter(function(m){ return m.sender === 'guest'; }).map(function(m){ return m.body; }).join(' ') + ' ' + (s.message || '');
+    return { name: CHAT.name, message: all, picks: s.picks || [] };
+  }
+  function renderChat(first){
+    const ta = document.getElementById('admChatTa'), draft = ta ? ta.value : null, focus = ta && document.activeElement === ta;
+    const t = function(iso){ return new Date(iso).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short', timeZone: 'Europe/Amsterdam' }); };
+    const st = CHAT.here ? '<small class="on">● In the concierge now, sees your message live</small>' : CHAT.online ? '<small class="on">● In the app now</small>' : '<small>Not in the app · gets a notification</small>';
+    const g = ccGuess(chatCtx().message);
+    chatLayer.innerHTML = '<div class="adm-chat"><div class="adm-chat__head"><button type="button" class="adm-btn" data-chatclose>← Back</button><span><b>' + esc(CHAT.name || 'Guest') + '</b>' + st + '</span></div>' +
+      '<div class="adm-chat__list">' + (CHAT.messages.length ? CHAT.messages.map(function(m){ return '<div class="adm-chat__m ' + (m.sender === 'guest' ? 'g' : 'k') + '">' + esc(m.body).replace(/\n/g, '<br>') + '<small>' + (m.sender === 'keurten' ? 'You · ' : '') + t(m.created_at) + (m.sender === 'keurten' && m.read_at ? ' · seen' : '') + '</small></div>'; }).join('') : '<div class="adm-chat__empty">No messages yet. Write the first one: it appears in their concierge as “Keurten joined the chat”.</div>') + '</div>' +
+      '<div class="adm-chat__foot"><div class="adm-cc__tpl">' + CC_TPL.map(function(x){ return '<button type="button" data-chattpl="' + x[0] + '">' + esc(x[1]) + '</button>'; }).join('') + '</div>' +
+      '<div class="adm-chat__row"><textarea id="admChatTa" maxlength="600" placeholder="Message ' + esc(String(CHAT.name || '').split(' ')[0] || 'guest') + '…"></textarea><button type="button" class="adm-btn adm-btn--gold" data-chatsend>Send</button></div></div></div>';
+    const nta = document.getElementById('admChatTa');
+    if(draft !== null) nta.value = draft; else if(first && CHAT.messages.length && CHAT.messages[CHAT.messages.length - 1].sender === 'guest') nta.value = ccFill(chatCtx(), g);
+    if(focus) nta.focus();
+    chatLayer.scrollTop = chatLayer.scrollHeight;
+  }
+  async function sendChat(btn){
+    const ta = document.getElementById('admChatTa'); const body = (ta.value || '').trim();
+    if(!body || !CHAT) return;
+    btn.disabled = true; btn.textContent = 'Sending…';
+    try{
+      await api('/api/ags?fn=concierge-admin', { method: 'POST', body: { user_id: CHAT.uid, body: body } });
+      ta.value = '';
+      CHAT.messages.push({ sender: 'keurten', body: body, created_at: new Date().toISOString() });
+      renderChat(false); document.getElementById('admChatTa').value = '';
+    } catch(e){ showErr(e.message); }
+    const b = chatLayer.querySelector('[data-chatsend]'); if(b){ b.disabled = false; b.textContent = 'Send'; }
+  }
+  chatLayer.addEventListener('click', function(e){
+    if(e.target.closest('[data-chatclose]')) return closeChat();
+    const sb = e.target.closest('[data-chatsend]'); if(sb){ if(!sb.disabled) sendChat(sb); return; }
+    const tp = e.target.closest('[data-chattpl]');
+    if(tp){ const ta = document.getElementById('admChatTa'); ta.value = ccFill(chatCtx(), tp.getAttribute('data-chattpl')); ta.focus(); }
+  });
+  window.agsOpenChat = openChat;
   async function loadOutfitsAdmin(){
     const box = document.getElementById('admOutfits');
     if(!box) return;
@@ -906,8 +988,8 @@
         (l.people.length ? l.people.map(function(p){ return '<div class="adm-live__p"><span></span>' + esc(p.name) + (p.screen ? ' <em>' + esc(p.screen) + '</em>' : '') + '</div>'; }).join('') : '<div class="adm-empty">Nobody logged in right now.</div>');
     } catch(e){ document.getElementById('admLiveSub').textContent = 'Could not load'; }
   }
-  function open(){ PARTY = ''; sheet.classList.add('is-open'); document.body.style.overflow = 'hidden'; refresh(); loadLive(); clearInterval(LIVE_T); LIVE_T = setInterval(function(){ if(sheet.classList.contains('is-open')) loadLive(); }, 20000); }
-  function close(){ clearInterval(LIVE_T); sheet.classList.remove('is-open'); listLayer.classList.remove('is-open'); detailLayer.classList.remove('is-open'); listCtx = null; document.body.style.overflow = ''; }
+  function open(){ PARTY = ''; sheet.classList.add('is-open'); document.body.style.overflow = 'hidden'; refresh(); loadLive(); clearInterval(LIVE_T); LIVE_T = setInterval(function(){ if(sheet.classList.contains('is-open') && !document.hidden){ loadLive(); loadConciergeAdmin(); } }, 20000); }
+  function close(){ clearInterval(LIVE_T); clearInterval(CHAT_T); chatLayer.classList.remove('is-open'); sheet.classList.remove('is-open'); listLayer.classList.remove('is-open'); detailLayer.classList.remove('is-open'); listCtx = null; document.body.style.overflow = ''; }
 
   document.getElementById('admClose').addEventListener('click', close);
   document.getElementById('admRefresh').addEventListener('click', refresh);
@@ -943,6 +1025,7 @@
     const dr = e.target.closest('[data-dropreset]');
     if(dr){ api('/api/ags?fn=drops-admin', { method: 'POST', body: { date: dr.getAttribute('data-dropreset'), reset: true } }).then(function(){ DROP_EDIT = null; loadDropsAdmin(); }).catch(function(err){ showErr(err.message); }); return; }
     if(e.target.closest('[data-dropcancel]')){ DROP_EDIT = null; renderDropsAdmin(); return; }
+    const cch = e.target.closest('[data-ccchat]'); if(cch){ openChat(cch.getAttribute('data-ccchat')); return; }
     const ccs = e.target.closest('[data-ccsend]'); if(ccs){ if(!ccs.disabled) sendConciergeReply(ccs); return; }
     const tpl = e.target.closest('[data-cctpl]');
     if(tpl){
@@ -1008,6 +1091,8 @@
       isAdminUser = true; b.hidden = false; updateBadge(s.pending);
       if(/[?&]admin=concierge/.test(location.search) && !sheet.classList.contains('is-open')){
         open();
+        const chatId = (location.search.match(/[?&]chat=([0-9a-f-]{36})/) || [])[1];
+        if(chatId){ setTimeout(function(){ openChat(chatId); }, 500); return; }
         const ccId = (location.search.match(/[?&]cc=(\d+)/) || [])[1];
         const jump = function(tries){
           const el = ccId && document.getElementById('admCc' + ccId);

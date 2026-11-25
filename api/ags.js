@@ -29,6 +29,7 @@ const ROUTES = {
   'admin-members': require('./_admin-members'),
   'notify-concierge': require('./_concierge').notify,
   'concierge-admin': require('./_concierge').admin,
+  'notify-concierge-msg': require('./_concierge').notifyMsg,
   'drops-admin': require('./_drops').admin,
   'admin-live': require('./_admin-live'),
   'notify-ticket-click': require('./_notify-ticket-click')
