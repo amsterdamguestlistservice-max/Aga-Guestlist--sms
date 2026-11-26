@@ -5158,7 +5158,8 @@ document.addEventListener('click', function(e){
   let done = false;
   const hide = function(){
     if(done) return; done = true;
-    const wait = Math.max(0, 1650 - (Date.now() - t0));
+    // The animation starts with the page, so count from page start: the whole sequence (~1.7s) always plays.
+    const wait = Math.max(0, 1750 - (window.performance && performance.now ? performance.now() : (Date.now() - t0)));
     setTimeout(function(){
       sp.classList.add('is-gone'); document.body.classList.add('app-reveal');
       try{ haptic('light'); } catch(e){}
