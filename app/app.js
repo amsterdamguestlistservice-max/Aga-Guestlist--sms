@@ -4452,11 +4452,54 @@ async function loadNextNight(){
   if(typeof openTonight === 'function') openTonight(false);
 }
 
+function amsHour(){ try{ return Number(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hour12: false, timeZone: 'Europe/Amsterdam' }).format(new Date())) % 24; } catch(e){ return new Date().getHours(); } }
+let nightTimer = null;
+// Night mode: from 18:00 on the night you're on the list, the top of the app becomes your night.
+function renderNightHero(box, r){
+  const ev = findEventFor(r.event_name, r.event_date);
+  const meta = currentUser && currentUser.user_metadata || {};
+  const name = ((r.first_name || meta.first_name || '') + ' ' + (r.last_name || meta.last_name || '')).trim();
+  const d = String(ev && ev.description || '');
+  const dress = ev && (ev.dresscode || ((d.match(/dress\s*code[:\s]+([^.]+)/i) || [])[1] || ''));
+  const venue = String(r.event_venue || '').split('·')[0].trim();
+  box.className = 'night-hero';
+  box.innerHTML =
+    '<div class="night-hero__sky"></div><div class="night-hero__beam"></div>' +
+    '<span class="night-hero__eyebrow"><i></i>Tonight · You\u2019re on the list</span>' +
+    '<div class="night-hero__name">' + escHtml(r.event_name) + '</div>' +
+    '<div class="night-hero__venue">' + escHtml(venue) + (ev && ev.time ? ' · doors ' + escHtml(ev.time) : '') + '</div>' +
+    '<div class="night-hero__clock" id="nightClock"></div><div class="night-hero__clocklabel" id="nightClockLabel"></div>' +
+    '<div class="night-hero__ticket"><div><small>Name on the list</small><b>' + escHtml(name) + '</b></div><em>' + ((r.total_guests || 1) > 1 ? r.total_guests + ' guests' : 'Just you') + '</em></div>' +
+    '<button type="button" class="night-hero__door" id="nightDoor">Show at the door</button>' +
+    '<div class="night-hero__row">' +
+      '<a href="' + mapsLinkFor(r.event_venue) + '" target="_blank" rel="noopener"><span>📍</span>Route</a>' +
+      '<a href="' + uberLinkFor(r.event_venue) + '" target="_blank" rel="noopener"><span>🚕</span>Ride</a>' +
+      '<button type="button" id="nightShare"><span>✨</span>Story</button>' +
+    '</div>' +
+    (dress ? '<div class="night-hero__dress"><b>Dresscode</b>' + escHtml(dress.trim()) + '</div>' : '');
+  box.hidden = false;
+  document.body.classList.add('is-night');
+  document.getElementById('nightDoor').addEventListener('click', function(){ openTonight(true); });
+  const sh = document.getElementById('nightShare'); if(sh) sh.addEventListener('click', function(){ if(ev) shareStory(ev, sh); });
+  function tick(){
+    const c = document.getElementById('nightClock'), l = document.getElementById('nightClockLabel'); if(!c){ clearInterval(nightTimer); return; }
+    const ms = ev ? eventStartTime(ev) - Date.now() : 0;
+    if(ms > 0){
+      const h = Math.floor(ms / 3600000), m = Math.floor(ms % 3600000 / 60000), sec = Math.floor(ms % 60000 / 1000);
+      const p2 = function(n){ return (n < 10 ? '0' : '') + n; };
+      c.innerHTML = '<div><b>' + p2(h) + '</b><small>hours</small></div><div><b>' + p2(m) + '</b><small>min</small></div><div><b>' + p2(sec) + '</b><small>sec</small></div>';
+      l.textContent = 'until doors open';
+    } else { c.innerHTML = ''; l.innerHTML = '<b style="color:#f6e7b0;font-size:15px;letter-spacing:.08em">Doors are open \u2014 enjoy your night</b>'; }
+  }
+  tick(); clearInterval(nightTimer); nightTimer = setInterval(function(){ if(!document.hidden) tick(); }, 1000);
+}
 function renderNextNight(){
   const box = document.getElementById('nextNight');
   if(!box) return;
   const r = nextNightRows[0];
+  clearInterval(nightTimer); document.body.classList.remove('is-night'); box.className = 'next-night';
   if(!r){ box.hidden = true; box.innerHTML = ''; return; }
+  if(tonightRow() && amsHour() >= 18){ renderNightHero(box, r); return; }
   const ev = findEventFor(r.event_name, r.event_date);
   const approved = String(r.status || '').trim().toLowerCase() === 'approved';
   const tonight = approved && String(r.event_date).slice(0, 10) === todayAmsterdam();
@@ -5112,9 +5155,18 @@ document.addEventListener('click', function(e){
   const sp = document.getElementById('splash');
   if(!sp) return;
   const t0 = Date.now();
-  const hide = function(){ const wait = Math.max(0, 1100 - (Date.now() - t0)); setTimeout(function(){ sp.classList.add('is-gone'); setTimeout(function(){ sp.remove(); }, 600); }, wait); };
+  let done = false;
+  const hide = function(){
+    if(done) return; done = true;
+    const wait = Math.max(0, 1650 - (Date.now() - t0));
+    setTimeout(function(){
+      sp.classList.add('is-gone'); document.body.classList.add('app-reveal');
+      try{ haptic('light'); } catch(e){}
+      setTimeout(function(){ sp.remove(); document.body.classList.remove('app-reveal'); }, 900);
+    }, wait);
+  };
   if(document.readyState === 'complete') hide(); else window.addEventListener('load', hide);
-  setTimeout(hide, 2500);
+  setTimeout(hide, 2600);
 })();
 
 // 7. Haptics: native plugin when the iPhone app has it; vibration on Android;
@@ -5251,6 +5303,21 @@ function confetti(canvas){
     if(e.gamma == null || !card.offsetParent) return;
     setT(Math.min(1, Math.max(0, 0.5 + e.gamma / 60)), Math.min(1, Math.max(0, 0.5 + (e.beta - 45) / 80)));
   });
+  card.classList.add('is-alive');
+  // iPhone asks permission once before the card may follow the phone's movement.
+  const hint = document.getElementById('cardMotionHint');
+  const DOE = window.DeviceOrientationEvent;
+  let granted = false; try{ granted = localStorage.getItem('ags_motion_ok') === '1'; } catch(e){}
+  if(hint && DOE && typeof DOE.requestPermission === 'function' && !granted){
+    hint.hidden = false;
+    const ask = function(){
+      DOE.requestPermission().then(function(res){
+        if(res === 'granted'){ try{ localStorage.setItem('ags_motion_ok', '1'); } catch(e){} hint.hidden = true; try{ haptic('success'); } catch(e){} }
+      }).catch(function(){});
+    };
+    hint.addEventListener('click', ask);
+    card.addEventListener('click', ask, { once: true });
+  }
   // Gentle shimmer while idle.
   let a = 0; setInterval(function(){ if(!card.offsetParent || document.hidden) return; a += 0.05; card.style.setProperty('--mx', (50 + Math.sin(a) * 35).toFixed(1) + '%'); }, 120);
 })();
