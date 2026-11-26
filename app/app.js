@@ -2968,38 +2968,50 @@ if(isIos && !IS_NATIVE){
    ================================================================ */
 (function initWelcomeTour(){
   const overlay = document.getElementById('welcomeOverlay');
-  const slides = Array.prototype.slice.call(overlay.querySelectorAll('.tour-slide'));
-  const dots = Array.prototype.slice.call(document.querySelectorAll('.tour-dot'));
-  const nextBtn = document.getElementById('tourNextBtn');
-  const skipBtn = document.getElementById('tourSkipBtn');
-  let index = 0;
-
+  if(!overlay) return;
   let alreadySeen = false;
   try{ alreadySeen = !!localStorage.getItem('ags_tour_seen'); } catch(e){}
   if(alreadySeen){ overlay.remove(); return; }
 
-  function showSlide(i){
-    slides.forEach(function(s, si){ s.classList.toggle('is-active', si === i); });
-    dots.forEach(function(d, di){ d.classList.toggle('is-active', di === i); });
-    nextBtn.textContent = (i === slides.length - 1) ? "Let's Go" : 'Next';
-  }
+  const slides = Array.prototype.slice.call(overlay.querySelectorAll('.tour__slide'));
+  const bars = Array.prototype.slice.call(overlay.querySelectorAll('.tour__bars i'));
+  const nextBtn = document.getElementById('tourNextBtn');
+  const backBtn = document.getElementById('tourBackBtn');
+  const glow = overlay.querySelector('.tour__glow');
+  let index = 0;
 
+  // Load a screenshot only when its slide (or the one before it) is shown.
+  function load(i){ const s = slides[i]; if(!s) return; const im = s.querySelector('img[data-src]'); if(im){ im.src = im.getAttribute('data-src'); im.removeAttribute('data-src'); } }
+  function show(i){
+    const prev = index; index = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach(function(s, si){ s.classList.toggle('is-active', si === index); s.classList.toggle('is-left', si < index); });
+    bars.forEach(function(b, bi){ b.classList.toggle('is-done', bi <= index); });
+    load(index); load(index + 1);
+    nextBtn.textContent = index === 0 ? 'Show me around' : (index === slides.length - 1 ? "Let's go" : 'Next');
+    backBtn.hidden = index === 0;
+    if(glow) glow.style.transform = 'translateX(' + ((index % 2 ? 1 : -1) * 6) + '%)';
+    if(prev !== index){ try{ haptic('light'); } catch(e){} }
+  }
   function closeTour(){
     overlay.classList.remove('is-open');
     document.body.style.overflow = '';
     try{ localStorage.setItem('ags_tour_seen', '1'); } catch(e){}
+    setTimeout(function(){ overlay.remove(); }, 300);
   }
+  nextBtn.addEventListener('click', function(){ if(index < slides.length - 1) show(index + 1); else closeTour(); });
+  backBtn.addEventListener('click', function(){ show(index - 1); });
+  document.getElementById('tourSkipBtn').addEventListener('click', closeTour);
+  // Swipe left / right, like stories.
+  let x0 = null, y0 = null;
+  overlay.addEventListener('touchstart', function(e){ x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+  overlay.addEventListener('touchend', function(e){
+    if(x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; x0 = null;
+    if(Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)){ if(dx < 0){ if(index < slides.length - 1) show(index + 1); } else show(index - 1); }
+  }, { passive: true });
+  document.addEventListener('keydown', function(e){ if(!overlay.classList.contains('is-open')) return; if(e.key === 'ArrowRight') nextBtn.click(); if(e.key === 'ArrowLeft') show(index - 1); if(e.key === 'Escape') closeTour(); });
 
-  nextBtn.addEventListener('click', function(){
-    if(index < slides.length - 1){ index++; showSlide(index); }
-    else { closeTour(); }
-  });
-  skipBtn.addEventListener('click', closeTour);
-  overlay.addEventListener('click', function(e){
-    if(e.target === overlay){ closeTour(); }
-  });
-
-  showSlide(0);
+  show(0);
   overlay.classList.add('is-open');
   document.body.style.overflow = 'hidden';
 })();
