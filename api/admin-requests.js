@@ -84,6 +84,21 @@ module.exports = async function handler(req, res) {
         const set = new Set((cr || []).map(function (c) { return c.user_id; }));
         rows.forEach(function (r) { if (r.user_id && set.has(r.user_id)) r.creator = true; });
       } catch (e) { /* optional */ }
+      // Birthday week: the party falls 5 days before to 2 days after the guest's birthday.
+      try {
+        const { data: bd } = await supabase.from('birthdays').select('user_id, month, day');
+        const bmap = {}; (bd || []).forEach(function (b) { bmap[b.user_id] = b; });
+        rows.forEach(function (r) {
+          const b = r.user_id && bmap[r.user_id]; if (!b || !r.event_date) return;
+          const ref = new Date(String(r.event_date).slice(0, 10) + 'T12:00:00Z'); let best = null;
+          [-1, 0, 1].forEach(function (k) {
+            const y = ref.getUTCFullYear() + k; let d = new Date(Date.UTC(y, b.month - 1, b.day, 12));
+            if (d.getUTCMonth() !== b.month - 1) d = new Date(Date.UTC(y, 2, 1, 12));
+            const o = Math.round((d - ref) / 864e5); if (best === null || Math.abs(o) < Math.abs(best)) best = o;
+          });
+          if (best >= -2 && best <= 5) r.birthday = true;
+        });
+      } catch (e) { /* optional */ }
             res.status(200).json({ requests: rows, changes: changes });
     } catch (err) {
       res.status(500).json({ error: err.message || 'Unknown error' });

@@ -1183,6 +1183,15 @@ body{ background:#020202; }
 .push-nudge__go{ flex:none; min-height:38px; padding:0 14px; border:0; background:var(--gold); color:#000; font:700 11px/1 var(--sans); letter-spacing:.12em; text-transform:uppercase; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; }
 .push-nudge__x{ position:absolute; top:4px; right:4px; width:32px; height:32px; border:0; background:transparent; color:var(--muted); font-size:15px; cursor:pointer; }
 .push-nudge--account{ margin:0 0 16px; }
+.bday-nudge{ border-color:rgba(255,120,160,0.5); background:linear-gradient(90deg,rgba(255,95,143,0.13),rgba(201,162,74,0.05)); flex-wrap:wrap; }
+.bday-nudge .push-nudge__bell{ background:linear-gradient(135deg,#ff8fb1,#c9a24a); font-size:18px; }
+.bday-pick{ display:flex; gap:8px; width:100%; margin-top:2px; }
+.bday-pick select{ flex:1; min-height:42px; padding:0 10px; background:#0d0d0d; color:var(--white); border:1px solid var(--line); font:500 14px var(--sans); border-radius:0; -webkit-appearance:none; appearance:none; }
+.bday-pick .push-nudge__go{ min-height:42px; }
+.pc-bday{ margin:4px 0 10px; }
+.pc-bday > span{ display:block; font-size:13px; color:var(--white); margin-bottom:6px; }
+.pc-bday > span small{ display:block; color:var(--muted); font-size:11.5px; margin-top:2px; }
+.verified-badge__bd{ color:#fff; background:linear-gradient(135deg,#ff8fb1,#e0457a); }
 
 /* polish pass: comfortable tap targets */
 #forgotPasswordLink{ min-height:44px; padding:10px 6px; display:inline-flex; align-items:center; }
@@ -1839,6 +1848,7 @@ body.is-night .app-tabbar{ box-shadow:0 0 0 1px rgba(233,209,139,.35), 0 10px 40
     <div class="story-head" id="storyHead" hidden><span>Stories</span><em>Tap to watch</em></div>
     <div class="story-bar" id="storyBar" hidden><!-- rendered by JS --></div>
     <div class="push-nudge" id="pushNudge" hidden><!-- rendered by JS --></div>
+    <div class="push-nudge bday-nudge" id="bdayNudge" hidden><!-- rendered by JS --></div>
     <div class="featured-hero" id="featuredHero" hidden role="button" tabindex="0" aria-label="Featured party, open the guestlist"><!-- rendered by JS --></div>
     <div class="points-strip" id="pointsStrip" hidden><!-- rendered by JS --></div>
     <div class="venue-filter" id="venueFilter"><!-- rendered by JS --></div>

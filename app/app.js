@@ -1884,6 +1884,7 @@ async function loadMyProfileCard(){
     p = { display_name: name, instagram: ig, bio: '', avatar_url: '', is_public: false, show_going: false, _new: true };
   }
   MY_PROFILE = p;
+  if(MY_BDAY === undefined){ try{ const { data: bd } = await supabaseClient.from('birthdays').select('month, day').eq('user_id', currentUser.id).maybeSingle(); MY_BDAY = bd || null; } catch(e){} }
   try{ updateEventsHeadline(); } catch(e){}
   const esc = function(v){ return String(v || '').replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
   card.innerHTML =
@@ -1895,6 +1896,7 @@ async function loadMyProfileCard(){
     '<input type="text" id="pcName" maxlength="40" placeholder="Your name" value="' + esc(p.display_name) + '">' +
     '<input type="text" id="pcIg" maxlength="40" placeholder="@instagram" value="' + esc(p.instagram) + '">' +
     '<textarea id="pcBio" maxlength="120" placeholder="Short bio (optional)">' + esc(p.bio) + '</textarea>' +
+    '<div class="pc-bday"><span>🎂 Birthday<small>Priority on every guestlist in your birthday week. Only day and month, never shown to others.</small></span><div class="bday-pick">' + bdayPickHtml('pcB', MY_BDAY) + '</div></div>' +
     '<label class="pc-toggle"><span>Public profile<small>Other members can open your profile</small></span><input type="checkbox" id="pcPublic"' + (p.is_public ? ' checked' : '') + '></label>' +
     '<label class="pc-toggle"><span>Show me on “who’s going”<small>Your photo appears on parties you’re on the list for</small></span><input type="checkbox" id="pcGoing"' + (p.show_going ? ' checked' : '') + '></label>' +
     '<div class="pc-actions"><button type="button" class="btn btn--solid" id="pcSave">Save profile</button><button type="button" class="btn" id="pcView">Preview</button></div>' +
@@ -1919,8 +1921,11 @@ async function saveMyProfile(){
     show_going: document.getElementById('pcGoing').checked,
     updated_at: new Date().toISOString()
   };
+  const nb = bdayPicked('pcB');
+  if(nb === false){ out.style.color = '#ff8a80'; out.textContent = 'That birthday date doesn’t exist.'; return false; }
   const { error } = await supabaseClient.from('member_profiles').upsert(row);
   if(error){ out.style.color = '#ff8a80'; out.textContent = 'Could not save right now. Please try again.'; return false; }
+  if(nb && (!MY_BDAY || MY_BDAY.month !== nb.month || MY_BDAY.day !== nb.day)){ await saveMyBirthday(nb); renderBdayNudge(); }
   MY_PROFILE = row;
   Object.keys(GOING_CACHE).forEach(function(k){ delete GOING_CACHE[k]; });
   out.style.color = ''; out.textContent = 'Saved ✓';
@@ -5121,6 +5126,7 @@ async function renderPushNudges(){
     if(state){ box.innerHTML = pushNudgeHtml(state, 'account'); box.hidden = false; bindPushNudge(box, 'account'); }
     else { box.hidden = true; box.innerHTML = ''; }
   }
+  try{ if(MY_BDAY !== undefined) renderBdayNudge(); } catch(e){}
 }
 function bindPushNudge(root, place){
   const on = root.querySelector('[data-push-on]');
@@ -6070,25 +6076,84 @@ function statusLabel(raw){
   return raw;
 }
 var MY_MEMBER_NO = null, MY_VERIFIED = false;
-let MY_CREATOR = false;
+let MY_CREATOR = false, MY_BDAY_WEEK = false, MY_BDAY = undefined;
 async function loadMemberMeta(){
   if(!supabaseClient || !currentUser) return;
   try{
     const { data } = await supabaseClient.rpc('my_member_meta');
     const row = Array.isArray(data) ? data[0] : data;
-    if(row){ MY_MEMBER_NO = row.member_no || null; MY_VERIFIED = !!row.verified; MY_CREATOR = !!row.creator; }
+    if(row){ MY_MEMBER_NO = row.member_no || null; MY_VERIFIED = !!row.verified; MY_CREATOR = !!row.creator; MY_BDAY_WEEK = !!row.birthday_week; }
     renderVerifiedBadge();
+    loadMyBirthday();
   } catch(e){}
 }
 function renderVerifiedBadge(){
   const host = document.getElementById('accountUserName');
   if(!host) return;
   let b = document.getElementById('verifiedBadge');
-  if(!MY_VERIFIED && !MY_MEMBER_NO && !MY_CREATOR){ if(b) b.remove(); return; }
+  if(!MY_VERIFIED && !MY_MEMBER_NO && !MY_CREATOR && !MY_BDAY_WEEK){ if(b) b.remove(); return; }
   if(!b){ b = document.createElement('div'); b.id = 'verifiedBadge'; b.className = 'verified-badge'; host.insertAdjacentElement('afterend', b); }
   b.innerHTML = (MY_MEMBER_NO ? '<span class="verified-badge__no">AGS Nº ' + String(MY_MEMBER_NO).padStart(4, '0') + '</span>' : '') +
     (MY_VERIFIED ? '<span class="verified-badge__v">✓ Verified guest</span>' : '') +
-    (MY_CREATOR ? '<span class="verified-badge__cr">⭐ AGS Creator · priority</span>' : '');
+    (MY_CREATOR ? '<span class="verified-badge__cr">⭐ AGS Creator · priority</span>' : '') +
+    (MY_BDAY_WEEK ? '<span class="verified-badge__bd">🎂 Birthday week · priority</span>' : '');
+}
+/* ---- Birthday perk: priority in your birthday week + a message from Keurten ---- */
+const BDAY_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+function bdayPickHtml(id, b){
+  let m = '<select id="' + id + 'M" aria-label="Birthday month"><option value="">Month</option>';
+  BDAY_MONTHS.forEach(function(n, i){ m += '<option value="' + (i + 1) + '"' + (b && b.month === i + 1 ? ' selected' : '') + '>' + n + '</option>'; });
+  let d = '<select id="' + id + 'D" aria-label="Birthday day"><option value="">Day</option>';
+  for(let i = 1; i <= 31; i++) d += '<option value="' + i + '"' + (b && b.day === i ? ' selected' : '') + '>' + i + '</option>';
+  return m + '</select>' + d + '</select>';
+}
+function bdayPicked(id){
+  const m = Number((document.getElementById(id + 'M') || {}).value || 0), d = Number((document.getElementById(id + 'D') || {}).value || 0);
+  if(!m || !d) return null;
+  const max = [31,29,31,30,31,30,31,31,30,31,30,31][m - 1];
+  return d > max ? false : { month: m, day: d };
+}
+async function saveMyBirthday(b){
+  const { error } = await supabaseClient.rpc('set_my_birthday', { p_month: b ? b.month : null, p_day: b ? b.day : null });
+  if(error) return false;
+  MY_BDAY = b || null; return true;
+}
+async function loadMyBirthday(){
+  if(!supabaseClient || !currentUser) return;
+  try{
+    const { data } = await supabaseClient.from('birthdays').select('month, day').eq('user_id', currentUser.id).maybeSingle();
+    MY_BDAY = data || null;
+  } catch(e){ MY_BDAY = undefined; }
+  renderBdayNudge();
+}
+function renderBdayNudge(){
+  const el = document.getElementById('bdayNudge'); if(!el) return;
+  let off = false;
+  try{ off = !!localStorage.getItem('ags_bday_nudge_x_' + (currentUser && currentUser.id)); } catch(e){}
+  const pushShown = (function(){ const p = document.getElementById('pushNudge'); return p && !p.hidden; })();
+  if(!currentUser || MY_BDAY !== null || off || pushShown){ el.hidden = true; el.innerHTML = ''; return; }
+  el.innerHTML = '<div class="push-nudge__bell">🎂</div><div class="push-nudge__txt"><b>When’s your birthday?</b>Get priority on every guestlist in your birthday week, plus a little something from us.</div>' +
+    '<button type="button" class="push-nudge__go" id="bdayAdd">Add</button><button type="button" class="push-nudge__x" id="bdayX" aria-label="Dismiss">✕</button>';
+  el.hidden = false;
+  document.getElementById('bdayX').addEventListener('click', function(){ try{ localStorage.setItem('ags_bday_nudge_x_' + currentUser.id, '1'); } catch(e){} el.hidden = true; el.innerHTML = ''; });
+  document.getElementById('bdayAdd').addEventListener('click', function(){
+    el.querySelector('.push-nudge__txt').innerHTML = '<b>Your birthday</b>Only day and month. Never shown to anyone.';
+    document.getElementById('bdayAdd').remove();
+    const row = document.createElement('div'); row.className = 'bday-pick';
+    row.innerHTML = bdayPickHtml('bdN', null) + '<button type="button" class="push-nudge__go" id="bdaySave">Save</button>';
+    el.appendChild(row);
+    document.getElementById('bdaySave').addEventListener('click', async function(){
+      const b = bdayPicked('bdN'); const txt = el.querySelector('.push-nudge__txt');
+      if(!b){ txt.innerHTML = '<b>Your birthday</b><span style="color:#ff8a80">' + (b === false ? 'That date doesn’t exist.' : 'Pick a month and a day.') + '</span>'; return; }
+      this.disabled = true; this.textContent = '…';
+      if(await saveMyBirthday(b)){
+        el.innerHTML = '<div class="push-nudge__bell">✓</div><div class="push-nudge__txt"><b>Saved, ' + b.day + ' ' + BDAY_MONTHS[b.month - 1] + ' 🎉</b>In your birthday week your requests go first. Keurten will message you.</div>';
+        try{ AppSound.play('success'); } catch(e){}
+        setTimeout(function(){ el.hidden = true; el.innerHTML = ''; }, 4000);
+        loadMyProfileCard();
+      } else { this.disabled = false; this.textContent = 'Save'; txt.innerHTML = '<b>Your birthday</b><span style="color:#ff8a80">Could not save. Try again.</span>'; }
+    });
+  });
 }
 function hostButtonHtml(r){
   const name = [r.first_name, r.last_name].filter(Boolean).join(' ');

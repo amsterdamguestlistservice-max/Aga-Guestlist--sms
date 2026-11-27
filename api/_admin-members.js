@@ -34,15 +34,18 @@ module.exports = async function handler(req, res) {
       users.push.apply(users, list);
       if (list.length < 1000) break;
     }
-    const [profiles, numbers, reqs, subs, creators] = await Promise.all([
+    const [profiles, numbers, reqs, subs, creators, bdays] = await Promise.all([
       sb.from('profiles').select('user_id, points, referred_by').range(0, 19999),
       sb.from('member_numbers').select('user_id, member_no').range(0, 19999),
       sb.from('guestlist_requests').select('user_id, status, event_date, instagram, phone, created_at').not('user_id', 'is', null).order('created_at', { ascending: true }).range(0, 49999),
       sb.from('push_subscriptions').select('user_id').range(0, 19999),
-      sb.from('creators').select('user_id, handle, added_at')
+      sb.from('creators').select('user_id, handle, added_at'),
+      sb.from('birthdays').select('user_id, month, day')
     ]);
     const pts = {}, ref = {}, no = {}, push = {}, st = {};
-    const invites = {}, cr = {};
+    const invites = {}, cr = {}, bd = {};
+    const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    ((bdays && bdays.data) || []).forEach(function (b) { bd[b.user_id] = b.day + ' ' + MON[b.month - 1]; });
     (profiles.data || []).forEach(function (p) { pts[p.user_id] = p.points || 0; ref[p.user_id] = !!p.referred_by; if (p.referred_by) invites[p.referred_by] = (invites[p.referred_by] || 0) + 1; });
     (creators.data || []).forEach(function (c) { cr[c.user_id] = c; });
     (numbers.data || []).forEach(function (n) { no[n.user_id] = n.member_no; });
@@ -66,7 +69,7 @@ module.exports = async function handler(req, res) {
         points: pts[u.id] || 0, referred: !!ref[u.id], push: !!push[u.id],
         requests: s.requests || 0, approved: s.approved || 0, noShows: s.noShows || 0,
         verified: !!s.verified, lastParty: s.last || null, ig: s.ig || '', phone: s.phone || '',
-        creator: !!cr[u.id], creatorHandle: (cr[u.id] && cr[u.id].handle) || '', creatorSince: (cr[u.id] && cr[u.id].added_at) || null, invites: invites[u.id] || 0
+        creator: !!cr[u.id], creatorHandle: (cr[u.id] && cr[u.id].handle) || '', creatorSince: (cr[u.id] && cr[u.id].added_at) || null, invites: invites[u.id] || 0, birthday: bd[u.id] || ''
       };
     }).sort(function (a, b) { return (b.joined || '').localeCompare(a.joined || ''); });
     res.status(200).json({ members: rows });

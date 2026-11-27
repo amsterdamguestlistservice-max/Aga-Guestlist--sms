@@ -194,6 +194,7 @@
   .adm-chg__tx em{display:block;font-style:normal;color:var(--muted);font-size:12px}
   .adm-chg.is-new{border-color:var(--gold)}
   .adm-edited{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:999px;background:rgba(212,175,55,.15);color:var(--gold);font-size:10px;font-weight:700;letter-spacing:.06em;vertical-align:middle}
+  .adm-bday{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;background:#ff5f8f;color:#fff;font-size:10px;font-weight:800;letter-spacing:.06em;vertical-align:middle}
   .adm-creator{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;background:linear-gradient(135deg,#f6e7b0,#c9a24a);color:#120d03;font-size:10px;font-weight:800;letter-spacing:.06em;vertical-align:middle}
   .adm-crbox{margin:12px 0;padding:12px;border-radius:14px;border:1px solid rgba(212,175,55,.35);background:rgba(212,175,55,.06)}
   .adm-crbox a{color:var(--gold)}
@@ -706,7 +707,7 @@
     const today0 = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
     const verified = new Set(REQS.filter(function(x){ return st(x) === 'approved' && String(x.event_date) < today0 && x.user_id; }).map(function(x){ return x.user_id; }));
     const pending = PENDING.filter(function(x){ return !PARTY || x.event_name === PARTY; }).slice().sort(function(a, b){
-      return ((b.creator ? 1 : 0) - (a.creator ? 1 : 0)) || ((b.drop ? 1 : 0) - (a.drop ? 1 : 0)) || ((b.points >= 50 ? 1 : 0) - (a.points >= 50 ? 1 : 0)) || ((verified.has(b.user_id) ? 1 : 0) - (verified.has(a.user_id) ? 1 : 0)) || byName(a, b);
+      return ((b.creator ? 1 : 0) - (a.creator ? 1 : 0)) || ((b.birthday ? 1 : 0) - (a.birthday ? 1 : 0)) || ((b.drop ? 1 : 0) - (a.drop ? 1 : 0)) || ((b.points >= 50 ? 1 : 0) - (a.points >= 50 ? 1 : 0)) || ((verified.has(b.user_id) ? 1 : 0) - (verified.has(a.user_id) ? 1 : 0)) || byName(a, b);
     });
     const box = document.getElementById('admReqs');
     if(!pending.length){ box.innerHTML = '<div class="adm-empty">' + (PARTY ? 'No requests waiting for ' + esc(PARTY) + '.' : 'All caught up. No requests waiting.') + '</div>'; return; }
@@ -718,6 +719,7 @@
       return '<div class="adm-req" data-id="' + esc(x.id) + '"><h4>' + nameLink(x, (x.first_name || '') + ' ' + (x.last_name || '')) +
         (tier ? ' <span class="adm-tier adm-tier--' + tier.toLowerCase() + '">★ ' + tier + '</span>' : '') +
         (x.creator ? '<span class="adm-creator">⭐ CREATOR</span>' : '') +
+        (x.birthday ? '<span class="adm-bday">🎂 BIRTHDAY</span>' : '') +
         (verified.has(x.user_id) ? '<span class="adm-verified">✓ VERIFIED</span>' : '') +
         (x.drop === 'priority' ? '<span class="adm-dropchip">⚡ DROP</span>' : x.drop === 'plusone' ? '<span class="adm-dropchip">+1 DROP</span>' : '') +
         (x.changes && x.changes.length ? '<span class="adm-edited">✏️ EDITED</span>' : '') + '</h4>' +
@@ -939,6 +941,7 @@
     const d = function(iso){ return iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''; };
     let html = '<div class="adm-head"><div class="adm-title"><small>' + (m.no ? 'AGS Nº ' + String(m.no).padStart(4, '0') : 'Account') + '</small>' + esc(m.name || m.email) + '</div>' + (from ? '<button type="button" class="adm-btn" data-backreq="' + esc(from) + '">Back</button>' : '<button type="button" class="adm-btn" data-close="admDetail">Back</button>') + '</div>' +
       (m.creator ? '<span class="adm-creator">⭐ CREATOR</span> ' : '') + (m.verified ? '<span class="adm-verified">✓ VERIFIED GUEST</span> ' : '') + (t ? '<span class="adm-tier adm-tier--' + t.toLowerCase() + '">★ ' + t + '</span>' : '') +
+      (m.birthday ? ' <span class="adm-bday">🎂 ' + esc(m.birthday) + '</span>' : '') +
       (m.creator
         ? '<div class="adm-crbox"><b>⭐ Creator</b>' + (m.creatorHandle ? ' · <a href="https://www.tiktok.com/@' + encodeURIComponent(m.creatorHandle) + '" target="_blank" rel="noopener">@' + esc(m.creatorHandle) + '</a>' : '') +
           '<div style="font-size:13px;color:var(--muted);margin-top:4px">Priority on every guestlist. ' + m.invites + ' account' + (m.invites === 1 ? '' : 's') + ' joined via their invite link' + (m.creatorSince ? ' · creator since ' + esc(d(m.creatorSince)) : '') + '.</div>' +
