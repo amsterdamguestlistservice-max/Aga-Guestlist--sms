@@ -14,7 +14,7 @@
 // Protected by the same WEBHOOK_SECRET as the other Database Webhooks.
 
 const webpush = require('web-push');
-const { sendPush: sendAnyPush } = require('./_push');
+const { sendPush: sendAnyPush, withPid } = require('./_push');
 const { createClient } = require('@supabase/supabase-js');
 const { pushToAdmins } = require('./_admin-push');
 
@@ -86,6 +86,37 @@ module.exports = async function handler(req, res) {
         }
       }));
       result = { audience: aud || 'all', total: (subs || []).length, sent: sent, failed: failed, removed: removed };
+      // Also put it in the in-app inbox of every account in the audience, including the ones
+      // without notifications on, so they see it the next time they open the app.
+      try {
+        const ids = [];
+        let page = 1;
+        for (;;) {
+          const { data: lu, error: le } = await supabase.auth.admin.listUsers({ page: page, perPage: 1000 });
+          if (le || !lu || !lu.users || !lu.users.length) break;
+          lu.users.forEach(function (u) { ids.push(u.id); });
+          if (lu.users.length < 1000) break;
+          page++;
+        }
+        let targets = ids;
+        if (aud.indexOf('not_on:') === 0) {
+          const evIds = aud.slice(7).split(',').filter(Boolean);
+          const { data: claims } = await supabase.from('guestlist_claims').select('user_id').in('event_id', evIds);
+          const skip = new Set((claims || []).map(function (c) { return c.user_id; }));
+          targets = ids.filter(function (u) { return !skip.has(u); });
+        } else if (aud.indexOf('users:') === 0) {
+          const only = new Set(aud.slice(6).split(',').filter(Boolean));
+          targets = ids.filter(function (u) { return only.has(u); });
+        }
+        const pid = JSON.parse(withPid(body)).pid;
+        const rows = targets.map(function (u) { return { user_id: u, pid: pid, title: payload.title, body: payload.body, url: payload.url }; });
+        let saved = 0;
+        for (let i = 0; i < rows.length; i += 500) {
+          const { error: ie } = await supabase.from('inbox').upsert(rows.slice(i, i + 500), { onConflict: 'user_id,pid', ignoreDuplicates: true });
+          if (!ie) saved += Math.min(500, rows.length - i);
+        }
+        result.inbox = saved;
+      } catch (e) { result.inboxError = String(e && e.message || e); }
     }
   } catch (err) {
     result = { error: (err && err.message) || 'Unknown error' };

@@ -2818,7 +2818,34 @@ async function loadInbox(){
     INBOX = data || [];
   } catch(e){ INBOX = []; }
   updateInboxBadge();
+  maybeInboxToast();
   return INBOX;
+}
+// Without notifications on, the newest unread message (last 7 days) slides in once when the app opens.
+let inboxToastDone = false;
+function maybeInboxToast(){
+  if(inboxToastDone) return;
+  try{ if('Notification' in window && Notification.permission === 'granted') return; } catch(e){}
+  const week = Date.now() - 7 * 864e5;
+  let seen = []; try{ seen = JSON.parse(localStorage.getItem('ags_inbox_toasted') || '[]'); } catch(e){}
+  const m = INBOX.find(function(x){ return !x.read_at && new Date(x.created_at).getTime() > week && seen.indexOf(x.id) < 0 && !/^Request received/.test(x.body || ''); });
+  if(!m) return;
+  inboxToastDone = true;
+  setTimeout(function(){
+    if(document.body.classList.contains('is-gated') || document.getElementById('welcomeOverlay') || document.getElementById('heroIntro')) { inboxToastDone = false; return; }
+    try{ seen.push(m.id); localStorage.setItem('ags_inbox_toasted', JSON.stringify(seen.slice(-50))); } catch(e){}
+    const esc2 = function(t){ return String(t || '').replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
+    const t = document.createElement('button'); t.type = 'button'; t.className = 'cc-toast inbox-toast';
+    t.innerHTML = '<span class="cc-face" style="background-image:url(\'icon-192.png\')"></span><span><b>' + esc2(m.title) + '</b>' + esc2(m.body).slice(0, 140) + '</span>';
+    document.body.appendChild(t);
+    requestAnimationFrame(function(){ t.classList.add('is-in'); });
+    t.addEventListener('click', function(){
+      t.remove();
+      supabaseClient.from('inbox').update({ read_at: new Date().toISOString() }).eq('id', m.id).then(function(){ m.read_at = new Date().toISOString(); updateInboxBadge(); }, function(){});
+      openInboxLink(m.url);
+    });
+    setTimeout(function(){ t.classList.remove('is-in'); setTimeout(function(){ t.remove(); }, 400); }, 8000);
+  }, 3500);
 }
 function updateInboxBadge(){
   if(!notifyBtn) return;

@@ -130,4 +130,4 @@ async function sendPush(webpush, sub, payloadString) {
   return result;
 }
 
-module.exports = { sendPush, saveInbox };
+module.exports = { sendPush, saveInbox, withPid };
