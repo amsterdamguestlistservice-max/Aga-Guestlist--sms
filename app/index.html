@@ -1660,6 +1660,7 @@ body{ background:#020202; }
 .member-card__glint{ position:absolute !important; inset:-1px; border-radius:inherit; pointer-events:none; transform:none !important; padding:1px;
   background:conic-gradient(from calc(var(--ry, 0deg) * 8 + 200deg), transparent 0 20%, rgba(255,243,207,.9) 28%, transparent 36% 70%, rgba(255,243,207,.6) 78%, transparent 86%);
   -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask-composite:exclude; }
+.member-card__hint[hidden]{ display:none !important; }
 .member-card__hint{ position:relative; display:block; margin:-10px auto 14px; padding:6px 12px; border:0; background:none; color:rgba(233,209,139,.75); font-size:11px; letter-spacing:.14em; text-transform:uppercase; cursor:pointer; }
 .member-card.is-alive{ animation:cardBreathe 7s ease-in-out infinite; }
 @keyframes cardBreathe{ 0%,100%{ box-shadow:0 22px 44px -22px rgba(0,0,0,.85), 0 0 0 0 rgba(212,175,55,0); } 50%{ box-shadow:0 30px 60px -24px rgba(0,0,0,.9), 0 0 40px -10px rgba(212,175,55,.35); } }
