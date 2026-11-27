@@ -192,6 +192,10 @@
   .adm-chg__tx em{display:block;font-style:normal;color:var(--muted);font-size:12px}
   .adm-chg.is-new{border-color:var(--gold)}
   .adm-edited{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:999px;background:rgba(212,175,55,.15);color:var(--gold);font-size:10px;font-weight:700;letter-spacing:.06em;vertical-align:middle}
+  .adm-creator{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;background:linear-gradient(135deg,#f6e7b0,#c9a24a);color:#120d03;font-size:10px;font-weight:800;letter-spacing:.06em;vertical-align:middle}
+  .adm-crbox{margin:12px 0;padding:12px;border-radius:14px;border:1px solid rgba(212,175,55,.35);background:rgba(212,175,55,.06)}
+  .adm-crbox a{color:var(--gold)}
+  .adm-crbox input{width:100%;margin:8px 0;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b0a08;color:#fff;font:15px var(--sans)}
   .adm-verified{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:999px;background:rgba(61,220,132,.16);color:#7ee3a6;font-size:10px;font-weight:700;letter-spacing:.06em;vertical-align:middle}
   .adm-hist{margin:14px 0;padding:12px 14px;border-radius:14px;background:rgba(212,175,55,.07);border:1px solid rgba(212,175,55,.25);font-size:13px;line-height:1.5}
   .adm-hist div+div{margin-top:6px}
@@ -535,6 +539,19 @@
     if(tp){ const ta = document.getElementById('admChatTa'); ta.value = ccFill(chatCtx(), tp.getAttribute('data-chattpl')); ta.focus(); }
   });
   window.agsOpenChat = openChat;
+  detailLayer.addEventListener('click', async function(e){
+    const on = e.target.closest('[data-creatoron]'), off = e.target.closest('[data-creatoroff]');
+    if(!on && !off) return;
+    const id = (on || off).getAttribute(on ? 'data-creatoron' : 'data-creatoroff');
+    const h = document.getElementById('admCrHandle');
+    (on || off).disabled = true;
+    try{
+      await api('/api/ags?fn=admin-members', { method: 'POST', body: { creator: { user_id: id, on: !!on, handle: h ? h.value : '' } } });
+      const m = (ACC || []).find(function(x){ return x.id === id; });
+      if(m){ m.creator = !!on; m.creatorHandle = on && h ? h.value.replace(/^@/, '') : ''; m.creatorSince = on ? new Date().toISOString() : null; }
+      openAccount(id); if(typeof renderAccounts === 'function') try{ renderAccounts(); } catch(x){}
+    } catch(err){ showErr(err.message); (on || off).disabled = false; }
+  });
   [detailLayer, listLayer, accLayer].forEach(function(L){ L.addEventListener('click', function(e){ const b = e.target.closest('[data-ccchat]'); if(b){ e.preventDefault(); e.stopPropagation(); openChat(b.getAttribute('data-ccchat')); } }, true); });
   async function loadOutfitsAdmin(){
     const box = document.getElementById('admOutfits');
@@ -681,7 +698,7 @@
     const today0 = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
     const verified = new Set(REQS.filter(function(x){ return st(x) === 'approved' && String(x.event_date) < today0 && x.user_id; }).map(function(x){ return x.user_id; }));
     const pending = PENDING.filter(function(x){ return !PARTY || x.event_name === PARTY; }).slice().sort(function(a, b){
-      return ((b.drop ? 1 : 0) - (a.drop ? 1 : 0)) || ((b.points >= 50 ? 1 : 0) - (a.points >= 50 ? 1 : 0)) || ((verified.has(b.user_id) ? 1 : 0) - (verified.has(a.user_id) ? 1 : 0)) || byName(a, b);
+      return ((b.creator ? 1 : 0) - (a.creator ? 1 : 0)) || ((b.drop ? 1 : 0) - (a.drop ? 1 : 0)) || ((b.points >= 50 ? 1 : 0) - (a.points >= 50 ? 1 : 0)) || ((verified.has(b.user_id) ? 1 : 0) - (verified.has(a.user_id) ? 1 : 0)) || byName(a, b);
     });
     const box = document.getElementById('admReqs');
     if(!pending.length){ box.innerHTML = '<div class="adm-empty">' + (PARTY ? 'No requests waiting for ' + esc(PARTY) + '.' : 'All caught up. No requests waiting.') + '</div>'; return; }
@@ -692,6 +709,7 @@
       const tier = x.points >= 300 ? 'VIP' : x.points >= 150 ? 'Gold' : x.points >= 50 ? 'Silver' : '';
       return '<div class="adm-req" data-id="' + esc(x.id) + '"><h4>' + esc((x.first_name || '') + ' ' + (x.last_name || '')) +
         (tier ? ' <span class="adm-tier adm-tier--' + tier.toLowerCase() + '">★ ' + tier + '</span>' : '') +
+        (x.creator ? '<span class="adm-creator">⭐ CREATOR</span>' : '') +
         (verified.has(x.user_id) ? '<span class="adm-verified">✓ VERIFIED</span>' : '') +
         (x.drop === 'priority' ? '<span class="adm-dropchip">⚡ DROP</span>' : x.drop === 'plusone' ? '<span class="adm-dropchip">+1 DROP</span>' : '') +
         (x.changes && x.changes.length ? '<span class="adm-edited">✏️ EDITED</span>' : '') + '</h4>' +
@@ -861,6 +879,7 @@
     renderAccounts(true);
   }
   function accFilter(m){
+    if(ACC_F === 'creator') return m.creator;
     if(ACC_F === 'verified') return m.verified;
     if(ACC_F === 'silver') return m.points >= 50;
     if(ACC_F === 'noshow') return m.noShows > 0;
@@ -879,7 +898,7 @@
     const rows = list.slice(0, ACC_SHOW).map(function(m){
       const t = tierOf(m.points);
       return '<div class="adm-acc" data-acc="' + esc(m.id) + '"><span class="adm-acc__no">' + (m.no ? 'Nº ' + String(m.no).padStart(4, '0') : '') + '</span>' +
-        '<span class="adm-acc__tx"><b>' + esc(m.name || m.email) + (m.verified ? ' <span class="adm-verified">✓</span>' : '') + (t ? ' <span class="adm-tier adm-tier--' + t.toLowerCase() + '">★ ' + t + '</span>' : '') + '</b>' +
+        '<span class="adm-acc__tx"><b>' + esc(m.name || m.email) + (m.creator ? ' <span class="adm-creator">⭐</span>' : '') + (m.verified ? ' <span class="adm-verified">✓</span>' : '') + (t ? ' <span class="adm-tier adm-tier--' + t.toLowerCase() + '">★ ' + t + '</span>' : '') + '</b>' +
         '<em>' + esc(m.email) + (m.ig ? ' · @' + esc(m.ig) : '') + '</em></span>' +
         '<span class="adm-acc__r"><b>' + m.points + ' pts</b>' + m.requests + ' req' + (m.noShows ? ' · ' + m.noShows + ' NS' : '') + '</span></div>';
     }).join('');
@@ -890,7 +909,7 @@
         '<input type="search" id="admAccSearch" class="adm-ig-search" placeholder="Search name, email, @handle, phone or Nº" autocomplete="off" value="' + esc(ACC_Q) + '">' +
         '<div class="adm-acc-filters" id="admAccFilters"></div><div id="admAccList"></div>';
     }
-    document.getElementById('admAccFilters').innerHTML = chip('all', 'All') + chip('verified', '✓ Verified') + chip('silver', '★ Silver+') + chip('noshow', 'No-shows') + chip('never', 'No requests') + chip('nopush', 'No notifications');
+    document.getElementById('admAccFilters').innerHTML = chip('all', 'All') + chip('creator', '⭐ Creators') + chip('verified', '✓ Verified') + chip('silver', '★ Silver+') + chip('noshow', 'No-shows') + chip('never', 'No requests') + chip('nopush', 'No notifications');
     document.getElementById('admAccList').innerHTML = '<div class="adm-note" style="margin:0 0 6px">' + list.length + ' shown</div>' + listHtml;
   }
   function openAccount(id){
@@ -899,7 +918,13 @@
     const t = tierOf(m.points);
     const d = function(iso){ return iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''; };
     let html = '<div class="adm-head"><div class="adm-title"><small>' + (m.no ? 'AGS Nº ' + String(m.no).padStart(4, '0') : 'Account') + '</small>' + esc(m.name || m.email) + '</div><button type="button" class="adm-btn" data-close="admDetail">Back</button></div>' +
-      (m.verified ? '<span class="adm-verified">✓ VERIFIED GUEST</span> ' : '') + (t ? '<span class="adm-tier adm-tier--' + t.toLowerCase() + '">★ ' + t + '</span>' : '') +
+      (m.creator ? '<span class="adm-creator">⭐ CREATOR</span> ' : '') + (m.verified ? '<span class="adm-verified">✓ VERIFIED GUEST</span> ' : '') + (t ? '<span class="adm-tier adm-tier--' + t.toLowerCase() + '">★ ' + t + '</span>' : '') +
+      (m.creator
+        ? '<div class="adm-crbox"><b>⭐ Creator</b>' + (m.creatorHandle ? ' · <a href="https://www.tiktok.com/@' + encodeURIComponent(m.creatorHandle) + '" target="_blank" rel="noopener">@' + esc(m.creatorHandle) + '</a>' : '') +
+          '<div style="font-size:13px;color:var(--muted);margin-top:4px">Priority on every guestlist. ' + m.invites + ' account' + (m.invites === 1 ? '' : 's') + ' joined via their invite link' + (m.creatorSince ? ' · creator since ' + esc(d(m.creatorSince)) : '') + '.</div>' +
+          '<button type="button" class="adm-btn" style="margin-top:10px" data-creatoroff="' + esc(m.id) + '">Remove Creator label</button></div>'
+        : '<div class="adm-crbox"><b>Make creator?</b><div style="font-size:13px;color:var(--muted);margin-top:4px">For TikTok/Instagram partners: their requests always come first.</div>' +
+          '<input id="admCrHandle" placeholder="TikTok @handle (optional)" value="' + esc(m.ig || '') + '"><button type="button" class="adm-btn adm-btn--gold" data-creatoron="' + esc(m.id) + '">⭐ Make Creator</button></div>') +
       dl([
         ['Email', '<a href="mailto:' + esc(m.email) + '">' + esc(m.email) + '</a>'],
         ['Instagram', m.ig ? '<a href="https://instagram.com/' + encodeURIComponent(m.ig) + '" target="_blank" rel="noopener">@' + esc(m.ig) + '</a>' : ''],

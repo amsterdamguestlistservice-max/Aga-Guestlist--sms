@@ -6043,12 +6043,13 @@ function statusLabel(raw){
   return raw;
 }
 var MY_MEMBER_NO = null, MY_VERIFIED = false;
+let MY_CREATOR = false;
 async function loadMemberMeta(){
   if(!supabaseClient || !currentUser) return;
   try{
     const { data } = await supabaseClient.rpc('my_member_meta');
     const row = Array.isArray(data) ? data[0] : data;
-    if(row){ MY_MEMBER_NO = row.member_no || null; MY_VERIFIED = !!row.verified; }
+    if(row){ MY_MEMBER_NO = row.member_no || null; MY_VERIFIED = !!row.verified; MY_CREATOR = !!row.creator; }
     renderVerifiedBadge();
   } catch(e){}
 }
@@ -6056,10 +6057,11 @@ function renderVerifiedBadge(){
   const host = document.getElementById('accountUserName');
   if(!host) return;
   let b = document.getElementById('verifiedBadge');
-  if(!MY_VERIFIED && !MY_MEMBER_NO){ if(b) b.remove(); return; }
+  if(!MY_VERIFIED && !MY_MEMBER_NO && !MY_CREATOR){ if(b) b.remove(); return; }
   if(!b){ b = document.createElement('div'); b.id = 'verifiedBadge'; b.className = 'verified-badge'; host.insertAdjacentElement('afterend', b); }
   b.innerHTML = (MY_MEMBER_NO ? '<span class="verified-badge__no">AGS Nº ' + String(MY_MEMBER_NO).padStart(4, '0') + '</span>' : '') +
-    (MY_VERIFIED ? '<span class="verified-badge__v">✓ Verified guest</span>' : '');
+    (MY_VERIFIED ? '<span class="verified-badge__v">✓ Verified guest</span>' : '') +
+    (MY_CREATOR ? '<span class="verified-badge__cr">⭐ AGS Creator · priority</span>' : '');
 }
 function hostButtonHtml(r){
   const name = [r.first_name, r.last_name].filter(Boolean).join(' ');

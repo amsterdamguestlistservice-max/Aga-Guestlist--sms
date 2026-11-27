@@ -78,7 +78,13 @@ module.exports = async function handler(req, res) {
           rows.forEach(function (r) { const k = perk[r.user_id + '|' + r.event_name + '|' + String(r.event_date).slice(0, 10)]; if (k) r.drop = k; });
         }
       } catch (e) { /* optional */ }
-      res.status(200).json({ requests: rows, changes: changes });
+      // Creators (TikTok/Instagram partners) always get priority.
+      try {
+        const { data: cr } = await supabase.from('creators').select('user_id');
+        const set = new Set((cr || []).map(function (c) { return c.user_id; }));
+        rows.forEach(function (r) { if (r.user_id && set.has(r.user_id)) r.creator = true; });
+      } catch (e) { /* optional */ }
+            res.status(200).json({ requests: rows, changes: changes });
     } catch (err) {
       res.status(500).json({ error: err.message || 'Unknown error' });
     }
