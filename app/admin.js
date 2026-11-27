@@ -174,6 +174,8 @@
   .adm-acts .bad{border-color:#7a3b36;color:#ff9a8f}
   .adm-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 14px;border:1px solid var(--line);background:var(--charcoal);margin-bottom:6px;cursor:pointer}
   .adm-row b{font-weight:500;font-size:15px;color:var(--white)}
+  .adm-name{cursor:pointer;text-decoration:underline;text-decoration-color:rgba(201,169,97,.55);text-decoration-thickness:1px;text-underline-offset:4px}
+  .adm-name:active{opacity:.6}
   .adm-row small{display:block;font-size:12px;color:var(--muted);margin-top:3px}
   .adm-tabs{display:flex;gap:6px;margin:6px 0 12px;flex-wrap:wrap}
   .adm-tabs button{min-height:36px;padding:0 12px;border:1px solid var(--line);background:transparent;color:var(--muted);font:600 12px/1 var(--sans);cursor:pointer}
@@ -552,6 +554,12 @@
       openAccount(id); if(typeof renderAccounts === 'function') try{ renderAccounts(); } catch(x){}
     } catch(err){ showErr(err.message); (on || off).disabled = false; }
   });
+  [sheet, detailLayer, listLayer, accLayer].forEach(function(L){ L.addEventListener('click', function(e){
+    const p = e.target.closest('[data-profile]');
+    if(p){ e.preventDefault(); e.stopPropagation(); openProfile(p.getAttribute('data-profile'), p.getAttribute('data-from') || ''); return; }
+    const br = e.target.closest('[data-backreq]');
+    if(br){ e.preventDefault(); e.stopPropagation(); openDetail(br.getAttribute('data-backreq')); }
+  }, true); });
   [detailLayer, listLayer, accLayer].forEach(function(L){ L.addEventListener('click', function(e){ const b = e.target.closest('[data-ccchat]'); if(b){ e.preventDefault(); e.stopPropagation(); openChat(b.getAttribute('data-ccchat')); } }, true); });
   async function loadOutfitsAdmin(){
     const box = document.getElementById('admOutfits');
@@ -687,7 +695,7 @@
       const r = byId[c.request_id];
       const isNew = Date.parse(c.created_at) > seen;
       return '<div class="adm-chg' + (isNew ? ' is-new' : '') + '" data-rid="' + esc(c.request_id) + '"><span class="adm-chg__ic">' + (c.kind === 'cancelled' ? '❌' : '✏️') + '</span>' +
-        '<div class="adm-chg__tx"><b>' + esc(((r.first_name || '') + ' ' + (r.last_name || '')).trim() || 'Guest') + '</b>' +
+        '<div class="adm-chg__tx"><b>' + nameLink(r, ((r.first_name || '') + ' ' + (r.last_name || '')).trim() || 'Guest') + '</b>' +
         esc(c.summary || (c.kind === 'cancelled' ? 'Cancelled' : 'Edited')) +
         '<em>' + esc(r.event_name) + ' · ' + esc(day(r.event_date)) + ' · ' + esc(ago(c.created_at)) + '</em></div></div>';
     }).join('');
@@ -707,7 +715,7 @@
       const extra = Array.isArray(x.additional_guests) && x.additional_guests.length
         ? '<br>+ ' + x.additional_guests.map(function(g){ return esc(((g.firstName || g.first_name || g.name || '') + ' ' + (g.lastName || g.last_name || '')).trim()); }).join(', ') : '';
       const tier = x.points >= 300 ? 'VIP' : x.points >= 150 ? 'Gold' : x.points >= 50 ? 'Silver' : '';
-      return '<div class="adm-req" data-id="' + esc(x.id) + '"><h4>' + esc((x.first_name || '') + ' ' + (x.last_name || '')) +
+      return '<div class="adm-req" data-id="' + esc(x.id) + '"><h4>' + nameLink(x, (x.first_name || '') + ' ' + (x.last_name || '')) +
         (tier ? ' <span class="adm-tier adm-tier--' + tier.toLowerCase() + '">★ ' + tier + '</span>' : '') +
         (x.creator ? '<span class="adm-creator">⭐ CREATOR</span>' : '') +
         (verified.has(x.user_id) ? '<span class="adm-verified">✓ VERIFIED</span>' : '') +
@@ -760,6 +768,8 @@
   }
   const st = function(x){ return String(x.status || 'pending').trim().toLowerCase(); };
   const fullName = function(x){ return ((x.first_name || '') + ' ' + (x.last_name || '')).trim() || 'Guest'; };
+  // name that opens the guest's account profile (only when the request is tied to an account)
+  const nameLink = function(x, text, from){ const t = esc(text == null ? fullName(x) : text); return x && x.user_id ? '<span class="adm-name" data-profile="' + esc(x.user_id) + '"' + (from ? ' data-from="' + esc(from) + '"' : '') + '>' + t + '</span>' : t; };
   const gName = function(g){ return ((g.firstName || g.first_name || g.name || '') + ' ' + (g.lastName || g.last_name || '')).trim(); };
   function dl(rows){ return '<dl class="adm-dl">' + rows.filter(function(r){ return r[1] !== '' && r[1] != null; }).map(function(r){ return '<div><span class="k">' + esc(r[0]) + '</span><b>' + r[1] + '</b></div>'; }).join('') + '</dl>'; }
   function waNumber(p){ let n = String(p || '').replace(/[^0-9+]/g, ''); if(n.indexOf('+') === 0) n = n.slice(1); else if(n.indexOf('00') === 0) n = n.slice(2); else if(n.indexOf('06') === 0) n = '31' + n.slice(1); return n; }
@@ -770,7 +780,7 @@
     const s = st(x), ig = String(x.instagram || '').replace(/^@/, '');
     const guests = Array.isArray(x.additional_guests) ? x.additional_guests : [];
     const created = x.created_at ? new Date(x.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
-    let html = '<div class="adm-head"><div class="adm-title"><small>' + esc(x.event_name) + ' · ' + esc(day(x.event_date)) + '</small>' + esc(fullName(x)) + '</div>' +
+    let html = '<div class="adm-head"><div class="adm-title"><small>' + esc(x.event_name) + ' · ' + esc(day(x.event_date)) + '</small>' + nameLink(x, null, x.id) + '</div>' +
       '<button type="button" class="adm-btn" data-close="admDetail">Back</button></div>' +
       '<span class="adm-pill ' + esc(s) + '">' + esc(x.status || 'Pending') + '</span>' +
       dl([
@@ -788,6 +798,7 @@
       }).join('') + '</div>';
     }
     const c = [];
+    if(x.user_id) c.push('<a href="#" data-profile="' + esc(x.user_id) + '" data-from="' + esc(x.id) + '">👤 Profile</a>');
     if(x.user_id) c.push('<a href="#" data-ccchat="' + esc(x.user_id) + '">💬 Message in app</a>');
     if(x.phone) c.push('<a href="https://wa.me/' + waNumber(x.phone) + '" target="_blank" rel="noopener">WhatsApp</a>');
     if(x.phone) c.push('<a href="tel:' + esc(x.phone) + '">Call</a>');
@@ -851,7 +862,7 @@
       '<div class="adm-tabs">' + tab('all', 'All') + tab('approved', 'Approved') + tab('pending', 'Pending') + tab('declined', 'Declined') + '</div>' +
       (shown.length ? shown.map(function(r){
         const nsBtn = (st(r) === 'approved' && String(r.event_date) <= todayAms()) ? '<button type="button" class="adm-ns" data-noshow="' + esc(r.id) + '">No-show</button>' : '';
-        return '<div class="adm-row" data-open="' + esc(r.id) + '"><div><b>' + esc(fullName(r)) + '</b><small>' + (r.total_guests || 1) + ' guest' + ((r.total_guests || 1) > 1 ? 's' : '') + (Number(r.missing_guests) ? ' · ' + r.missing_guests + ' didn\'t come' : '') + (r.instagram ? ' · @' + esc(String(r.instagram).replace(/^@/, '')) : '') + '</small></div><div style="display:flex;align-items:center"><span class="adm-pill ' + esc(st(r)) + '">' + esc(r.status || 'Pending') + '</span>' + nsBtn + '</div></div>';
+        return '<div class="adm-row" data-open="' + esc(r.id) + '"><div><b>' + nameLink(r) + '</b><small>' + (r.total_guests || 1) + ' guest' + ((r.total_guests || 1) > 1 ? 's' : '') + (Number(r.missing_guests) ? ' · ' + r.missing_guests + ' didn\'t come' : '') + (r.instagram ? ' · @' + esc(String(r.instagram).replace(/^@/, '')) : '') + '</small></div><div style="display:flex;align-items:center"><span class="adm-pill ' + esc(st(r)) + '">' + esc(r.status || 'Pending') + '</span>' + nsBtn + '</div></div>';
       }).join('') : '<div class="adm-empty">No requests here.</div>') +
       (approved.length ? '<div class="adm-push" style="margin-top:16px"><button type="button" id="admCopyNames">Copy guestlist names</button><div class="adm-note" id="admCopyNote">Copies every approved name (incl. their guests) to send to the door.</div></div>' : '');
   }
@@ -912,12 +923,21 @@
     document.getElementById('admAccFilters').innerHTML = chip('all', 'All') + chip('creator', '⭐ Creators') + chip('verified', '✓ Verified') + chip('silver', '★ Silver+') + chip('noshow', 'No-shows') + chip('never', 'No requests') + chip('nopush', 'No notifications');
     document.getElementById('admAccList').innerHTML = '<div class="adm-note" style="margin:0 0 6px">' + list.length + ' shown</div>' + listHtml;
   }
-  function openAccount(id){
+  async function openProfile(uid, from){
+    if(!ACC){
+      try{ ACC = (await api('/api/ags?fn=admin-members')).members || []; }
+      catch(e){ showErr(e.message); return; }
+      const c = document.getElementById('admAccCount'); if(c) c.textContent = 'All accounts (' + ACC.length + ')';
+    }
+    if(!(ACC || []).some(function(x){ return x.id === uid; })){ showErr('No account found for this guest.'); return; }
+    openAccount(uid, from);
+  }
+  function openAccount(id, from){
     const m = (ACC || []).find(function(x){ return x.id === id; }); if(!m) return;
     const reqs = REQS.filter(function(r){ return r.user_id === id; }).sort(function(a, b){ return String(b.event_date).localeCompare(String(a.event_date)); });
     const t = tierOf(m.points);
     const d = function(iso){ return iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''; };
-    let html = '<div class="adm-head"><div class="adm-title"><small>' + (m.no ? 'AGS Nº ' + String(m.no).padStart(4, '0') : 'Account') + '</small>' + esc(m.name || m.email) + '</div><button type="button" class="adm-btn" data-close="admDetail">Back</button></div>' +
+    let html = '<div class="adm-head"><div class="adm-title"><small>' + (m.no ? 'AGS Nº ' + String(m.no).padStart(4, '0') : 'Account') + '</small>' + esc(m.name || m.email) + '</div>' + (from ? '<button type="button" class="adm-btn" data-backreq="' + esc(from) + '">Back</button>' : '<button type="button" class="adm-btn" data-close="admDetail">Back</button>') + '</div>' +
       (m.creator ? '<span class="adm-creator">⭐ CREATOR</span> ' : '') + (m.verified ? '<span class="adm-verified">✓ VERIFIED GUEST</span> ' : '') + (t ? '<span class="adm-tier adm-tier--' + t.toLowerCase() + '">★ ' + t + '</span>' : '') +
       (m.creator
         ? '<div class="adm-crbox"><b>⭐ Creator</b>' + (m.creatorHandle ? ' · <a href="https://www.tiktok.com/@' + encodeURIComponent(m.creatorHandle) + '" target="_blank" rel="noopener">@' + esc(m.creatorHandle) + '</a>' : '') +
@@ -940,7 +960,7 @@
     if(m.ig) c.push('<a href="https://ig.me/m/' + encodeURIComponent(m.ig) + '" target="_blank" rel="noopener">DM</a>');
     if(c.length) html += '<div class="adm-contact">' + c.join('') + '</div>';
     html += '<div class="adm-sec">Requests (' + reqs.length + ')</div>' + (reqs.length ? reqs.map(function(r){
-      return '<div class="adm-req" data-id="' + esc(r.id) + '"><h4>' + esc(r.event_name) + '</h4><div class="ev">' + esc(day(r.event_date)) + ' · ' + (r.total_guests || 1) + ' guest' + ((r.total_guests || 1) > 1 ? 's' : '') + '</div><span class="adm-pill ' + esc(st(r)) + '">' + esc(r.status || 'Pending') + '</span></div>';
+      return '<div class="adm-req" data-id="' + esc(r.id) + '" data-open="' + esc(r.id) + '" style="cursor:pointer"><h4>' + esc(r.event_name) + '</h4><div class="ev">' + esc(day(r.event_date)) + ' · ' + (r.total_guests || 1) + ' guest' + ((r.total_guests || 1) > 1 ? 's' : '') + '</div><span class="adm-pill ' + esc(st(r)) + '">' + esc(r.status || 'Pending') + '</span></div>';
     }).join('') : '<div class="adm-empty">No requests yet.</div>');
     detailLayer.innerHTML = html; detailLayer.classList.add('is-open'); detailLayer.scrollTop = 0;
   }
