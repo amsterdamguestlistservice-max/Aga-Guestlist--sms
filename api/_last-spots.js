@@ -385,7 +385,10 @@ async function sendPlannerPush(supabase, opts) {
       const d = dayName(e.date); const last = byDay[byDay.length - 1];
       if (last && last.d === d) { if (last.n.indexOf(short(e.name)) < 0) last.n.push(short(e.name)); } else byDay.push({ d: d, n: [short(e.name)] });
     });
-    const title = 'Plan your weekend 🗓️';
+    // A playful title that rotates every week (the parties line below keeps it useful).
+    const titles = ['Your weekend called 📞', 'Outfit: ready ✅ Plans: ?', 'The group chat wants to know 👀', 'Plan your weekend 🗓️'];
+    const week = Math.floor((Date.now() / 864e5 + 3) / 7);
+    const title = titles[week % titles.length];
     const body = byDay.map(function (x) { return x.d + ': ' + x.n.join(', '); }).join(' · ') + '. Pick your nights, one tap for all.';
     if (opts.dryRun) return { dryRun: true, title: title, body: body };
     const { data: flag } = await supabase.from('app_flags').select('value').eq('key', 'planner_push').maybeSingle();
